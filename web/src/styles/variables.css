@@ -1,0 +1,19 @@
+:root {
+  --bg:       #0b0b14;
+  --surface:  #12121f;
+  --surface2: #1a1a2e;
+  --border:   rgba(255,255,255,0.06);
+  --border2:  rgba(255,255,255,0.10);
+  --text:     #eeeef8;
+  --text2:    rgba(238,238,248,0.50);
+  --text3:    rgba(238,238,248,0.28);
+  --green:    #34d399;
+  --red:      #f87171;
+  --blue:     #60a5fa;
+  --purple:   #a78bfa;
+  --orange:   #fb923c;
+  --yellow:   #fbbf24;
+  --sidebar:  220px;
+  --radius:   16px;
+  --radius-sm:10px;
+}
