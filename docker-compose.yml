@@ -1,0 +1,14 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - db-data:/data
+    environment:
+      DB_PATH: /data/wealth.db
+      DB_KEY: ${DB_KEY:-}
+      PORT: "8080"
+
+volumes:
+  db-data:

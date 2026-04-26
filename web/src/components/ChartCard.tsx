@@ -58,6 +58,7 @@ export function ChartCard({
         <ChartModal
           label={label} value={value} change={change} changePositive={changePositive}
           onClose={() => setOpen(false)}
+          typeToggle={typeToggle}
         >
           {modalContent ?? children}
         </ChartModal>

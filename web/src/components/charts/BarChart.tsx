@@ -6,9 +6,10 @@ interface BarChartProps {
   labels: string[];
   data: number[];
   color: string;
+  tooltipLabel?: string;
 }
 
-export function BarChart({ labels, data, color }: BarChartProps) {
+export function BarChart({ labels, data, color, tooltipLabel = 'Invested' }: BarChartProps) {
   const ref = useChart({
     type: 'bar',
     data: {
@@ -29,7 +30,7 @@ export function BarChart({ labels, data, color }: BarChartProps) {
           ...(chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object,
           callbacks: {
             label: (ctx: TooltipItem<'bar'>) =>
-              `Invested: $${Math.round(ctx.parsed.y ?? 0).toLocaleString()}`,
+              `${tooltipLabel}: $${Math.round(ctx.parsed.y ?? 0).toLocaleString()}`,
           },
         },
       },

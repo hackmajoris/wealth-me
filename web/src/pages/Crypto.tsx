@@ -1,36 +1,221 @@
-import { useState } from 'react';
-import { WealthData as D } from '../data/wealthData';
+import { useState, useMemo } from 'react';
+import type { Entry } from '../lib/storage';
+import { EntryModal } from '../components/EntryModal';
 import { ChartCard } from '../components/ChartCard';
 import { TimeRange } from '../components/TimeRange';
 import { AreaChart } from '../components/charts/AreaChart';
-import { MultiLineChart } from '../components/charts/MultiLineChart';
 import { LineChart } from '../components/charts/LineChart';
+import { GainFlexChart } from '../components/charts/GainFlexChart';
+import { BarChart } from '../components/charts/BarChart';
+import { MultiLineChart } from '../components/charts/MultiLineChart';
 import { fmt$, fmtSign$, fmtPct, clsROI } from '../lib/formatters';
 import { sliceRange, type Range } from '../lib/ranges';
 import { buildAnnotations, C } from '../lib/chartDefaults';
+import { useChart } from '../components/charts/useChart';
+import { chartDefaults } from '../lib/chartDefaults';
+import type { TooltipItem } from 'chart.js';
 
-interface CryptoProps { showModal: () => void; }
+const MO_ORDER: Record<string, number> = {
+  Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5,
+  Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11,
+};
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-export function Crypto({ showModal }: CryptoProps) {
+interface CryptoProps {
+  showModal: () => void;
+  entries: Entry[];
+  onDelete: (id: number) => void;
+  onRefresh?: () => void;
+}
+
+const btnStyle: React.CSSProperties = {
+  background: 'none', border: 'none', cursor: 'pointer',
+  fontSize: 13, padding: '2px 5px', borderRadius: 4, lineHeight: 1,
+};
+
+function ValueAndInvestedBarChart({ labels, value, invested, valueColor, investedColor }: {
+  labels: string[];
+  value: number[];
+  invested: number[];
+  valueColor: string;
+  investedColor: string;
+}) {
+  const ref = useChart({
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Value',
+          data: value,
+          backgroundColor: valueColor + 'aa',
+          borderColor: valueColor,
+          borderWidth: 1,
+          borderRadius: 4,
+        },
+        {
+          label: 'Invested',
+          data: invested,
+          backgroundColor: investedColor + 'aa',
+          borderColor: investedColor,
+          borderWidth: 1,
+          borderRadius: 4,
+        },
+      ],
+    },
+    options: {
+      ...chartDefaults,
+      plugins: {
+        ...chartDefaults.plugins,
+        tooltip: {
+          ...(chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object,
+          mode: 'index',
+          intersect: false,
+          callbacks: {
+            label: (ctx: TooltipItem<'bar'>) =>
+              `${ctx.dataset.label}: $${Math.round(ctx.parsed.y ?? 0).toLocaleString()}`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          ...chartDefaults.scales?.['x'],
+          ticks: {
+            ...(chartDefaults.scales?.['x'] as any)?.['ticks'],
+            maxRotation: 44,
+            minRotation: 44,
+          } as any,
+        },
+        y: {
+          ...chartDefaults.scales?.['y'],
+          ticks: {
+            ...(chartDefaults.scales?.['y'] as any)?.['ticks'],
+            callback: (v: number | string) => {
+              const n = Number(v);
+              return '$' + (n >= 1000 ? (n / 1000).toFixed(0) + 'k' : n);
+            },
+          } as any,
+        },
+      } as any,
+    },
+  });
+  return <canvas ref={ref} />;
+}
+
+export function Crypto({ showModal, entries, onDelete, onRefresh }: CryptoProps) {
   const [range, setRange] = useState<Range>('ALL');
   const [showEvents, setShowEvents] = useState(true);
+  const [returnVsInvestedType, setReturnVsInvestedType] = useState<'area' | 'bar'>('area');
+  const [gainChartType, setGainChartType] = useState<'bar' | 'line'>('line');
+  const [monthlyInvestedType, setMonthlyInvestedType] = useState<'bar' | 'line'>('bar');
+  const [quickEntryOpen, setQuickEntryOpen] = useState(false);
+  const [quickEditEntry, setQuickEditEntry] = useState<Entry | undefined>(undefined);
+  const [tableEditEntry, setTableEditEntry] = useState<Entry | undefined>(undefined);
 
-  const { start } = sliceRange(range);
-  const labels = D.months.slice(start);
-  const cur = D.current;
-  const ann = buildAnnotations(labels, showEvents);
+  const data = useMemo(() => {
+    const sorted = [...entries]
+      .filter(e => e.cryptoInvested > 0 || e.cryptoReturn > 0)
+      .sort((a, b) => a.yr !== b.yr ? a.yr - b.yr : MO_ORDER[a.mo] - MO_ORDER[b.mo]);
 
-  const tableStart = D.N - 12;
-  const tableRows = D.months.slice(tableStart).map((m, i) => {
-    const idx = tableStart + i;
-    return { month: m, return: D.cryptoReturn[idx], invested: D.cryptoInvested[idx],
-             gain: D.cryptoGain[idx], roi: D.cryptoRoi[idx] };
-  });
+    const months         = sorted.map(e => e.month);
+    const cryptoInvested = sorted.map(e => e.cryptoInvested);
+    const cryptoReturn   = sorted.map(e => e.cryptoReturn);
+    const cryptoGain     = sorted.map(e => e.cryptoReturn - e.cryptoInvested);
+    const cryptoRoi: (number | null)[] = sorted.map(e =>
+      e.cryptoInvested > 0
+        ? Math.round((e.cryptoReturn - e.cryptoInvested) / e.cryptoInvested * 1000) / 10
+        : null
+    );
+
+    const N    = sorted.length;
+    const last = N - 1;
+    const current = N > 0
+      ? { cryptoValue: cryptoReturn[last], cryptoInvested: cryptoInvested[last],
+          cryptoGain: cryptoGain[last], cryptoRoi: cryptoRoi[last] ?? 0 }
+      : { cryptoValue: 0, cryptoInvested: 0, cryptoGain: 0, cryptoRoi: 0 };
+
+    // Calculate monthly invested (difference from previous month)
+    const monthlyInvested = cryptoInvested.map((v, i) =>
+      i === 0 ? v : Math.max(0, Math.round(v - cryptoInvested[i - 1])));
+
+    return { months, cryptoInvested, cryptoReturn, cryptoGain, cryptoRoi, monthlyInvested, N, current };
+  }, [entries]);
+
+  const { start } = sliceRange(range, data.N);
+  const labels = data.months.slice(start);
+  const ann    = buildAnnotations(labels, showEvents);
+
+  // Get current and previous month for quick entry
+  const now = new Date();
+  const currentMonth = MONTH_NAMES[now.getMonth()];
+  const currentYear = now.getFullYear();
+  const prevMonth = now.getMonth() === 0 ? MONTH_NAMES[11] : MONTH_NAMES[now.getMonth() - 1];
+  const prevYear = now.getMonth() === 0 ? currentYear - 1 : currentYear;
+  const allowedMonths = [
+    { month: prevMonth, year: prevYear },
+    { month: currentMonth, year: currentYear },
+  ];
+
+  // Calculate median of monthly invested
+  const monthlyInvestedSlice = data.monthlyInvested.slice(start);
+  const medianMonthlyInvested = monthlyInvestedSlice.length > 0
+    ? (() => {
+        const sorted = [...monthlyInvestedSlice].sort((a, b) => a - b);
+        const mid = Math.floor(sorted.length / 2);
+        return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+      })()
+    : 0;
+  const currentMonthInvested = monthlyInvestedSlice[monthlyInvestedSlice.length - 1] || 0;
+
+  if (data.N === 0) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div className="page-header">
+          <div className="page-title">Crypto</div>
+          <button className="add-btn" onClick={showModal}>+ Add Entry</button>
+        </div>
+        <div style={{ color: 'var(--text3)', textAlign: 'center', padding: '60px 0', fontSize: 14 }}>
+          No crypto data yet. Add an entry or import a CSV in Settings.
+        </div>
+      </div>
+    );
+  }
+
+  const firstMonth = data.months[0];
+  const lastMonth  = data.months[data.N - 1];
+
+  const handleQuickEntryOpen = () => {
+    // Find if an entry exists for current month, otherwise undefined (create new)
+    const currentEntry = entries.find(e => e.yr === currentYear && e.mo === currentMonth);
+    setQuickEditEntry(currentEntry);
+    setQuickEntryOpen(true);
+  };
+
+  const handleTableEdit = (entry: Entry) => {
+    setTableEditEntry(entry);
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {quickEntryOpen && (
+        <EntryModal
+          entry={quickEditEntry}
+          type="crypto"
+          restrictMonths={allowedMonths}
+          onClose={() => { setQuickEntryOpen(false); setQuickEditEntry(undefined); }}
+          onSave={() => { setQuickEntryOpen(false); setQuickEditEntry(undefined); onRefresh?.(); }}
+        />
+      )}
+      {tableEditEntry && (
+        <EntryModal
+          entry={tableEditEntry}
+          type="crypto"
+          onClose={() => setTableEditEntry(undefined)}
+          onSave={() => { setTableEditEntry(undefined); onRefresh?.(); }}
+        />
+      )}
       <div className="page-header">
-        <div className="page-title">Crypto <span className="page-sub" style={{ fontWeight: 400 }}>Sep 2019 – Apr 2026</span></div>
+        <div className="page-title">Crypto <span className="page-sub" style={{ fontWeight: 400 }}>{firstMonth} – {lastMonth}</span></div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <button className="add-btn" onClick={showModal}>+ Add Entry</button>
           <TimeRange value={range} onChange={setRange} showEvents={showEvents} onToggleEvents={() => setShowEvents(v => !v)} />
@@ -40,100 +225,179 @@ export function Crypto({ showModal }: CryptoProps) {
       <div className="kpi-grid">
         <div className="kpi-card">
           <div className="kpi-label">Current Value</div>
-          <div className="kpi-value pos">{fmt$(cur.cryptoValue, true)}</div>
-          <div className="kpi-change pos">{fmtPct(cur.cryptoRoi)} ROI</div>
+          <div className="kpi-value pos">{fmt$(data.current.cryptoValue, true)}</div>
+          <div className="kpi-change pos">{fmtPct(data.current.cryptoRoi)} ROI</div>
         </div>
         <div className="kpi-card">
           <div className="kpi-label">Total Invested</div>
-          <div className="kpi-value">{fmt$(cur.cryptoInvested, true)}</div>
-          <div className="kpi-change neu">Since Sep 2019</div>
+          <div className="kpi-value">{fmt$(data.current.cryptoInvested, true)}</div>
+          <div className="kpi-change neu">Since {firstMonth}</div>
         </div>
         <div className="kpi-card">
           <div className="kpi-label">Total Gain</div>
-          <div className={`kpi-value ${clsROI(cur.cryptoGain)}`}>{fmtSign$(cur.cryptoGain)}</div>
+          <div className={`kpi-value ${clsROI(data.current.cryptoGain)}`}>{fmtSign$(data.current.cryptoGain)}</div>
           <div className="kpi-change neu">Unrealized</div>
         </div>
         <div className="kpi-card">
-          <div className="kpi-label">Peak ROI</div>
-          <div className="kpi-value" style={{ color: C.purple }}>+350%</div>
-          <div className="kpi-change neu">Nov 2024</div>
+          <div className="kpi-label">Entries</div>
+          <div className="kpi-value">{data.N}</div>
+          <div className="kpi-change neu">Monthly snapshots</div>
         </div>
       </div>
 
       <div className="chart-grid">
         <ChartCard
           label="Return vs Invested"
-          value={fmt$(cur.cryptoValue, true)}
-          change={fmtPct(cur.cryptoRoi)}
-          changePositive={cur.cryptoRoi >= 0}
-          modalContent={<AreaChart labels={labels} annotations={ann} datasets={[
-            { label: 'Value',    data: D.cryptoReturn.slice(start), color: C.purple },
-            { label: 'Invested', data: D.cryptoInvested.slice(start), color: C.blue },
-          ]} />}
+          value={fmt$(data.current.cryptoValue, true)}
+          change={fmtPct(data.current.cryptoRoi)}
+          changePositive={data.current.cryptoRoi >= 0}
+          typeToggle={{
+            value: returnVsInvestedType,
+            onChange: (v) => setReturnVsInvestedType(v as 'area' | 'bar'),
+            options: [
+              { value: 'area', label: 'Area' },
+              { value: 'bar', label: 'Bar' },
+            ],
+          }}
+          modalContent={returnVsInvestedType === 'area' ? (
+            <AreaChart labels={labels} annotations={ann} datasets={[
+              { label: 'Value',    data: data.cryptoReturn.slice(start).map(v => v || 0), color: C.purple },
+              { label: 'Invested', data: data.cryptoInvested.slice(start),                color: C.red },
+            ]} />
+          ) : (
+            <div style={{ overflowX: 'auto', paddingBottom: 8 }}>
+              <ValueAndInvestedBarChart
+                labels={labels}
+                value={data.cryptoReturn.slice(start).map(v => v || 0)}
+                invested={data.cryptoInvested.slice(start)}
+                valueColor={C.purple}
+                investedColor={C.red}
+              />
+            </div>
+          )}
         >
-          <AreaChart labels={labels} datasets={[
-            { label: 'Value',    data: D.cryptoReturn.slice(start), color: C.purple },
-            { label: 'Invested', data: D.cryptoInvested.slice(start), color: C.blue },
-          ]} />
+          {returnVsInvestedType === 'area' ? (
+            <AreaChart labels={labels} datasets={[
+              { label: 'Value',    data: data.cryptoReturn.slice(start).map(v => v || 0), color: C.purple },
+              { label: 'Invested', data: data.cryptoInvested.slice(start),                color: C.red },
+            ]} />
+          ) : (
+            <ValueAndInvestedBarChart
+              labels={labels}
+              value={data.cryptoReturn.slice(start).map(v => v || 0)}
+              invested={data.cryptoInvested.slice(start)}
+              valueColor={C.purple}
+              investedColor={C.red}
+            />
+          )}
         </ChartCard>
 
         <ChartCard
           label="ROI % over Time"
-          value={fmtPct(cur.cryptoRoi)}
-          change="Full cycle: bear → bull → crash → recovery"
-          changePositive={cur.cryptoRoi >= 0}
-          modalContent={<MultiLineChart labels={labels} annotations={ann} datasets={[
-            { label: 'Crypto ROI', data: D.cryptoRoi.slice(start), color: C.purple },
-            { label: 'S&P 500',    data: D.spxRoi.slice(start),    color: C.orange, dashed: true },
-          ]} />}
+          value={fmtPct(data.current.cryptoRoi)}
+          change="Monthly ROI"
+          changePositive={data.current.cryptoRoi >= 0}
+          modalContent={<LineChart labels={labels} data={data.cryptoRoi.slice(start).map(v => v ?? null)} color={C.purple} yLabel="ROI %" isCurrency={false} />}
         >
-          <MultiLineChart labels={labels} datasets={[
-            { label: 'Crypto ROI', data: D.cryptoRoi.slice(start), color: C.purple },
-            { label: 'S&P 500',    data: D.spxRoi.slice(start),    color: C.orange, dashed: true },
-          ]} />
+          <LineChart labels={labels} data={data.cryptoRoi.slice(start).map(v => v ?? null)} color={C.purple} yLabel="ROI %" isCurrency={false} />
         </ChartCard>
 
         <ChartCard
           label="Gain $"
-          value={fmtSign$(cur.cryptoGain)}
-          change={fmtPct(cur.cryptoRoi)}
-          changePositive={cur.cryptoGain >= 0}
-          modalContent={<LineChart labels={labels} data={D.cryptoGain.slice(start)} color={cur.cryptoGain >= 0 ? C.green : C.red} fill yLabel="Gain $" />}
+          value={fmtSign$(data.current.cryptoGain)}
+          change={fmtPct(data.current.cryptoRoi)}
+          changePositive={data.current.cryptoGain >= 0}
+          typeToggle={{
+            value: gainChartType,
+            onChange: (v) => setGainChartType(v as 'bar' | 'line'),
+            options: [
+              { value: 'line', label: 'Line' },
+              { value: 'bar', label: 'Bar' },
+            ],
+          }}
+          modalContent={<GainFlexChart labels={labels} data={data.cryptoGain.slice(start).map(v => v || 0)} color={data.current.cryptoGain >= 0 ? C.green : C.red} chartType={gainChartType} />}
         >
-          <LineChart labels={labels} data={D.cryptoGain.slice(start)} color={cur.cryptoGain >= 0 ? C.green : C.red} fill yLabel="Gain $" />
+          <GainFlexChart labels={labels} data={data.cryptoGain.slice(start).map(v => v || 0)} color={data.current.cryptoGain >= 0 ? C.green : C.red} chartType={gainChartType} />
         </ChartCard>
 
         <ChartCard
-          label="Cumulative Invested"
-          value={fmt$(cur.cryptoInvested, true)}
-          change="Total deployed into crypto"
-          changePositive={null}
-          modalContent={<LineChart labels={labels} data={D.cryptoInvested.slice(start)} color={C.purple} yLabel="Invested $" />}
+          label="Monthly Invested"
+          value={fmt$(monthlyInvestedSlice.reduce((a, b) => a + b, 0), true)}
+          change={`Median: ${fmt$(medianMonthlyInvested, true)} / Current Month: ${fmt$(currentMonthInvested, true)}`}
+          changePositive={currentMonthInvested >= medianMonthlyInvested}
+          typeToggle={{
+            value: monthlyInvestedType,
+            onChange: (v) => setMonthlyInvestedType(v as 'bar' | 'line'),
+            options: [
+              { value: 'bar', label: 'Bar' },
+              { value: 'line', label: 'Line' },
+            ],
+          }}
+          modalContent={monthlyInvestedType === 'bar' ? (
+            <BarChart labels={labels} data={monthlyInvestedSlice} color={C.purple} />
+          ) : (
+            <MultiLineChart labels={labels} datasets={[
+              { label: 'Monthly Invested', data: monthlyInvestedSlice, color: C.purple },
+              { label: 'Median', data: monthlyInvestedSlice.map(() => medianMonthlyInvested), color: C.orange, dashed: true },
+            ]} />
+          )}
         >
-          <LineChart labels={labels} data={D.cryptoInvested.slice(start)} color={C.purple} yLabel="Invested $" />
+          {monthlyInvestedType === 'bar' ? (
+            <BarChart labels={labels} data={monthlyInvestedSlice} color={C.purple} />
+          ) : (
+            <MultiLineChart labels={labels} datasets={[
+              { label: 'Monthly Invested', data: monthlyInvestedSlice, color: C.purple },
+              { label: 'Median', data: monthlyInvestedSlice.map(() => medianMonthlyInvested), color: C.orange, dashed: true },
+            ]} />
+          )}
         </ChartCard>
       </div>
 
       <div>
-        <div className="section-row" style={{ marginBottom: 10 }}>
-          <div className="section-title">Monthly Breakdown · Last 12 months</div>
+        <div className="section-row" style={{ marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="section-title">Monthly Breakdown</div>
+          <button className="add-btn" onClick={handleQuickEntryOpen} style={{ fontSize: 12, padding: '5px 12px' }}>+ Add</button>
         </div>
         <div className="data-table-wrap">
           <div className="table-scroll">
             <table className="data-table">
               <thead>
-                <tr><th>Month</th><th>Return</th><th>Invested</th><th>Gain</th><th>ROI %</th></tr>
+                <tr><th>Month</th><th>Return</th><th>Invested</th><th>Gain</th><th>ROI %</th><th></th></tr>
               </thead>
               <tbody>
-                {tableRows.map(r => (
-                  <tr key={r.month}>
-                    <td>{r.month}</td>
-                    <td>{fmt$(r.return)}</td>
-                    <td>{fmt$(r.invested)}</td>
-                    <td className={clsROI(r.gain)}>{fmtSign$(r.gain)}</td>
-                    <td className={clsROI(r.roi)}>{fmtPct(r.roi)}</td>
-                  </tr>
-                ))}
+                {data.months
+                  .map((m, idx) => ({ m, idx }))
+                  .sort((a, b) => {
+                    const entryA = entries.find(e => e.month === a.m);
+                    const entryB = entries.find(e => e.month === b.m);
+                    if (!entryA || !entryB) return 0;
+                    if (entryA.yr !== entryB.yr) return entryB.yr - entryA.yr;
+                    return (MO_ORDER[entryB.mo] || 0) - (MO_ORDER[entryA.mo] || 0);
+                  })
+                  .map(({ m, idx }) => {
+                    const entry = entries.find(e => e.month === m);
+                    const invested = data.cryptoInvested[idx];
+                    const ret      = data.cryptoReturn[idx];
+                    const gain     = ret - invested;
+                    const roi      = invested > 0 ? Math.round(gain / invested * 1000) / 10 : null;
+                    return (
+                      <tr key={m}>
+                        <td>{m}</td>
+                        <td>{fmt$(ret)}</td>
+                        <td>{fmt$(invested)}</td>
+                        <td className={clsROI(gain)}>{fmtSign$(gain)}</td>
+                        <td className={clsROI(roi)}>{fmtPct(roi)}</td>
+                        <td>
+                          {entry && (
+                            <div style={{ display: 'flex', gap: 2 }}>
+                              <button onClick={() => handleTableEdit(entry)} style={{ ...btnStyle, color: 'var(--text3)' }} title="Edit">✎</button>
+                              <button onClick={() => onDelete(entry.id)} style={{ ...btnStyle, color: 'var(--text3)' }} title="Delete">✕</button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
               </tbody>
             </table>
           </div>

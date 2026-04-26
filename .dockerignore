@@ -1,0 +1,9 @@
+.bin/
+data/
+web/node_modules/
+web/dist/
+pkg/web/dist/
+electron/
+.git/
+*.md
+*/**.db

@@ -3,10 +3,16 @@ import { fmt$, fmtPct, clsROI } from '../lib/formatters';
 
 interface EntriesLogProps {
   entries: Entry[];
+  onEdit: (entry: Entry) => void;
   onDelete: (id: number) => void;
 }
 
-export function EntriesLog({ entries, onDelete }: EntriesLogProps) {
+const btnStyle: React.CSSProperties = {
+  background: 'none', border: 'none', cursor: 'pointer',
+  fontSize: 13, padding: '2px 5px', borderRadius: 4, lineHeight: 1,
+};
+
+export function EntriesLog({ entries, onEdit, onDelete }: EntriesLogProps) {
   if (!entries.length) {
     return (
       <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text3)', fontSize: 13 }}>
@@ -44,10 +50,10 @@ export function EntriesLog({ entries, onDelete }: EntriesLogProps) {
                     {e.note || '—'}
                   </td>
                   <td>
-                    <button
-                      onClick={() => onDelete(e.id)}
-                      style={{ background: 'none', border: 'none', color: 'var(--text3)', cursor: 'pointer', fontSize: 12 }}
-                    >✕</button>
+                    <div style={{ display: 'flex', gap: 2 }}>
+                      <button onClick={() => onEdit(e)} style={{ ...btnStyle, color: 'var(--text3)' }} title="Edit">✎</button>
+                      <button onClick={() => onDelete(e.id)} style={{ ...btnStyle, color: 'var(--text3)' }} title="Delete">✕</button>
+                    </div>
                   </td>
                 </tr>
               );

@@ -1,5 +1,11 @@
 import { useEffect, type ReactNode } from 'react';
 
+interface TypeToggle {
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+}
+
 interface ChartModalProps {
   label: string;
   value: string;
@@ -7,9 +13,10 @@ interface ChartModalProps {
   changePositive?: boolean | null;
   onClose: () => void;
   children: ReactNode;
+  typeToggle?: TypeToggle;
 }
 
-export function ChartModal({ label, value, change, changePositive, onClose, children }: ChartModalProps) {
+export function ChartModal({ label, value, change, changePositive, onClose, children, typeToggle }: ChartModalProps) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', handler);
@@ -30,6 +37,19 @@ export function ChartModal({ label, value, change, changePositive, onClose, chil
             )}
           </div>
           <div className="chart-modal-actions">
+            {typeToggle && (
+              <div className="chart-type-toggle" style={{ marginRight: 8 }}>
+                {typeToggle.options.map(o => (
+                  <button
+                    key={o.value}
+                    className={`chart-type-btn ${typeToggle.value === o.value ? 'active' : ''}`}
+                    onClick={() => typeToggle.onChange(o.value)}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            )}
             <button className="modal-close" style={{ width: 36, height: 36, fontSize: 16 }} onClick={onClose}>✕</button>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import { useChart } from './useChart';
 import { chartDefaults, type KeyEvent } from '../../lib/chartDefaults';
+import type { TooltipItem } from 'chart.js';
 
 interface Dataset {
   label: string;
@@ -12,9 +13,10 @@ interface MultiLineChartProps {
   labels: string[];
   datasets: Dataset[];
   annotations?: KeyEvent[];
+  valueFormat?: 'percent' | 'number';
 }
 
-export function MultiLineChart({ labels, datasets, annotations }: MultiLineChartProps) {
+export function MultiLineChart({ labels, datasets, annotations, valueFormat = 'percent' }: MultiLineChartProps) {
   const plugins = {
     ...chartDefaults.plugins,
     legend: {
@@ -28,6 +30,14 @@ export function MultiLineChart({ labels, datasets, annotations }: MultiLineChart
     tooltip: {
       ...(chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object,
       mode: 'index' as const, intersect: false,
+      callbacks: {
+        label: (ctx: TooltipItem<'line'>) => {
+          const value = ctx.parsed.y;
+          if (value === null) return `${ctx.dataset.label}: —`;
+          if (valueFormat === 'number') return `${ctx.dataset.label}: $${Math.round(value).toLocaleString()}`;
+          return `${ctx.dataset.label}: ${value.toFixed(1)}%`;
+        },
+      },
     },
   };
 
@@ -67,7 +77,11 @@ export function MultiLineChart({ labels, datasets, annotations }: MultiLineChart
           ...chartDefaults.scales?.['y'],
           ticks: {
             ...(chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object,
-            callback: (v: number | string) => Number(v) + '%',
+            callback: (v: number | string) => {
+              const n = Number(v);
+              if (valueFormat === 'number') return '$' + (n >= 1000 ? (n / 1000).toFixed(0) + 'k' : n.toString());
+              return n + '%';
+            },
           },
         },
       },

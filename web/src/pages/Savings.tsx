@@ -22,9 +22,11 @@ function heatColor(val: number | null, type: string): string {
 
 interface SavingsProps {
   showModal: () => void;
+  onEdit: (entry: any) => void;
+  onDelete: (id: number) => void;
 }
 
-export function Savings({ showModal: _showModal }: SavingsProps) {
+export function Savings({ showModal: _showModal, onEdit: _onEdit, onDelete: _onDelete }: SavingsProps) {
   const [range, setRange] = useState<Range>('ALL');
   const [savingsModal, setSavingsModal] = useState<SavingsEntry | null | false>(false);
   const [savingsEntries, setSavingsEntries] = useState<SavingsEntry[]>(() => loadSavingsEntries());

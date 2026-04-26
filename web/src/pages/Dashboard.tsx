@@ -6,6 +6,7 @@ import { EntriesLog } from '../components/EntriesLog';
 import { AreaChart } from '../components/charts/AreaChart';
 import { MultiLineChart } from '../components/charts/MultiLineChart';
 import { FlexBarChart } from '../components/charts/FlexBarChart';
+import { GroupedBarChart } from '../components/charts/GroupedBarChart';
 import { DonutChart } from '../components/charts/DonutChart';
 import { fmt$, fmtSign$, fmtPct, clsROI } from '../lib/formatters';
 import { sliceRange, type Range } from '../lib/ranges';
@@ -17,12 +18,15 @@ const CHART_OPTS = [{ value: 'bar', label: 'Bar' }, { value: 'line', label: 'Lin
 interface DashboardProps {
   showModal: () => void;
   entries: Entry[];
+  onEditEntry: (entry: Entry) => void;
   onDeleteEntry: (id: number) => void;
 }
 
-export function Dashboard({ showModal, entries, onDeleteEntry }: DashboardProps) {
+export function Dashboard({ showModal, entries, onEditEntry, onDeleteEntry }: DashboardProps) {
   const [range, setRange] = useState<Range>('ALL');
   const [showEvents, setShowEvents] = useState(true);
+  const [portfolioValueType, setPortfolioValueType] = useState<'area' | 'bar'>('area');
+  const [roiBenchmarkType, setRoiBenchmarkType] = useState<'line' | 'bar'>('line');
   const [totalChartType, setTotalChartType] = useState<'bar' | 'line'>('bar');
   const [cryptoChartType, setCryptoChartType] = useState<'bar' | 'line'>('bar');
   const [stocksChartType, setStocksChartType] = useState<'bar' | 'line'>('bar');
@@ -93,15 +97,39 @@ export function Dashboard({ showModal, entries, onDeleteEntry }: DashboardProps)
           value={fmt$(cur.portfolioValue, true)}
           change={fmtPct(cur.totalRoi) + ' all-time'}
           changePositive={cur.totalRoi >= 0}
-          modalContent={<AreaChart labels={labels} annotations={ann} datasets={[
-            { label: 'Total Value', data: D.totalReturn.slice(start), color: C.green },
-            { label: 'Invested',    data: D.totalInvested.slice(start), color: C.blue },
-          ]} />}
+          typeToggle={{
+            value: portfolioValueType,
+            onChange: (v) => setPortfolioValueType(v as 'area' | 'bar'),
+            options: [
+              { value: 'area', label: 'Area' },
+              { value: 'bar', label: 'Bar' },
+            ],
+          }}
+          modalContent={portfolioValueType === 'area' ? (
+            <AreaChart labels={labels} annotations={ann} datasets={[
+              { label: 'Total Value', data: D.totalReturn.slice(start), color: C.green },
+              { label: 'Invested',    data: D.totalInvested.slice(start), color: C.blue },
+            ]} />
+          ) : (
+            <GroupedBarChart
+              labels={labels}
+              dataset1={{ label: 'Total Value', data: D.totalReturn.slice(start), color: C.green }}
+              dataset2={{ label: 'Invested', data: D.totalInvested.slice(start), color: C.blue }}
+            />
+          )}
         >
-          <AreaChart labels={labels} datasets={[
-            { label: 'Total Value', data: D.totalReturn.slice(start), color: C.green },
-            { label: 'Invested',    data: D.totalInvested.slice(start), color: C.blue },
-          ]} />
+          {portfolioValueType === 'area' ? (
+            <AreaChart labels={labels} datasets={[
+              { label: 'Total Value', data: D.totalReturn.slice(start), color: C.green },
+              { label: 'Invested',    data: D.totalInvested.slice(start), color: C.blue },
+            ]} />
+          ) : (
+            <GroupedBarChart
+              labels={labels}
+              dataset1={{ label: 'Total Value', data: D.totalReturn.slice(start), color: C.green }}
+              dataset2={{ label: 'Invested', data: D.totalInvested.slice(start), color: C.blue }}
+            />
+          )}
         </ChartCard>
 
         <ChartCard
@@ -109,17 +137,41 @@ export function Dashboard({ showModal, entries, onDeleteEntry }: DashboardProps)
           value={fmtPct(cur.totalRoi)}
           change={fmtPct(cur.totalRoi - D.spxRoi[D.N - 1]) + ' vs S&P 500'}
           changePositive={cur.totalRoi > D.spxRoi[D.N - 1]}
-          modalContent={<MultiLineChart labels={labels} annotations={ann} datasets={[
-            { label: 'Portfolio ROI', data: D.totalRoi.slice(start), color: C.green },
-            { label: 'S&P 500',       data: D.spxRoi.slice(start),   color: C.orange, dashed: true },
-            { label: 'Nasdaq',        data: D.nasdaqRoi.slice(start), color: C.yellow, dashed: true },
-          ]} />}
+          typeToggle={{
+            value: roiBenchmarkType,
+            onChange: (v) => setRoiBenchmarkType(v as 'line' | 'bar'),
+            options: [
+              { value: 'line', label: 'Line' },
+              { value: 'bar', label: 'Bar' },
+            ],
+          }}
+          modalContent={roiBenchmarkType === 'line' ? (
+            <MultiLineChart labels={labels} annotations={ann} datasets={[
+              { label: 'Portfolio ROI', data: D.totalRoi.slice(start), color: C.green },
+              { label: 'S&P 500',       data: D.spxRoi.slice(start),   color: C.orange, dashed: true },
+              { label: 'Nasdaq',        data: D.nasdaqRoi.slice(start), color: C.yellow, dashed: true },
+            ]} />
+          ) : (
+            <MultiLineChart labels={labels} datasets={[
+              { label: 'Portfolio ROI', data: D.totalRoi.slice(start), color: C.green },
+              { label: 'S&P 500',       data: D.spxRoi.slice(start),   color: C.orange },
+              { label: 'Nasdaq',        data: D.nasdaqRoi.slice(start), color: C.yellow },
+            ]} />
+          )}
         >
-          <MultiLineChart labels={labels} datasets={[
-            { label: 'Portfolio ROI', data: D.totalRoi.slice(start), color: C.green },
-            { label: 'S&P 500',       data: D.spxRoi.slice(start),   color: C.orange, dashed: true },
-            { label: 'Nasdaq',        data: D.nasdaqRoi.slice(start), color: C.yellow, dashed: true },
-          ]} />
+          {roiBenchmarkType === 'line' ? (
+            <MultiLineChart labels={labels} datasets={[
+              { label: 'Portfolio ROI', data: D.totalRoi.slice(start), color: C.green },
+              { label: 'S&P 500',       data: D.spxRoi.slice(start),   color: C.orange, dashed: true },
+              { label: 'Nasdaq',        data: D.nasdaqRoi.slice(start), color: C.yellow, dashed: true },
+            ]} />
+          ) : (
+            <MultiLineChart labels={labels} datasets={[
+              { label: 'Portfolio ROI', data: D.totalRoi.slice(start), color: C.green },
+              { label: 'S&P 500',       data: D.spxRoi.slice(start),   color: C.orange },
+              { label: 'Nasdaq',        data: D.nasdaqRoi.slice(start), color: C.yellow },
+            ]} />
+          )}
         </ChartCard>
 
         <ChartCard
@@ -198,7 +250,7 @@ export function Dashboard({ showModal, entries, onDeleteEntry }: DashboardProps)
           </div>
           <button className="add-btn" onClick={showModal} style={{ fontSize: 12, padding: '5px 12px' }}>+ Add Entry</button>
         </div>
-        <EntriesLog entries={entries} onDelete={onDeleteEntry} />
+        <EntriesLog entries={entries} onEdit={onEditEntry} onDelete={onDeleteEntry} />
       </div>
     </div>
   );

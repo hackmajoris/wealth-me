@@ -14,3 +14,8 @@ electron/dist/
 electron/node_modules/
 pkg/web/dist/*
 .playwright-mcp
+web/dist
+/wealth-me.db
+/data/wealth.db
+/data/wealth-me-template.csv
+/server
