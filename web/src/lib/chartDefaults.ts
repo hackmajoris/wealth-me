@@ -137,7 +137,13 @@ export const chartDefaults: ChartOptions = {
   scales: {
     x: {
       grid: { color: 'rgba(255,255,255,0.04)' },
-      ticks: { color: 'rgba(238,238,248,0.35)', font: { size: 10, family: 'Outfit' }, maxTicksLimit: 8 },
+      ticks: {
+        color: 'rgba(238,238,248,0.35)',
+        font: { size: 10, family: 'Outfit' },
+        maxTicksLimit: 100,
+        maxRotation: 45,
+        minRotation: 45,
+      },
       border: { display: false },
     },
     y: {

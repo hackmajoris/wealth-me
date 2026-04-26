@@ -64,7 +64,7 @@ export function SavingsRateChart({ labels, rates, targets }: SavingsRateChartPro
         x: { ...chartDefaults.scales?.['x'] },
         y: {
           ...chartDefaults.scales?.['y'],
-          min: 0, max: 70,
+          min: 0,
           ticks: {
             ...(chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object,
             callback: (v: number | string) => Number(v) + '%',

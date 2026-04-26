@@ -1,0 +1,104 @@
+import { useChart } from './useChart';
+import { chartDefaults, C } from '../../lib/chartDefaults';
+import { generateTrendLine } from '../../lib/polyfit';
+import type { TooltipItem } from 'chart.js';
+
+interface SavingsRateFlexChartProps {
+  labels: string[];
+  rates: number[];
+  targets: number[];
+  chartType: 'line' | 'bar';
+}
+
+export function SavingsRateFlexChart({ labels, rates, targets, chartType }: SavingsRateFlexChartProps) {
+  // Generate trend line (polynomial degree 2)
+  const trendLine = rates.length > 1 ? generateTrendLine(Array.from({ length: rates.length }, (_, i) => i), rates, 2) : rates;
+
+  const ref = useChart({
+    type: chartType,
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Saving Rate',
+          data: rates,
+          borderColor: C.green,
+          backgroundColor: chartType === 'line' ? C.green + '18' : C.green + 'aa',
+          fill: chartType === 'line',
+          borderWidth: chartType === 'line' ? 2.5 : 1,
+          pointRadius: 0,
+          pointHoverRadius: 5,
+          tension: chartType === 'line' ? 0.4 : 0,
+          borderRadius: chartType === 'bar' ? 4 : undefined,
+        },
+        {
+          label: 'Target',
+          data: targets,
+          borderColor: C.yellow,
+          backgroundColor: 'transparent',
+          borderDash: [5, 4],
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0,
+          fill: false,
+        },
+        ...(chartType === 'line' ? [{
+          label: 'Trend',
+          data: trendLine,
+          borderColor: C.blue,
+          backgroundColor: 'transparent',
+          borderDash: [5, 4],
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0.4,
+          fill: false,
+        }] : []),
+      ],
+    },
+    options: {
+      ...chartDefaults,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        ...chartDefaults.plugins,
+        legend: {
+          display: true, position: 'top',
+          labels: {
+            color: 'rgba(238,238,248,0.55)',
+            font: { size: 11, family: 'Outfit' },
+            boxWidth: 20, pointStyle: 'line', usePointStyle: true,
+          },
+        },
+        tooltip: {
+          ...(chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object,
+          mode: 'index', intersect: false,
+          callbacks: {
+            label: (ctx: TooltipItem<any>) =>
+              ` ${ctx.dataset.label ?? ''}: ${(ctx.parsed.y ?? 0).toFixed(1)}%`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          ...chartDefaults.scales?.['x'],
+          ticks: {
+            ...(chartDefaults.scales?.['x'] as any)?.['ticks'],
+            maxRotation: 45,
+            minRotation: 45,
+            maxTicksLimit: 999,
+            autoSkipPadding: 2,
+            font: { size: 8, family: 'Outfit' },
+          } as any,
+        } as any,
+        y: {
+          ...chartDefaults.scales?.['y'],
+          min: 0,
+          ticks: {
+            ...(chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object,
+            callback: (v: number | string) => Number(v) + '%',
+          },
+        },
+      },
+    },
+  });
+  return <canvas ref={ref} />;
+}

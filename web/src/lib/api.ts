@@ -72,9 +72,22 @@ async function uploadCSV(file: File): Promise<Entry[]> {
   return res.json() as Promise<Entry[]>;
 }
 
+async function uploadSavingsCSV(file: File): Promise<SavingsEntry[]> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${BASE}/api/upload/savings-csv`, { method: "POST", body: form });
+  if (!res.ok) {
+    const message = await res.text().catch(() => res.statusText);
+    throw new ApiError(res.status, message);
+  }
+  return res.json() as Promise<SavingsEntry[]>;
+}
+
 const upload = {
   csv: uploadCSV,
   csvTemplateURL: (): string => `${BASE}/api/upload/csv/template`,
+  savingsCsv: uploadSavingsCSV,
+  savingsCsvTemplateURL: (): string => `${BASE}/api/upload/savings-csv/template`,
 };
 
 // ── /api/stocks ──────────────────────────────────────────────────────────
@@ -111,6 +124,25 @@ const crypto = {
   get: () => get<CryptoData>("/api/crypto"),
 };
 
+// ── /api/settings ────────────────────────────────────────────────────────────
+
+export interface SavingsTargetSetting {
+  key: string;
+  value: number;
+}
+
+export interface CurrencySetting {
+  key: string;
+  value: string;
+}
+
+const settings = {
+  getSavingsTarget: () => get<SavingsTargetSetting>("/api/settings/savings-target"),
+  setSavingsTarget: (value: number) => post<SavingsTargetSetting>("/api/settings/savings-target", { value }),
+  getCurrency: () => get<CurrencySetting>("/api/settings/currency"),
+  setCurrency: (value: string) => post<CurrencySetting>("/api/settings/currency", { value }),
+};
+
 // ── Public surface ───────────────────────────────────────────────────────────
 
-export const api = { entries, savings, upload, stocks, crypto };
+export const api = { entries, savings, upload, stocks, crypto, settings };

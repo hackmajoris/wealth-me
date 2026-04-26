@@ -123,3 +123,27 @@ func (s *Store) Delete(id int64) error {
 	}
 	return nil
 }
+
+// Upsert inserts or updates a savings entry matched by (yr, mo).
+func (s *Store) Upsert(e Entry) (*Entry, error) {
+	_, err := s.db.Exec(`
+		INSERT INTO savings
+			(month, month_full, yr, mo, net_income, total_expenses, savings, saving_rate, target, note)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(yr, mo) DO UPDATE SET
+			net_income     = excluded.net_income,
+			total_expenses = excluded.total_expenses,
+			note           = excluded.note`,
+		e.Month, e.MonthFull, e.Yr, e.Mo,
+		e.NetIncome, e.TotalExpenses, e.Savings, e.SavingRate, e.Target, e.Note)
+	if err != nil {
+		return nil, fmt.Errorf("upsert savings entry: %w", err)
+	}
+
+	fetched, err := scanEntry(s.db.QueryRow(
+		selectSQL+` WHERE yr = ? AND mo = ?`, e.Yr, e.Mo))
+	if err != nil {
+		return nil, fmt.Errorf("fetch upserted savings entry: %w", err)
+	}
+	return fetched, nil
+}

@@ -17,8 +17,8 @@ export function IncomeExpChart({ labels, income, expenses }: IncomeExpChartProps
         {
           label: 'Net Income',
           data: income,
-          borderColor: C.blue,
-          backgroundColor: C.blue + '20',
+          borderColor: C.green,
+          backgroundColor: C.green + '20',
           fill: true,
           borderWidth: 2,
           pointRadius: 0,

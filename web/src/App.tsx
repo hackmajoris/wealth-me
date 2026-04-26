@@ -26,9 +26,14 @@ export function App() {
   const [editEntry, setEditEntry] = useState<Entry | undefined>(undefined);
   const [modalOpen, setModalOpen] = useState(false);
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [savingsRefreshTrigger, setSavingsRefreshTrigger] = useState(0);
 
   const refreshEntries = useCallback(() => {
     api.entries.list().then(setEntries).catch(console.error);
+  }, []);
+
+  const refreshSavingsEntries = useCallback(() => {
+    setSavingsRefreshTrigger(t => t + 1);
   }, []);
 
   useEffect(() => { refreshEntries(); }, [refreshEntries]);
@@ -46,8 +51,8 @@ export function App() {
       case 'stocks':      return <Stocks showModal={showModal} entries={entries} onDelete={handleDeleteEntry} onRefresh={refreshEntries} />;
       case 'crypto':      return <Crypto showModal={showModal} entries={entries} onDelete={handleDeleteEntry} onRefresh={refreshEntries} />;
       case 'performance': return <Performance showModal={showModal} />;
-      case 'savings':     return <Savings showModal={showModal} onEdit={showEditModal} onDelete={handleDeleteEntry} />;
-      case 'settings':    return <Settings entries={entries} onRefresh={refreshEntries} onClear={refreshEntries} />;
+      case 'savings':     return <Savings showModal={showModal} onEdit={showEditModal} onDelete={handleDeleteEntry} savingsRefreshKey={savingsRefreshTrigger} />;
+      case 'settings':    return <Settings entries={entries} onRefresh={refreshEntries} onSavingsRefresh={refreshSavingsEntries} onClear={refreshEntries} />;
     }
   };
 

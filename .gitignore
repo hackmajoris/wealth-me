@@ -19,3 +19,4 @@ web/dist
 /data/wealth.db
 /data/wealth-me-template.csv
 /server
+/data/saving-rate.csv

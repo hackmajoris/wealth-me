@@ -27,3 +27,47 @@ export function RONsign(v: number | null): string {
   if (v === null) return '—';
   return (v >= 0 ? '+' : '-') + Math.abs(Math.round(v)).toLocaleString() + ' lei';
 }
+
+export function EUR(v: number | null): string {
+  if (v === null) return '—';
+  return '€' + Math.abs(Math.round(v)).toLocaleString();
+}
+
+export function EURsign(v: number | null): string {
+  if (v === null) return '—';
+  return (v >= 0 ? '+' : '-') + '€' + Math.abs(Math.round(v)).toLocaleString();
+}
+
+export function USD(v: number | null): string {
+  if (v === null) return '—';
+  return '$' + Math.abs(Math.round(v)).toLocaleString();
+}
+
+export function USDsign(v: number | null): string {
+  if (v === null) return '—';
+  return (v >= 0 ? '+' : '-') + '$' + Math.abs(Math.round(v)).toLocaleString();
+}
+
+export function getCurrencyFormatter(currency: string): (v: number | null) => string {
+  switch (currency) {
+    case 'EUR':
+      return EUR;
+    case 'USD':
+      return USD;
+    case 'RON':
+    default:
+      return RON;
+  }
+}
+
+export function getCurrencySignFormatter(currency: string): (v: number | null) => string {
+  switch (currency) {
+    case 'EUR':
+      return EURsign;
+    case 'USD':
+      return USDsign;
+    case 'RON':
+    default:
+      return RONsign;
+  }
+}

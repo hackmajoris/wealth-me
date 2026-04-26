@@ -15,6 +15,7 @@ import (
 	"github.com/hackmajoris/wealth-me/pkg/crypto"
 	"github.com/hackmajoris/wealth-me/pkg/entries"
 	"github.com/hackmajoris/wealth-me/pkg/savings"
+	"github.com/hackmajoris/wealth-me/pkg/settings"
 	"github.com/hackmajoris/wealth-me/pkg/stocks"
 	"github.com/hackmajoris/wealth-me/pkg/upload"
 	"github.com/hackmajoris/wealth-me/pkg/web"
@@ -77,7 +78,10 @@ func run(args []string, out io.Writer) error {
 	savingsStore := savings.New(db)
 	savingsHandler := savings.NewHandler(savingsStore)
 
-	uploadHandler := upload.NewHandler(entriesStore)
+	settingsStore := settings.New(db)
+	settingsHandler := settings.NewHandler(settingsStore)
+
+	uploadHandler := upload.NewHandler(entriesStore, savingsStore)
 	stocksHandler := stocks.NewHandler(entriesStore)
 	cryptoHandler := crypto.NewHandler(entriesStore)
 
@@ -96,8 +100,15 @@ func run(args []string, out io.Writer) error {
 	mux.HandleFunc("PUT /api/savings/{id}", savingsHandler.Update)
 	mux.HandleFunc("DELETE /api/savings/{id}", savingsHandler.Delete)
 
+	mux.HandleFunc("GET /api/settings/savings-target", settingsHandler.GetTarget)
+	mux.HandleFunc("POST /api/settings/savings-target", settingsHandler.SetTarget)
+	mux.HandleFunc("GET /api/settings/currency", settingsHandler.GetCurrency)
+	mux.HandleFunc("POST /api/settings/currency", settingsHandler.SetCurrency)
+
 	mux.HandleFunc("GET /api/upload/csv/template", uploadHandler.HandleCSVTemplate)
 	mux.HandleFunc("POST /api/upload/csv", uploadHandler.HandleCSV)
+	mux.HandleFunc("GET /api/upload/savings-csv/template", uploadHandler.HandleSavingsCSVTemplate)
+	mux.HandleFunc("POST /api/upload/savings-csv", uploadHandler.HandleSavingsCSV)
 
 	mux.HandleFunc("GET /api/stocks", stocksHandler.Get)
 	mux.HandleFunc("GET /api/crypto", cryptoHandler.Get)
@@ -152,6 +163,12 @@ func migrate(db *sql.DB) error {
 			updated_at     TEXT    NOT NULL DEFAULT (datetime('now')),
 			UNIQUE(yr, mo)
 		)`},
+		{"settings", `CREATE TABLE IF NOT EXISTS settings (
+			key          TEXT PRIMARY KEY,
+			value        REAL,
+			value_string TEXT
+		)`},
+		{"settings_add_value_string", `ALTER TABLE settings ADD COLUMN value_string TEXT`},
 	}
 	for _, s := range steps {
 		if _, err := db.Exec(s.sql); err != nil {

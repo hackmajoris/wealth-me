@@ -67,11 +67,13 @@ export function MultiLineChart({ labels, datasets, annotations, valueFormat = 'p
         x: {
           ...chartDefaults.scales?.['x'],
           ticks: {
-            ...(chartDefaults.scales?.['x'] as Record<string, unknown>)?.['ticks'] as object,
-            maxRotation: 44,
-            minRotation: 44,
-            maxTicksLimit: 100,
-          },
+            ...(chartDefaults.scales?.['x'] as any)?.['ticks'],
+            maxRotation: 45,
+            minRotation: 45,
+            maxTicksLimit: 999,
+            autoSkipPadding: 2,
+            font: { size: 8, family: 'Outfit' },
+          } as any,
         },
         y: {
           ...chartDefaults.scales?.['y'],

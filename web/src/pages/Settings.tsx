@@ -1,4 +1,4 @@
-import { useState, useRef, type ReactNode } from 'react';
+import { useState, useRef, type ReactNode, useEffect } from 'react';
 import { api, ApiError } from '../lib/api';
 import type { Entry } from '../lib/storage';
 
@@ -33,17 +33,34 @@ function SettingSection({ title, children }: { title: string; children: ReactNod
 interface SettingsProps {
   entries: Entry[];
   onRefresh: () => void;
+  onSavingsRefresh: () => void;
   onClear: () => void;
 }
 
-export function Settings({ entries, onRefresh, onClear }: SettingsProps) {
-  const [dragOver, setDragOver]       = useState(false);
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const [uploading, setUploading]     = useState(false);
-  const [uploadDone, setUploadDone]   = useState<number | null>(null);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [confirmClear, setConfirmClear] = useState(false);
+export function Settings({ entries, onRefresh, onSavingsRefresh, onClear }: SettingsProps) {
+  const [dragOver, setDragOver]              = useState(false);
+  const [pendingFile, setPendingFile]        = useState<File | null>(null);
+  const [uploading, setUploading]            = useState(false);
+  const [uploadDone, setUploadDone]          = useState<number | null>(null);
+  const [uploadError, setUploadError]        = useState<string | null>(null);
+  const [savingsDragOver, setSavingsDragOver] = useState(false);
+  const [savingsPendingFile, setSavingsPendingFile] = useState<File | null>(null);
+  const [savingsUploading, setSavingsUploading] = useState(false);
+  const [savingsUploadDone, setSavingsUploadDone] = useState<number | null>(null);
+  const [savingsUploadError, setSavingsUploadError] = useState<string | null>(null);
+  const [confirmClear, setConfirmClear]     = useState(false);
+  const [currency, setCurrency]             = useState<string>('RON');
+  const [isSavingCurrency, setIsSavingCurrency] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const savingsFileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    api.settings.getCurrency()
+      .then(setting => {
+        setCurrency(setting.value);
+      })
+      .catch(console.error);
+  }, []);
 
   const handleFile = (file: File | null | undefined) => {
     if (!file) return;
@@ -52,9 +69,21 @@ export function Settings({ entries, onRefresh, onClear }: SettingsProps) {
     setUploadError(null);
   };
 
+  const handleSavingsFile = (file: File | null | undefined) => {
+    if (!file) return;
+    setSavingsPendingFile(file);
+    setSavingsUploadDone(null);
+    setSavingsUploadError(null);
+  };
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault(); setDragOver(false);
     handleFile(e.dataTransfer.files[0]);
+  };
+
+  const handleSavingsDrop = (e: React.DragEvent) => {
+    e.preventDefault(); setSavingsDragOver(false);
+    handleSavingsFile(e.dataTransfer.files[0]);
   };
 
   const handleUpload = async () => {
@@ -73,10 +102,33 @@ export function Settings({ entries, onRefresh, onClear }: SettingsProps) {
     }
   };
 
+  const handleSavingsUpload = async () => {
+    if (!savingsPendingFile) return;
+    setSavingsUploading(true);
+    setSavingsUploadError(null);
+    try {
+      const imported = await api.upload.savingsCsv(savingsPendingFile);
+      setSavingsUploadDone(imported.length);
+      setSavingsPendingFile(null);
+      onSavingsRefresh();
+    } catch (err) {
+      setSavingsUploadError(err instanceof ApiError ? err.message : 'Upload failed');
+    } finally {
+      setSavingsUploading(false);
+    }
+  };
+
   const downloadTemplate = () => {
     const a = document.createElement('a');
     a.href = api.upload.csvTemplateURL();
     a.download = 'wealth-me-template.csv';
+    a.click();
+  };
+
+  const downloadSavingsTemplate = () => {
+    const a = document.createElement('a');
+    a.href = api.upload.savingsCsvTemplateURL();
+    a.download = 'savings-template.csv';
     a.click();
   };
 
@@ -88,8 +140,22 @@ export function Settings({ entries, onRefresh, onClear }: SettingsProps) {
     setConfirmClear(false);
   };
 
+  const handleSaveCurrency = async (newCurrency: string) => {
+    setCurrency(newCurrency);
+    setIsSavingCurrency(true);
+    try {
+      await api.settings.setCurrency(newCurrency);
+    } catch (err) {
+      console.error('Failed to save currency:', err);
+      // Revert on error
+      setCurrency(currency);
+    } finally {
+      setIsSavingCurrency(false);
+    }
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 680 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 680, margin: '0 auto' }}>
       <div className="page-header" style={{ marginBottom: 4 }}>
         <div>
           <div className="page-title">Settings</div>
@@ -97,8 +163,111 @@ export function Settings({ entries, onRefresh, onClear }: SettingsProps) {
         </div>
       </div>
 
-      <SettingSection title="Import Data · CSV">
+      <SettingSection title="Savings">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Currency</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {['EUR', 'USD', 'RON'].map(c => (
+                <button
+                  key={c}
+                  onClick={() => handleSaveCurrency(c)}
+                  disabled={isSavingCurrency}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: currency === c ? 'var(--primary)' : 'var(--surface2)',
+                    color: currency === c ? 'white' : 'var(--text)',
+                    border: `1px solid ${currency === c ? 'var(--primary)' : 'var(--border)'}`,
+                    borderRadius: 6,
+                    fontSize: 13,
+                    fontWeight: currency === c ? 600 : 400,
+                    cursor: isSavingCurrency ? 'not-allowed' : 'pointer',
+                    opacity: isSavingCurrency ? 0.6 : 1,
+                    transition: 'all .15s',
+                  }}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 12 }}>Import Savings Data · CSV</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ background: 'var(--surface2)', borderRadius: 10, padding: '12px 14px', fontSize: 12, color: 'var(--text2)', lineHeight: 1.7 }}>
+                <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: 6, fontSize: 13 }}>Expected CSV columns</div>
+                <code style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--purple)', display: 'block', whiteSpace: 'pre' }}>
+                  month, year, netIncome, totalExpenses, note
+                </code>
+                <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text3)' }}>
+                  month: "September" · year: 2021 · values as numbers · note optional
+                </div>
+              </div>
+
+              <div
+                onDragOver={e => { e.preventDefault(); setSavingsDragOver(true); }}
+                onDragLeave={() => setSavingsDragOver(false)}
+                onDrop={handleSavingsDrop}
+                onClick={() => savingsFileRef.current?.click()}
+                style={{
+                  border: `2px dashed ${savingsDragOver ? 'var(--purple)' : 'var(--border2)'}`,
+                  borderRadius: 12, padding: '32px 20px', textAlign: 'center', cursor: 'pointer',
+                  background: savingsDragOver ? 'rgba(167,139,250,0.06)' : 'transparent',
+                  transition: 'all .15s',
+                }}
+              >
+                <input ref={savingsFileRef} type="file" accept=".csv,text/csv" style={{ display: 'none' }}
+                  onChange={e => handleSavingsFile(e.target.files?.[0])} />
+                <div style={{ fontSize: 28, marginBottom: 10, opacity: 0.5 }}>⬆</div>
+                {savingsPendingFile
+                  ? <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>{savingsPendingFile.name}</div>
+                  : <>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>Drop a CSV file here</div>
+                      <div style={{ fontSize: 12, color: 'var(--text3)' }}>or click to browse</div>
+                    </>
+                }
+              </div>
+
+              {savingsPendingFile && (
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <button className="btn-ghost" style={{ fontSize: 12, padding: '7px 14px' }}
+                    onClick={() => { setSavingsPendingFile(null); setSavingsUploadError(null); }}>
+                    Discard
+                  </button>
+                  <button className="btn-primary" style={{ fontSize: 12, padding: '7px 14px' }}
+                    onClick={handleSavingsUpload} disabled={savingsUploading}>
+                    {savingsUploading ? 'Uploading…' : 'Upload'}
+                  </button>
+                </div>
+              )}
+
+              {savingsUploadError && (
+                <div style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: 10, padding: '12px 14px', fontSize: 13, color: '#f87171', fontWeight: 500 }}>
+                  ✗ {savingsUploadError}
+                </div>
+              )}
+
+              {savingsUploadDone !== null && (
+                <div style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)', borderRadius: 10, padding: '12px 14px', fontSize: 13, color: '#34d399', fontWeight: 500 }}>
+                  ✓ Imported {savingsUploadDone} row{savingsUploadDone !== 1 ? 's' : ''} — entries are now visible in your savings.
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn-ghost" style={{ fontSize: 12, padding: '7px 14px' }} onClick={downloadSavingsTemplate}>
+                  ↓ Download template CSV
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </SettingSection>
+
+      <SettingSection title="Stocks &amp; Crypto">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>Import Data · CSV</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ background: 'var(--surface2)', borderRadius: 10, padding: '12px 14px', fontSize: 12, color: 'var(--text2)', lineHeight: 1.7 }}>
             <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: 6, fontSize: 13 }}>Expected CSV columns</div>
             <code style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--purple)', display: 'block', whiteSpace: 'pre' }}>
@@ -162,6 +331,7 @@ export function Settings({ entries, onRefresh, onClear }: SettingsProps) {
             <button className="btn-ghost" style={{ fontSize: 12, padding: '7px 14px' }} onClick={downloadTemplate}>
               ↓ Download template CSV
             </button>
+          </div>
           </div>
         </div>
       </SettingSection>
