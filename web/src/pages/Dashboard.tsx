@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { WealthData as D } from '../data/wealthData';
 import { ChartCard } from '../components/ChartCard';
 import { TimeRange } from '../components/TimeRange';
@@ -8,12 +8,20 @@ import { MultiLineChart } from '../components/charts/MultiLineChart';
 import { FlexBarChart } from '../components/charts/FlexBarChart';
 import { GroupedBarChart } from '../components/charts/GroupedBarChart';
 import { DonutChart } from '../components/charts/DonutChart';
-import { fmt$, fmtSign$, fmtPct, clsROI } from '../lib/formatters';
+import { SavingsRateFlexChart } from '../components/charts/SavingsRateFlexChart';
+import { IncomeExpFlexChart } from '../components/charts/IncomeExpFlexChart';
+import { fmt$, fmtSign$, fmtPct, clsROI, getCurrencyFormatter } from '../lib/formatters';
 import { sliceRange, type Range } from '../lib/ranges';
 import { buildAnnotations, C } from '../lib/chartDefaults';
-import { type Entry } from '../lib/storage';
+import { type Entry, type SavingsEntry } from '../lib/storage';
+import { api, type StockData, type CryptoData } from '../lib/api';
 
 const CHART_OPTS = [{ value: 'bar', label: 'Bar' }, { value: 'line', label: 'Line' }];
+
+const MO_ORDER: Record<string, number> = {
+  Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5,
+  Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11,
+};
 
 interface DashboardProps {
   showModal: () => void;
@@ -30,25 +38,134 @@ export function Dashboard({ showModal, entries, onEditEntry, onDeleteEntry }: Da
   const [totalChartType, setTotalChartType] = useState<'bar' | 'line'>('bar');
   const [cryptoChartType, setCryptoChartType] = useState<'bar' | 'line'>('bar');
   const [stocksChartType, setStocksChartType] = useState<'bar' | 'line'>('bar');
+  const [savingsRateChartType, setSavingsRateChartType] = useState<'line' | 'bar'>('line');
+  const [incomeExpChartType, setIncomeExpChartType] = useState<'line' | 'bar'>('line');
 
-  const { start } = sliceRange(range);
-  const labels = D.months.slice(start);
-  const cur = D.current;
-  const ann = buildAnnotations(labels, showEvents);
+  const [stockData, setStockData] = useState<StockData | null>(null);
+  const [cryptoData, setCryptoData] = useState<CryptoData | null>(null);
+  const [savingsEntries, setSavingsEntries] = useState<SavingsEntry[]>([]);
+  const [savingsTarget, setSavingsTarget] = useState(30);
+  const [currency, setCurrency] = useState('USD');
 
-  const totalRoiLast = D.totalRoi[D.N - 1];
-  const totalRoiPrev = D.totalRoi[D.N - 2];
-  const roiDelta = totalRoiLast - totalRoiPrev;
+  useEffect(() => {
+    Promise.all([
+      api.stocks.get(),
+      api.crypto.get(),
+      api.savings.list(),
+      api.settings.getSavingsTarget(),
+      api.settings.getCurrency(),
+    ]).then(([stocks, crypto, savs, target, curr]) => {
+      setStockData(stocks);
+      setCryptoData(crypto);
+      setSavingsEntries(savs);
+      setSavingsTarget(target.value);
+      setCurrency(curr.value);
+    }).catch(console.error);
+  }, []);
 
-  const monthlyCrypto = D.cryptoInvested.map((v, i) =>
-    i === 0 ? v : Math.max(0, Math.round(v - D.cryptoInvested[i - 1])));
-  const monthlyStocks = D.stocksInvested.map((v, i) =>
-    i === 0 ? v : Math.max(0, Math.round(v - D.stocksInvested[i - 1])));
+  const stocks = stockData ?? { months: [], invested: [], return: [], gain: [], roi: [], allocation: [], currentValue: 0, totalRoi: null };
+  const crypto = cryptoData ?? { months: [], invested: [], return: [], gain: [], roi: [], allocation: [], currentValue: 0, totalRoi: null };
 
-  const slicedCrypto = monthlyCrypto.slice(start);
-  const slicedStocks = monthlyStocks.slice(start);
-  const totalCrypto = slicedCrypto.reduce((a, b) => a + b, 0);
-  const totalStocks = slicedStocks.reduce((a, b) => a + b, 0);
+  // Merge and sort all portfolio months chronologically
+  const allMonths = useMemo(() => {
+    const set = new Set([...stocks.months, ...crypto.months]);
+    return Array.from(set).sort((a, b) => {
+      const [aMo, aYr] = a.split(' ');
+      const [bMo, bYr] = b.split(' ');
+      const yDiff = parseInt(aYr) - parseInt(bYr);
+      return yDiff !== 0 ? yDiff : (MO_ORDER[aMo] ?? 0) - (MO_ORDER[bMo] ?? 0);
+    });
+  }, [stocks.months, crypto.months]);
+
+  const hasPortfolioData = allMonths.length > 0;
+
+  // Combined portfolio series aligned to allMonths
+  const combinedReturn = allMonths.map(m => {
+    const si = stocks.months.indexOf(m);
+    const ci = crypto.months.indexOf(m);
+    return (si >= 0 ? stocks.return[si] : 0) + (ci >= 0 ? crypto.return[ci] : 0);
+  });
+  const combinedInvested = allMonths.map(m => {
+    const si = stocks.months.indexOf(m);
+    const ci = crypto.months.indexOf(m);
+    return (si >= 0 ? stocks.invested[si] : 0) + (ci >= 0 ? crypto.invested[ci] : 0);
+  });
+  const combinedRoi = combinedInvested.map((inv, i) =>
+    inv > 0 ? ((combinedReturn[i] - inv) / inv) * 100 : 0);
+
+  // Per-asset monthly invested (delta from prev month)
+  const monthlyInvestedCrypto = allMonths.map((m, i) => {
+    const ci = crypto.months.indexOf(m);
+    if (ci < 0) return 0;
+    if (i === 0) return crypto.invested[ci];
+    const prevM = allMonths[i - 1];
+    const prevCi = crypto.months.indexOf(prevM);
+    return Math.max(0, Math.round(crypto.invested[ci] - (prevCi >= 0 ? crypto.invested[prevCi] : 0)));
+  });
+  const monthlyInvestedStocks = allMonths.map((m, i) => {
+    const si = stocks.months.indexOf(m);
+    if (si < 0) return 0;
+    if (i === 0) return stocks.invested[si];
+    const prevM = allMonths[i - 1];
+    const prevSi = stocks.months.indexOf(prevM);
+    return Math.max(0, Math.round(stocks.invested[si] - (prevSi >= 0 ? stocks.invested[prevSi] : 0)));
+  });
+  const monthlyInvestedTotal = allMonths.map((_, i) => monthlyInvestedCrypto[i] + monthlyInvestedStocks[i]);
+
+  // Current values
+  const lastIdx = allMonths.length - 1;
+  const curPortfolioValue = lastIdx >= 0 ? combinedReturn[lastIdx] : 0;
+  const curTotalInvested  = lastIdx >= 0 ? combinedInvested[lastIdx] : 0;
+  const curTotalGain      = curPortfolioValue - curTotalInvested;
+  const curTotalRoi       = curTotalInvested > 0 ? (curTotalGain / curTotalInvested) * 100 : 0;
+  const prevRoi           = lastIdx > 0 ? combinedRoi[lastIdx - 1] : curTotalRoi;
+  const roiDelta          = curTotalRoi - prevRoi;
+
+  const lastM = allMonths[lastIdx] ?? '';
+  const curCryptoInvested = lastM ? (() => { const ci = crypto.months.indexOf(lastM); return ci >= 0 ? crypto.invested[ci] : 0; })() : 0;
+  const curCryptoRoi      = lastM ? (() => { const ci = crypto.months.indexOf(lastM); return ci >= 0 ? (crypto.roi[ci] ?? 0) : 0; })() : 0;
+  const curStocksInvested = lastM ? (() => { const si = stocks.months.indexOf(lastM); return si >= 0 ? stocks.invested[si] : 0; })() : 0;
+
+  const totalInvestedForAlloc = curCryptoInvested + curStocksInvested;
+  const cryptoAllocPct = totalInvestedForAlloc > 0 ? Math.round(curCryptoInvested / totalInvestedForAlloc * 100) : 50;
+  const stocksAllocPct = 100 - cryptoAllocPct;
+
+  const bestAsset = curCryptoRoi >= (crypto.totalRoi ?? 0) ? 'Crypto' : 'Stocks';
+
+  // Benchmark ROI from mock (aligned to allMonths)
+  const spxSeries  = allMonths.map(m => { const i = D.months.indexOf(m); return i >= 0 ? D.spxRoi[i] : null; });
+  const nasdaqSeries = allMonths.map(m => { const i = D.months.indexOf(m); return i >= 0 ? D.nasdaqRoi[i] : null; });
+  const lastSpx    = spxSeries.filter(v => v !== null).pop() ?? 0;
+
+  const { start } = sliceRange(range, allMonths.length);
+  const labels = allMonths.slice(start);
+  const ann    = buildAnnotations(labels, showEvents);
+
+  const slicedCrypto = monthlyInvestedCrypto.slice(start);
+  const slicedStocks = monthlyInvestedStocks.slice(start);
+  const slicedTotal  = monthlyInvestedTotal.slice(start);
+  const totalCrypto  = slicedCrypto.reduce((a, b) => a + b, 0);
+  const totalStocks  = slicedStocks.reduce((a, b) => a + b, 0);
+
+  // Savings derived stats
+  const sortedSavings = [...savingsEntries].sort((a, b) =>
+    b.yr !== a.yr ? b.yr - a.yr : (MO_ORDER[b.mo] ?? 0) - (MO_ORDER[a.mo] ?? 0));
+  const chronologicalSavings = [...savingsEntries].sort((a, b) =>
+    a.yr !== b.yr ? a.yr - b.yr : (MO_ORDER[a.mo] ?? 0) - (MO_ORDER[b.mo] ?? 0));
+  const latestSavings = sortedSavings[0] ?? null;
+  const totalSaved = savingsEntries.reduce((s, e) => s + e.savings, 0);
+  const avgSavingsRate = savingsEntries.length > 0
+    ? Math.round((savingsEntries.reduce((s, e) => s + e.savingRate, 0) / savingsEntries.length) * 10) / 10
+    : 0;
+  const vsTarget = latestSavings ? Math.round((latestSavings.savingRate - savingsTarget) * 10) / 10 : 0;
+  const fmt = getCurrencyFormatter(currency);
+  const hasSavings = savingsEntries.length > 0;
+
+  const savingsLabels  = chronologicalSavings.map(e => `${e.mo} ${e.yr}`);
+  const savingsRates   = chronologicalSavings.map(e => e.savingRate);
+  const savingsTargets = chronologicalSavings.map(() => savingsTarget);
+  const savingsIncome  = chronologicalSavings.map(e => e.netIncome);
+  const savingsExpenses = chronologicalSavings.map(e => e.totalExpenses);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -56,202 +173,301 @@ export function Dashboard({ showModal, entries, onEditEntry, onDeleteEntry }: Da
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div>
             <div className="page-title">Dashboard</div>
-            <div className="page-sub">Apr 2026 · All investments</div>
+            <div className="page-sub">
+              {hasPortfolioData
+                ? `${allMonths[0]} – ${allMonths[lastIdx]} · All investments`
+                : 'No portfolio data yet'}
+            </div>
           </div>
           {entries.length > 0 && <span className="entries-badge">{entries.length}</span>}
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <button className="add-btn" onClick={showModal}>+ Add Entry</button>
-          <TimeRange value={range} onChange={setRange} showEvents={showEvents} onToggleEvents={() => setShowEvents(v => !v)} />
+          {hasPortfolioData && (
+            <TimeRange value={range} onChange={setRange} showEvents={showEvents} onToggleEvents={() => setShowEvents(v => !v)} />
+          )}
         </div>
       </div>
 
-      {/* KPI Row */}
-      <div className="kpi-grid">
-        <div className="kpi-card">
-          <div className="kpi-label">Portfolio Value</div>
-          <div className="kpi-value">{fmt$(cur.portfolioValue, true)}</div>
-          <div className={`kpi-change ${clsROI(cur.totalRoi)}`}>{fmtPct(cur.totalRoi)} all-time ROI</div>
+      {!hasPortfolioData && !hasSavings ? (
+        <div style={{ color: 'var(--text3)', textAlign: 'center', padding: '60px 0', fontSize: 14 }}>
+          No data yet. Add entries or import a CSV in Settings.
         </div>
-        <div className="kpi-card">
-          <div className="kpi-label">Total Invested</div>
-          <div className="kpi-value">{fmt$(cur.totalInvested, true)}</div>
-          <div className="kpi-change neu">Crypto + Stocks</div>
-        </div>
-        <div className="kpi-card">
-          <div className="kpi-label">Total Gain</div>
-          <div className={`kpi-value ${clsROI(cur.totalGain)}`}>{fmtSign$(cur.totalGain)}</div>
-          <div className={`kpi-change ${roiDelta >= 0 ? 'pos' : 'neg'}`}>{fmtPct(roiDelta)} vs last month</div>
-        </div>
-        <div className="kpi-card">
-          <div className="kpi-label">Best Asset</div>
-          <div className="kpi-value" style={{ color: C.purple }}>Crypto</div>
-          <div className="kpi-change pos">{fmtPct(cur.cryptoRoi)} ROI</div>
-        </div>
-      </div>
-
-      {/* Charts */}
-      <div className="chart-grid">
-        <ChartCard
-          label="Portfolio Value"
-          value={fmt$(cur.portfolioValue, true)}
-          change={fmtPct(cur.totalRoi) + ' all-time'}
-          changePositive={cur.totalRoi >= 0}
-          typeToggle={{
-            value: portfolioValueType,
-            onChange: (v) => setPortfolioValueType(v as 'area' | 'bar'),
-            options: [
-              { value: 'area', label: 'Area' },
-              { value: 'bar', label: 'Bar' },
-            ],
-          }}
-          modalContent={portfolioValueType === 'area' ? (
-            <AreaChart labels={labels} annotations={ann} datasets={[
-              { label: 'Total Value', data: D.totalReturn.slice(start), color: C.green },
-              { label: 'Invested',    data: D.totalInvested.slice(start), color: C.blue },
-            ]} />
-          ) : (
-            <GroupedBarChart
-              labels={labels}
-              dataset1={{ label: 'Total Value', data: D.totalReturn.slice(start), color: C.green }}
-              dataset2={{ label: 'Invested', data: D.totalInvested.slice(start), color: C.blue }}
-            />
-          )}
-        >
-          {portfolioValueType === 'area' ? (
-            <AreaChart labels={labels} datasets={[
-              { label: 'Total Value', data: D.totalReturn.slice(start), color: C.green },
-              { label: 'Invested',    data: D.totalInvested.slice(start), color: C.blue },
-            ]} />
-          ) : (
-            <GroupedBarChart
-              labels={labels}
-              dataset1={{ label: 'Total Value', data: D.totalReturn.slice(start), color: C.green }}
-              dataset2={{ label: 'Invested', data: D.totalInvested.slice(start), color: C.blue }}
-            />
-          )}
-        </ChartCard>
-
-        <ChartCard
-          label="ROI vs Benchmarks"
-          value={fmtPct(cur.totalRoi)}
-          change={fmtPct(cur.totalRoi - D.spxRoi[D.N - 1]) + ' vs S&P 500'}
-          changePositive={cur.totalRoi > D.spxRoi[D.N - 1]}
-          typeToggle={{
-            value: roiBenchmarkType,
-            onChange: (v) => setRoiBenchmarkType(v as 'line' | 'bar'),
-            options: [
-              { value: 'line', label: 'Line' },
-              { value: 'bar', label: 'Bar' },
-            ],
-          }}
-          modalContent={roiBenchmarkType === 'line' ? (
-            <MultiLineChart labels={labels} annotations={ann} datasets={[
-              { label: 'Portfolio ROI', data: D.totalRoi.slice(start), color: C.green },
-              { label: 'S&P 500',       data: D.spxRoi.slice(start),   color: C.orange, dashed: true },
-              { label: 'Nasdaq',        data: D.nasdaqRoi.slice(start), color: C.yellow, dashed: true },
-            ]} />
-          ) : (
-            <MultiLineChart labels={labels} datasets={[
-              { label: 'Portfolio ROI', data: D.totalRoi.slice(start), color: C.green },
-              { label: 'S&P 500',       data: D.spxRoi.slice(start),   color: C.orange },
-              { label: 'Nasdaq',        data: D.nasdaqRoi.slice(start), color: C.yellow },
-            ]} />
-          )}
-        >
-          {roiBenchmarkType === 'line' ? (
-            <MultiLineChart labels={labels} datasets={[
-              { label: 'Portfolio ROI', data: D.totalRoi.slice(start), color: C.green },
-              { label: 'S&P 500',       data: D.spxRoi.slice(start),   color: C.orange, dashed: true },
-              { label: 'Nasdaq',        data: D.nasdaqRoi.slice(start), color: C.yellow, dashed: true },
-            ]} />
-          ) : (
-            <MultiLineChart labels={labels} datasets={[
-              { label: 'Portfolio ROI', data: D.totalRoi.slice(start), color: C.green },
-              { label: 'S&P 500',       data: D.spxRoi.slice(start),   color: C.orange },
-              { label: 'Nasdaq',        data: D.nasdaqRoi.slice(start), color: C.yellow },
-            ]} />
-          )}
-        </ChartCard>
-
-        <ChartCard
-          label="Monthly Invested"
-          value={fmt$(D.monthlyTotalInvested.slice(start).reduce((a, b) => a + b, 0), true)}
-          change={`Total added (${range})`}
-          changePositive={null}
-          typeToggle={{ value: totalChartType, onChange: v => setTotalChartType(v as 'bar' | 'line'), options: CHART_OPTS }}
-          modalContent={<FlexBarChart labels={labels} data={D.monthlyTotalInvested.slice(start)} color={C.blue} chartType={totalChartType} />}
-        >
-          <FlexBarChart labels={labels} data={D.monthlyTotalInvested.slice(start)} color={C.blue} chartType={totalChartType} />
-        </ChartCard>
-      </div>
-
-      {/* Monthly breakdown: Crypto vs Stocks */}
-      <div>
-        <div className="section-row" style={{ marginBottom: 10 }}>
-          <div className="section-title">Monthly Invested · Breakdown</div>
-        </div>
-        <div className="chart-grid">
-          <ChartCard
-            label="Monthly Crypto Invested"
-            value={fmt$(totalCrypto, true)}
-            change={`Added in ${range}`}
-            changePositive={null}
-            typeToggle={{ value: cryptoChartType, onChange: v => setCryptoChartType(v as 'bar' | 'line'), options: CHART_OPTS }}
-            modalContent={<FlexBarChart labels={labels} data={slicedCrypto} color={C.purple} chartType={cryptoChartType} />}
-          >
-            <FlexBarChart labels={labels} data={slicedCrypto} color={C.purple} chartType={cryptoChartType} />
-          </ChartCard>
-
-          <ChartCard
-            label="Monthly Stocks Invested"
-            value={fmt$(totalStocks, true)}
-            change={`Added in ${range}`}
-            changePositive={null}
-            typeToggle={{ value: stocksChartType, onChange: v => setStocksChartType(v as 'bar' | 'line'), options: CHART_OPTS }}
-            modalContent={<FlexBarChart labels={labels} data={slicedStocks} color={C.blue} chartType={stocksChartType} />}
-          >
-            <FlexBarChart labels={labels} data={slicedStocks} color={C.blue} chartType={stocksChartType} />
-          </ChartCard>
-        </div>
-      </div>
-
-      {/* Allocation */}
-      <div className="chart-grid">
-        <ChartCard
-          label="Allocation"
-          value={`${D.cryptoAlloc[D.N - 1]}% Crypto`}
-          change={`${D.stocksAlloc[D.N - 1]}% Stocks`}
-          changePositive={null}
-        >
-          <div className="donut-wrap">
-            <DonutChart values={[D.cryptoAlloc[D.N - 1], D.stocksAlloc[D.N - 1]]} colors={[C.purple, C.blue]} />
-            <div className="donut-legend">
-              <div className="donut-item">
-                <div className="donut-item-label"><span className="donut-dot" style={{ background: C.purple }} />Crypto</div>
-                <div className="donut-item-value" style={{ color: C.purple }}>{D.cryptoAlloc[D.N - 1]}%</div>
-                <div style={{ fontSize: 11, color: 'var(--text3)' }}>{fmt$(cur.cryptoInvested, true)} invested</div>
+      ) : (
+        <>
+          {/* KPI Row — Investments */}
+          {hasPortfolioData && (
+            <div className="kpi-grid">
+              <div className="kpi-card">
+                <div className="kpi-label">Portfolio Value</div>
+                <div className="kpi-value">{fmt$(curPortfolioValue, true)}</div>
+                <div className={`kpi-change ${clsROI(curTotalRoi)}`}>{fmtPct(curTotalRoi)} all-time ROI</div>
               </div>
-              <div className="donut-item">
-                <div className="donut-item-label"><span className="donut-dot" style={{ background: C.blue }} />Stocks</div>
-                <div className="donut-item-value" style={{ color: C.blue }}>{D.stocksAlloc[D.N - 1]}%</div>
-                <div style={{ fontSize: 11, color: 'var(--text3)' }}>{fmt$(cur.stocksInvested, true)} invested</div>
+              <div className="kpi-card">
+                <div className="kpi-label">Total Invested</div>
+                <div className="kpi-value">{fmt$(curTotalInvested, true)}</div>
+                <div className="kpi-change neu">Crypto + Stocks</div>
+              </div>
+              <div className="kpi-card">
+                <div className="kpi-label">Total Gain</div>
+                <div className={`kpi-value ${clsROI(curTotalGain)}`}>{fmtSign$(curTotalGain)}</div>
+                <div className={`kpi-change ${roiDelta >= 0 ? 'pos' : 'neg'}`}>{fmtPct(roiDelta)} vs last month</div>
+              </div>
+              <div className="kpi-card">
+                <div className="kpi-label">Best Asset</div>
+                <div className="kpi-value" style={{ color: bestAsset === 'Crypto' ? C.purple : C.blue }}>{bestAsset}</div>
+                <div className="kpi-change pos">{fmtPct(curCryptoRoi)} crypto ROI</div>
               </div>
             </div>
-          </div>
-        </ChartCard>
-      </div>
+          )}
 
-      {/* My Entries */}
-      <div>
-        <div className="section-row" style={{ marginBottom: 10 }}>
-          <div className="section-title">
-            My Entries {entries.length > 0 && <span className="entries-badge">{entries.length}</span>}
+          {/* KPI Row — Savings Health */}
+          {hasSavings && latestSavings && (
+            <div className="kpi-grid">
+              <div className="kpi-card">
+                <div className="kpi-label">Saving Rate</div>
+                <div className={`kpi-value ${vsTarget >= 0 ? 'pos' : 'neg'}`}>{latestSavings.savingRate.toFixed(1)}%</div>
+                <div className={`kpi-change ${vsTarget >= 0 ? 'pos' : 'neg'}`}>
+                  {vsTarget >= 0 ? '▲' : '▼'} {Math.abs(vsTarget)}% vs {savingsTarget}% target
+                </div>
+              </div>
+              <div className="kpi-card">
+                <div className="kpi-label">Monthly Income</div>
+                <div className="kpi-value">{fmt(latestSavings.netIncome)}</div>
+                <div className="kpi-change neu">{latestSavings.mo} {latestSavings.yr}</div>
+              </div>
+              <div className="kpi-card">
+                <div className="kpi-label">Monthly Expenses</div>
+                <div className="kpi-value neg">{fmt(latestSavings.totalExpenses)}</div>
+                <div className="kpi-change neu">
+                  {latestSavings.netIncome > 0
+                    ? Math.round(latestSavings.totalExpenses / latestSavings.netIncome * 100)
+                    : 0}% of income
+                </div>
+              </div>
+              <div className="kpi-card">
+                <div className="kpi-label">Total Saved</div>
+                <div className="kpi-value pos">{fmt(totalSaved)}</div>
+                <div className="kpi-change neu">Avg {avgSavingsRate}% rate</div>
+              </div>
+            </div>
+          )}
+
+          {/* Portfolio Charts */}
+          {hasPortfolioData && (
+            <>
+              <div className="chart-grid">
+                <ChartCard
+                  label="Portfolio Value"
+                  value={fmt$(curPortfolioValue, true)}
+                  change={fmtPct(curTotalRoi) + ' all-time'}
+                  changePositive={curTotalRoi >= 0}
+                  typeToggle={{
+                    value: portfolioValueType,
+                    onChange: (v) => setPortfolioValueType(v as 'area' | 'bar'),
+                    options: [{ value: 'area', label: 'Area' }, { value: 'bar', label: 'Bar' }],
+                  }}
+                  modalContent={portfolioValueType === 'area' ? (
+                    <AreaChart labels={labels} annotations={ann} datasets={[
+                      { label: 'Total Value', data: combinedReturn.slice(start), color: C.green },
+                      { label: 'Invested',    data: combinedInvested.slice(start), color: C.blue },
+                    ]} />
+                  ) : (
+                    <GroupedBarChart
+                      labels={labels}
+                      dataset1={{ label: 'Total Value', data: combinedReturn.slice(start), color: C.green }}
+                      dataset2={{ label: 'Invested',    data: combinedInvested.slice(start), color: C.blue }}
+                    />
+                  )}
+                >
+                  {portfolioValueType === 'area' ? (
+                    <AreaChart labels={labels} datasets={[
+                      { label: 'Total Value', data: combinedReturn.slice(start), color: C.green },
+                      { label: 'Invested',    data: combinedInvested.slice(start), color: C.blue },
+                    ]} />
+                  ) : (
+                    <GroupedBarChart
+                      labels={labels}
+                      dataset1={{ label: 'Total Value', data: combinedReturn.slice(start), color: C.green }}
+                      dataset2={{ label: 'Invested',    data: combinedInvested.slice(start), color: C.blue }}
+                    />
+                  )}
+                </ChartCard>
+
+                <ChartCard
+                  label="ROI vs Benchmarks"
+                  value={fmtPct(curTotalRoi)}
+                  change={fmtPct(curTotalRoi - (lastSpx as number)) + ' vs S&P 500'}
+                  changePositive={curTotalRoi > (lastSpx as number)}
+                  typeToggle={{
+                    value: roiBenchmarkType,
+                    onChange: (v) => setRoiBenchmarkType(v as 'line' | 'bar'),
+                    options: [{ value: 'line', label: 'Line' }, { value: 'bar', label: 'Bar' }],
+                  }}
+                  modalContent={
+                    <MultiLineChart labels={labels} annotations={ann} datasets={[
+                      { label: 'Portfolio ROI', data: combinedRoi.slice(start),     color: C.green },
+                      { label: 'S&P 500',       data: spxSeries.slice(start),       color: C.orange, dashed: true },
+                      { label: 'Nasdaq',        data: nasdaqSeries.slice(start),    color: C.yellow, dashed: true },
+                    ]} />
+                  }
+                >
+                  <MultiLineChart labels={labels} datasets={[
+                    { label: 'Portfolio ROI', data: combinedRoi.slice(start),     color: C.green },
+                    { label: 'S&P 500',       data: spxSeries.slice(start),       color: C.orange, dashed: true },
+                    { label: 'Nasdaq',        data: nasdaqSeries.slice(start),    color: C.yellow, dashed: true },
+                  ]} />
+                </ChartCard>
+
+                <ChartCard
+                  label="Monthly Invested"
+                  value={fmt$(slicedTotal.reduce((a, b) => a + b, 0), true)}
+                  change={`Total added (${range})`}
+                  changePositive={null}
+                  typeToggle={{ value: totalChartType, onChange: v => setTotalChartType(v as 'bar' | 'line'), options: CHART_OPTS }}
+                  modalContent={<FlexBarChart labels={labels} data={slicedTotal} color={C.blue} chartType={totalChartType} />}
+                >
+                  <FlexBarChart labels={labels} data={slicedTotal} color={C.blue} chartType={totalChartType} />
+                </ChartCard>
+              </div>
+
+              {/* Monthly breakdown: Crypto vs Stocks */}
+              <div>
+                <div className="section-row" style={{ marginBottom: 10 }}>
+                  <div className="section-title">Monthly Invested · Breakdown</div>
+                </div>
+                <div className="chart-grid">
+                  <ChartCard
+                    label="Monthly Crypto Invested"
+                    value={fmt$(totalCrypto, true)}
+                    change={`Added in ${range}`}
+                    changePositive={null}
+                    typeToggle={{ value: cryptoChartType, onChange: v => setCryptoChartType(v as 'bar' | 'line'), options: CHART_OPTS }}
+                    modalContent={<FlexBarChart labels={labels} data={slicedCrypto} color={C.purple} chartType={cryptoChartType} />}
+                  >
+                    <FlexBarChart labels={labels} data={slicedCrypto} color={C.purple} chartType={cryptoChartType} />
+                  </ChartCard>
+
+                  <ChartCard
+                    label="Monthly Stocks Invested"
+                    value={fmt$(totalStocks, true)}
+                    change={`Added in ${range}`}
+                    changePositive={null}
+                    typeToggle={{ value: stocksChartType, onChange: v => setStocksChartType(v as 'bar' | 'line'), options: CHART_OPTS }}
+                    modalContent={<FlexBarChart labels={labels} data={slicedStocks} color={C.blue} chartType={stocksChartType} />}
+                  >
+                    <FlexBarChart labels={labels} data={slicedStocks} color={C.blue} chartType={stocksChartType} />
+                  </ChartCard>
+                </div>
+              </div>
+
+              {/* Allocation */}
+              <div className="chart-grid">
+                <ChartCard
+                  label="Allocation"
+                  value={`${cryptoAllocPct}% Crypto`}
+                  change={`${stocksAllocPct}% Stocks`}
+                  changePositive={null}
+                >
+                  <div className="donut-wrap">
+                    <DonutChart values={[cryptoAllocPct, stocksAllocPct]} colors={[C.purple, C.blue]} />
+                    <div className="donut-legend">
+                      <div className="donut-item">
+                        <div className="donut-item-label"><span className="donut-dot" style={{ background: C.purple }} />Crypto</div>
+                        <div className="donut-item-value" style={{ color: C.purple }}>{cryptoAllocPct}%</div>
+                        <div style={{ fontSize: 11, color: 'var(--text3)' }}>{fmt$(curCryptoInvested, true)} invested</div>
+                      </div>
+                      <div className="donut-item">
+                        <div className="donut-item-label"><span className="donut-dot" style={{ background: C.blue }} />Stocks</div>
+                        <div className="donut-item-value" style={{ color: C.blue }}>{stocksAllocPct}%</div>
+                        <div style={{ fontSize: 11, color: 'var(--text3)' }}>{fmt$(curStocksInvested, true)} invested</div>
+                      </div>
+                    </div>
+                  </div>
+                </ChartCard>
+              </div>
+            </>
+          )}
+
+          {/* Savings Overview */}
+          {hasSavings && (
+            <div>
+              <div className="section-row" style={{ marginBottom: 10 }}>
+                <div className="section-title">Savings Overview</div>
+                <div className="page-sub" style={{ fontWeight: 400 }}>
+                  {savingsLabels[0]} – {savingsLabels[savingsLabels.length - 1]}
+                </div>
+              </div>
+              <div className="chart-grid">
+                <ChartCard
+                  label="Saving Rate Trend"
+                  value={latestSavings ? latestSavings.savingRate.toFixed(1) + '%' : '—'}
+                  change={vsTarget >= 0 ? `+${vsTarget}% above target` : `${vsTarget}% below target`}
+                  changePositive={vsTarget >= 0}
+                  typeToggle={{
+                    value: savingsRateChartType,
+                    onChange: (v) => setSavingsRateChartType(v as 'line' | 'bar'),
+                    options: [{ value: 'line', label: 'Line' }, { value: 'bar', label: 'Bar' }],
+                  }}
+                  modalContent={
+                    <SavingsRateFlexChart
+                      labels={savingsLabels}
+                      rates={savingsRates}
+                      targets={savingsTargets}
+                      chartType={savingsRateChartType}
+                    />
+                  }
+                >
+                  <SavingsRateFlexChart
+                    labels={savingsLabels}
+                    rates={savingsRates}
+                    targets={savingsTargets}
+                    chartType={savingsRateChartType}
+                  />
+                </ChartCard>
+
+                <ChartCard
+                  label="Income vs Expenses"
+                  value={latestSavings ? fmt(latestSavings.netIncome) : '—'}
+                  change={latestSavings ? fmt(latestSavings.savings) + ' saved' : '—'}
+                  changePositive={latestSavings ? latestSavings.savings > 0 : null}
+                  typeToggle={{
+                    value: incomeExpChartType,
+                    onChange: (v) => setIncomeExpChartType(v as 'line' | 'bar'),
+                    options: [{ value: 'line', label: 'Line' }, { value: 'bar', label: 'Bar' }],
+                  }}
+                  modalContent={
+                    <IncomeExpFlexChart
+                      labels={savingsLabels}
+                      income={savingsIncome}
+                      expenses={savingsExpenses}
+                      chartType={incomeExpChartType}
+                    />
+                  }
+                >
+                  <IncomeExpFlexChart
+                    labels={savingsLabels}
+                    income={savingsIncome}
+                    expenses={savingsExpenses}
+                    chartType={incomeExpChartType}
+                  />
+                </ChartCard>
+              </div>
+            </div>
+          )}
+
+          {/* My Entries */}
+          <div>
+            <div className="section-row" style={{ marginBottom: 10 }}>
+              <div className="section-title">
+                My Entries {entries.length > 0 && <span className="entries-badge">{entries.length}</span>}
+              </div>
+              <button className="add-btn" onClick={showModal} style={{ fontSize: 12, padding: '5px 12px' }}>+ Add Entry</button>
+            </div>
+            <EntriesLog entries={entries} onEdit={onEditEntry} onDelete={onDeleteEntry} />
           </div>
-          <button className="add-btn" onClick={showModal} style={{ fontSize: 12, padding: '5px 12px' }}>+ Add Entry</button>
-        </div>
-        <EntriesLog entries={entries} onEdit={onEditEntry} onDelete={onDeleteEntry} />
-      </div>
+        </>
+      )}
     </div>
   );
 }
