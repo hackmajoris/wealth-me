@@ -6,11 +6,11 @@ import { TimeRange } from '../components/TimeRange';
 import { AreaChart } from '../components/charts/AreaChart';
 import { LineChart } from '../components/charts/LineChart';
 import { GainFlexChart } from '../components/charts/GainFlexChart';
-import { BarChart } from '../components/charts/BarChart';
-import { MultiLineChart } from '../components/charts/MultiLineChart';
+import { InvestedChart } from '../components/charts/InvestedChart';
 import { fmt$, fmtSign$, fmtPct, clsROI } from '../lib/formatters';
 import { sliceRange, type Range } from '../lib/ranges';
 import { buildAnnotations, C } from '../lib/chartDefaults';
+import { calcAverage } from '../lib/trendUtils';
 import { useChart } from '../components/charts/useChart';
 import { chartDefaults } from '../lib/chartDefaults';
 import type { TooltipItem } from 'chart.js';
@@ -156,15 +156,8 @@ export function Stocks({ showModal, entries, onDelete, onRefresh }: StocksProps)
     { month: currentMonth, year: currentYear },
   ];
 
-  // Calculate median of monthly invested
   const monthlyInvestedSlice = data.monthlyInvested.slice(start);
-  const medianMonthlyInvested = monthlyInvestedSlice.length > 0
-    ? (() => {
-        const sorted = [...monthlyInvestedSlice].sort((a, b) => a - b);
-        const mid = Math.floor(sorted.length / 2);
-        return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
-      })()
-    : 0;
+  const avgMonthlyInvested = calcAverage(monthlyInvestedSlice);
   const currentMonthInvested = monthlyInvestedSlice[monthlyInvestedSlice.length - 1] || 0;
 
   if (data.N === 0) {
@@ -323,8 +316,8 @@ export function Stocks({ showModal, entries, onDelete, onRefresh }: StocksProps)
         <ChartCard
           label="Monthly Invested"
           value={fmt$(monthlyInvestedSlice.reduce((a, b) => a + b, 0), true)}
-          change={`Median: ${fmt$(medianMonthlyInvested, true)} / Current Month: ${fmt$(currentMonthInvested, true)}`}
-          changePositive={currentMonthInvested >= medianMonthlyInvested}
+          change={`Avg: ${fmt$(avgMonthlyInvested, true)} / Current: ${fmt$(currentMonthInvested, true)}`}
+          changePositive={currentMonthInvested >= avgMonthlyInvested}
           typeToggle={{
             value: monthlyInvestedType,
             onChange: (v) => setMonthlyInvestedType(v as 'bar' | 'line'),
@@ -333,23 +326,9 @@ export function Stocks({ showModal, entries, onDelete, onRefresh }: StocksProps)
               { value: 'line', label: 'Line' },
             ],
           }}
-          modalContent={monthlyInvestedType === 'bar' ? (
-            <BarChart labels={labels} data={monthlyInvestedSlice} color={C.blue} />
-          ) : (
-            <MultiLineChart labels={labels} datasets={[
-              { label: 'Monthly Invested', data: monthlyInvestedSlice, color: C.blue },
-              { label: 'Median', data: monthlyInvestedSlice.map(() => medianMonthlyInvested), color: C.orange, dashed: true },
-            ]} />
-          )}
+          modalContent={<InvestedChart labels={labels} data={monthlyInvestedSlice} color={C.blue} chartType={monthlyInvestedType} />}
         >
-          {monthlyInvestedType === 'bar' ? (
-            <BarChart labels={labels} data={monthlyInvestedSlice} color={C.blue} />
-          ) : (
-            <MultiLineChart labels={labels} datasets={[
-              { label: 'Monthly Invested', data: monthlyInvestedSlice, color: C.blue },
-              { label: 'Median', data: monthlyInvestedSlice.map(() => medianMonthlyInvested), color: C.orange, dashed: true },
-            ]} />
-          )}
+          <InvestedChart labels={labels} data={monthlyInvestedSlice} color={C.blue} chartType={monthlyInvestedType} />
         </ChartCard>
       </div>
 

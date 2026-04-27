@@ -5,7 +5,8 @@ import { TimeRange } from '../components/TimeRange';
 import { EntriesLog } from '../components/EntriesLog';
 import { AreaChart } from '../components/charts/AreaChart';
 import { MultiLineChart } from '../components/charts/MultiLineChart';
-import { FlexBarChart } from '../components/charts/FlexBarChart';
+import { InvestedChart } from '../components/charts/InvestedChart';
+import { calcAverage } from '../lib/trendUtils';
 import { GroupedBarChart } from '../components/charts/GroupedBarChart';
 import { DonutChart } from '../components/charts/DonutChart';
 import { SavingsRateFlexChart } from '../components/charts/SavingsRateFlexChart';
@@ -146,6 +147,13 @@ export function Dashboard({ showModal, entries, onEditEntry, onDeleteEntry }: Da
   const slicedTotal  = monthlyInvestedTotal.slice(start);
   const totalCrypto  = slicedCrypto.reduce((a, b) => a + b, 0);
   const totalStocks  = slicedStocks.reduce((a, b) => a + b, 0);
+
+  const avgTotal  = calcAverage(slicedTotal);
+  const avgCrypto = calcAverage(slicedCrypto);
+  const avgStocks = calcAverage(slicedStocks);
+  const curTotal  = slicedTotal[slicedTotal.length - 1] ?? 0;
+  const curCrypto = slicedCrypto[slicedCrypto.length - 1] ?? 0;
+  const curStocks = slicedStocks[slicedStocks.length - 1] ?? 0;
 
   // Savings derived stats
   const sortedSavings = [...savingsEntries].sort((a, b) =>
@@ -322,12 +330,12 @@ export function Dashboard({ showModal, entries, onEditEntry, onDeleteEntry }: Da
                 <ChartCard
                   label="Monthly Invested"
                   value={fmt$(slicedTotal.reduce((a, b) => a + b, 0), true)}
-                  change={`Total added (${range})`}
-                  changePositive={null}
+                  change={`Avg: ${fmt$(avgTotal, true)} / Current: ${fmt$(curTotal, true)}`}
+                  changePositive={curTotal >= avgTotal}
                   typeToggle={{ value: totalChartType, onChange: v => setTotalChartType(v as 'bar' | 'line'), options: CHART_OPTS }}
-                  modalContent={<FlexBarChart labels={labels} data={slicedTotal} color={C.blue} chartType={totalChartType} />}
+                  modalContent={<InvestedChart labels={labels} data={slicedTotal} color={C.blue} chartType={totalChartType} />}
                 >
-                  <FlexBarChart labels={labels} data={slicedTotal} color={C.blue} chartType={totalChartType} />
+                  <InvestedChart labels={labels} data={slicedTotal} color={C.blue} chartType={totalChartType} />
                 </ChartCard>
               </div>
 
@@ -340,23 +348,23 @@ export function Dashboard({ showModal, entries, onEditEntry, onDeleteEntry }: Da
                   <ChartCard
                     label="Monthly Crypto Invested"
                     value={fmt$(totalCrypto, true)}
-                    change={`Added in ${range}`}
-                    changePositive={null}
+                    change={`Avg: ${fmt$(avgCrypto, true)} / Current: ${fmt$(curCrypto, true)}`}
+                    changePositive={curCrypto >= avgCrypto}
                     typeToggle={{ value: cryptoChartType, onChange: v => setCryptoChartType(v as 'bar' | 'line'), options: CHART_OPTS }}
-                    modalContent={<FlexBarChart labels={labels} data={slicedCrypto} color={C.purple} chartType={cryptoChartType} />}
+                    modalContent={<InvestedChart labels={labels} data={slicedCrypto} color={C.purple} chartType={cryptoChartType} />}
                   >
-                    <FlexBarChart labels={labels} data={slicedCrypto} color={C.purple} chartType={cryptoChartType} />
+                    <InvestedChart labels={labels} data={slicedCrypto} color={C.purple} chartType={cryptoChartType} />
                   </ChartCard>
 
                   <ChartCard
                     label="Monthly Stocks Invested"
                     value={fmt$(totalStocks, true)}
-                    change={`Added in ${range}`}
-                    changePositive={null}
+                    change={`Avg: ${fmt$(avgStocks, true)} / Current: ${fmt$(curStocks, true)}`}
+                    changePositive={curStocks >= avgStocks}
                     typeToggle={{ value: stocksChartType, onChange: v => setStocksChartType(v as 'bar' | 'line'), options: CHART_OPTS }}
-                    modalContent={<FlexBarChart labels={labels} data={slicedStocks} color={C.blue} chartType={stocksChartType} />}
+                    modalContent={<InvestedChart labels={labels} data={slicedStocks} color={C.blue} chartType={stocksChartType} />}
                   >
-                    <FlexBarChart labels={labels} data={slicedStocks} color={C.blue} chartType={stocksChartType} />
+                    <InvestedChart labels={labels} data={slicedStocks} color={C.blue} chartType={stocksChartType} />
                   </ChartCard>
                 </div>
               </div>
