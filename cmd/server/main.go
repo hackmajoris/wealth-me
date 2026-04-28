@@ -12,7 +12,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/hackmajoris/wealth-me/pkg/assets"
 	"github.com/hackmajoris/wealth-me/pkg/crypto"
+	"github.com/hackmajoris/wealth-me/pkg/debts"
 	"github.com/hackmajoris/wealth-me/pkg/entries"
 	"github.com/hackmajoris/wealth-me/pkg/savings"
 	"github.com/hackmajoris/wealth-me/pkg/settings"
@@ -81,7 +83,13 @@ func run(args []string, out io.Writer) error {
 	settingsStore := settings.New(db)
 	settingsHandler := settings.NewHandler(settingsStore)
 
-	uploadHandler := upload.NewHandler(entriesStore, savingsStore)
+	assetsStore := assets.New(db)
+	assetsHandler := assets.NewHandler(assetsStore)
+
+	debtsStore := debts.New(db)
+	debtsHandler := debts.NewHandler(debtsStore)
+
+	uploadHandler := upload.NewHandler(entriesStore, savingsStore, assetsStore, debtsStore)
 	stocksHandler := stocks.NewHandler(entriesStore)
 	cryptoHandler := crypto.NewHandler(entriesStore)
 
@@ -104,14 +112,49 @@ func run(args []string, out io.Writer) error {
 	mux.HandleFunc("POST /api/settings/savings-target", settingsHandler.SetTarget)
 	mux.HandleFunc("GET /api/settings/currency", settingsHandler.GetCurrency)
 	mux.HandleFunc("POST /api/settings/currency", settingsHandler.SetCurrency)
+	mux.HandleFunc("GET /api/settings/assets-currency", settingsHandler.GetAssetsCurrency)
+	mux.HandleFunc("POST /api/settings/assets-currency", settingsHandler.SetAssetsCurrency)
+	mux.HandleFunc("GET /api/settings/debts-currency", settingsHandler.GetDebtsCurrency)
+	mux.HandleFunc("POST /api/settings/debts-currency", settingsHandler.SetDebtsCurrency)
+	mux.HandleFunc("GET /api/settings/exchange-rates", settingsHandler.GetExchangeRates)
+	mux.HandleFunc("POST /api/settings/exchange-rates", settingsHandler.SetExchangeRates)
 
 	mux.HandleFunc("GET /api/upload/csv/template", uploadHandler.HandleCSVTemplate)
 	mux.HandleFunc("POST /api/upload/csv", uploadHandler.HandleCSV)
 	mux.HandleFunc("GET /api/upload/savings-csv/template", uploadHandler.HandleSavingsCSVTemplate)
 	mux.HandleFunc("POST /api/upload/savings-csv", uploadHandler.HandleSavingsCSV)
+	mux.HandleFunc("GET /api/upload/asset-history-csv/template", uploadHandler.HandleAssetHistoryCSVTemplate)
+	mux.HandleFunc("POST /api/upload/asset-history-csv", uploadHandler.HandleAssetHistoryCSV)
+	mux.HandleFunc("GET /api/upload/debt-history-csv/template", uploadHandler.HandleDebtHistoryCSVTemplate)
+	mux.HandleFunc("POST /api/upload/debt-history-csv", uploadHandler.HandleDebtHistoryCSV)
 
 	mux.HandleFunc("GET /api/stocks", stocksHandler.Get)
 	mux.HandleFunc("GET /api/crypto", cryptoHandler.Get)
+
+	mux.HandleFunc("GET /api/assets", assetsHandler.List)
+	mux.HandleFunc("POST /api/assets", assetsHandler.Create)
+	mux.HandleFunc("GET /api/assets/history", assetsHandler.History)
+	mux.HandleFunc("POST /api/assets/snapshot", assetsHandler.Snapshot)
+	mux.HandleFunc("GET /api/assets/{id}", assetsHandler.GetByID)
+	mux.HandleFunc("PUT /api/assets/{id}", assetsHandler.Update)
+	mux.HandleFunc("DELETE /api/assets/{id}", assetsHandler.Delete)
+
+	mux.HandleFunc("GET /api/debts", debtsHandler.List)
+	mux.HandleFunc("POST /api/debts", debtsHandler.Create)
+	mux.HandleFunc("GET /api/debts/history", debtsHandler.History)
+	mux.HandleFunc("POST /api/debts/snapshot", debtsHandler.Snapshot)
+	mux.HandleFunc("GET /api/debts/{id}", debtsHandler.GetByID)
+	mux.HandleFunc("PUT /api/debts/{id}", debtsHandler.Update)
+	mux.HandleFunc("DELETE /api/debts/{id}", debtsHandler.Delete)
+	mux.HandleFunc("GET /api/debt-entries", debtsHandler.ListEntries)
+	mux.HandleFunc("POST /api/debt-entries", debtsHandler.CreateEntry)
+	mux.HandleFunc("PUT /api/debt-entries/{id}", debtsHandler.UpdateEntry)
+	mux.HandleFunc("DELETE /api/debt-entries/{id}", debtsHandler.DeleteEntry)
+
+	mux.HandleFunc("GET /api/asset-entries", assetsHandler.ListEntries)
+	mux.HandleFunc("POST /api/asset-entries", assetsHandler.CreateEntry)
+	mux.HandleFunc("PUT /api/asset-entries/{id}", assetsHandler.UpdateEntry)
+	mux.HandleFunc("DELETE /api/asset-entries/{id}", assetsHandler.DeleteEntry)
 
 	mux.Handle("/", web.Handler())
 
@@ -169,6 +212,55 @@ func migrate(db *sql.DB) error {
 			value_string TEXT
 		)`},
 		{"settings_add_value_string", `ALTER TABLE settings ADD COLUMN value_string TEXT`},
+		{"assets", `CREATE TABLE IF NOT EXISTS assets (
+			id             INTEGER PRIMARY KEY AUTOINCREMENT,
+			name           TEXT    NOT NULL,
+			category       TEXT    NOT NULL DEFAULT '',
+			value          REAL    NOT NULL DEFAULT 0,
+			purchase_price REAL    NOT NULL DEFAULT 0,
+			purchase_date  TEXT    NOT NULL DEFAULT '',
+			note           TEXT    NOT NULL DEFAULT '',
+			created_at     TEXT    NOT NULL DEFAULT (datetime('now')),
+			updated_at     TEXT    NOT NULL DEFAULT (datetime('now'))
+		)`},
+		{"asset_history", `CREATE TABLE IF NOT EXISTS asset_history (
+			date        TEXT PRIMARY KEY,
+			total_value REAL NOT NULL DEFAULT 0
+		)`},
+		{"debts", `CREATE TABLE IF NOT EXISTS debts (
+			id              INTEGER PRIMARY KEY AUTOINCREMENT,
+			name            TEXT    NOT NULL,
+			category        TEXT    NOT NULL DEFAULT '',
+			balance         REAL    NOT NULL DEFAULT 0,
+			credit_limit    REAL    NOT NULL DEFAULT 0,
+			interest_rate   REAL    NOT NULL DEFAULT 0,
+			minimum_payment REAL    NOT NULL DEFAULT 0,
+			note            TEXT    NOT NULL DEFAULT '',
+			created_at      TEXT    NOT NULL DEFAULT (datetime('now')),
+			updated_at      TEXT    NOT NULL DEFAULT (datetime('now'))
+		)`},
+		{"debt_entries", `CREATE TABLE IF NOT EXISTS debt_entries (
+			id         INTEGER PRIMARY KEY AUTOINCREMENT,
+			date       TEXT    NOT NULL,
+			name       TEXT    NOT NULL DEFAULT '',
+			category   TEXT    NOT NULL DEFAULT '',
+			amount     REAL    NOT NULL DEFAULT 0,
+			currency   TEXT    NOT NULL DEFAULT 'RON',
+			note       TEXT    NOT NULL DEFAULT '',
+			created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+			UNIQUE(date, name)
+		)`},
+		{"debt_entries_add_currency", `ALTER TABLE debt_entries ADD COLUMN currency TEXT NOT NULL DEFAULT 'RON'`},
+		{"asset_entries", `CREATE TABLE IF NOT EXISTS asset_entries (
+			id         INTEGER PRIMARY KEY AUTOINCREMENT,
+			date       TEXT    NOT NULL,
+			name       TEXT    NOT NULL DEFAULT '',
+			category   TEXT    NOT NULL DEFAULT '',
+			amount     REAL    NOT NULL DEFAULT 0,
+			note       TEXT    NOT NULL DEFAULT '',
+			created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+			UNIQUE(date, name)
+		)`},
 	}
 	for _, s := range steps {
 		if _, err := db.Exec(s.sql); err != nil {

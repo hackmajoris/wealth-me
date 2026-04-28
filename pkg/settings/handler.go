@@ -80,6 +80,114 @@ func (h *Handler) SetCurrency(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, setting)
 }
 
+// GetAssetsCurrency returns the current assets currency setting.
+func (h *Handler) GetAssetsCurrency(w http.ResponseWriter, r *http.Request) {
+	setting, err := h.store.GetString("assets_currency")
+	if errors.Is(err, ErrNotFound) {
+		writeJSON(w, http.StatusOK, StringSetting{Key: "assets_currency", Value: "RON"})
+		return
+	}
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, setting)
+}
+
+// SetAssetsCurrency updates the assets currency setting.
+func (h *Handler) SetAssetsCurrency(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Value string `json:"value"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+	setting, err := h.store.SetString("assets_currency", body.Value)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, setting)
+}
+
+// GetDebtsCurrency returns the current debts currency setting.
+func (h *Handler) GetDebtsCurrency(w http.ResponseWriter, r *http.Request) {
+	setting, err := h.store.GetString("debts_currency")
+	if errors.Is(err, ErrNotFound) {
+		writeJSON(w, http.StatusOK, StringSetting{Key: "debts_currency", Value: "RON"})
+		return
+	}
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, setting)
+}
+
+// SetDebtsCurrency updates the debts currency setting.
+func (h *Handler) SetDebtsCurrency(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Value string `json:"value"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+	setting, err := h.store.SetString("debts_currency", body.Value)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, setting)
+}
+
+// ExchangeRates represents currency exchange rates to RON.
+type ExchangeRates struct {
+	USDToRON float64 `json:"usdToRon"`
+	EURToRON float64 `json:"eurToRon"`
+}
+
+// GetExchangeRates returns the current exchange rates.
+func (h *Handler) GetExchangeRates(w http.ResponseWriter, r *http.Request) {
+	usdToRon, err := h.store.Get("rate_usd_to_ron")
+	eurToRon, err2 := h.store.Get("rate_eur_to_ron")
+
+	rates := ExchangeRates{
+		USDToRON: 4.35,
+		EURToRON: 5.09,
+	}
+
+	if err == nil && usdToRon != nil {
+		rates.USDToRON = usdToRon.Value
+	}
+	if err2 == nil && eurToRon != nil {
+		rates.EURToRON = eurToRon.Value
+	}
+
+	writeJSON(w, http.StatusOK, rates)
+}
+
+// SetExchangeRates updates the exchange rates.
+func (h *Handler) SetExchangeRates(w http.ResponseWriter, r *http.Request) {
+	var body ExchangeRates
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+
+	if _, err := h.store.Set("rate_usd_to_ron", body.USDToRON); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if _, err := h.store.Set("rate_eur_to_ron", body.EURToRON); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, body)
+}
+
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)

@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/hackmajoris/wealth-me/pkg/assets"
+	"github.com/hackmajoris/wealth-me/pkg/debts"
 	"github.com/hackmajoris/wealth-me/pkg/entries"
 	"github.com/hackmajoris/wealth-me/pkg/savings"
 )
@@ -31,11 +33,13 @@ var monthMap = map[string]string{
 type Handler struct {
 	entries *entries.Store
 	savings *savings.Store
+	assets  *assets.Store
+	debts   *debts.Store
 }
 
 // NewHandler creates a new Handler.
-func NewHandler(entriesStore *entries.Store, savingsStore *savings.Store) *Handler {
-	return &Handler{entries: entriesStore, savings: savingsStore}
+func NewHandler(entriesStore *entries.Store, savingsStore *savings.Store, assetsStore *assets.Store, debtsStore *debts.Store) *Handler {
+	return &Handler{entries: entriesStore, savings: savingsStore, assets: assetsStore, debts: debtsStore}
 }
 
 // HandleCSVTemplate responds with a downloadable CSV template.
@@ -257,6 +261,157 @@ func (h *Handler) HandleSavingsCSV(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(imported) //nolint:errcheck
+}
+
+// HandleAssetHistoryCSVTemplate responds with a downloadable CSV template for asset entries.
+func (h *Handler) HandleAssetHistoryCSVTemplate(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/csv")
+	w.Header().Set("Content-Disposition", `attachment; filename="asset-entries-template.csv"`)
+	wr := csv.NewWriter(w)
+	_ = wr.Write([]string{"month", "year", "name", "type", "amount"})
+	_ = wr.Write([]string{"September", "2021", "Primary House", "Real Estate", "150000"})
+	_ = wr.Write([]string{"September", "2021", "Car", "Vehicle", "25000"})
+	wr.Flush()
+}
+
+// HandleAssetHistoryCSV imports asset entries from a multipart CSV upload.
+// Expected columns: month, year, name, type, amount
+func (h *Handler) HandleAssetHistoryCSV(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, "missing file field", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	records, err := csv.NewReader(file).ReadAll()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("invalid csv: %v", err), http.StatusBadRequest)
+		return
+	}
+	if len(records) < 2 {
+		http.Error(w, "csv must contain a header row and at least one data row", http.StatusBadRequest)
+		return
+	}
+
+	idx := make(map[string]int, len(records[0]))
+	for i, col := range records[0] {
+		idx[col] = i
+	}
+	for _, col := range []string{"month", "year", "name", "type", "amount"} {
+		if _, ok := idx[col]; !ok {
+			http.Error(w, fmt.Sprintf("missing required column: %s", col), http.StatusBadRequest)
+			return
+		}
+	}
+
+	count := 0
+	for i, rec := range records[1:] {
+		monthName := strings.TrimSpace(field(rec, idx, "month"))
+		yearStr := strings.TrimSpace(field(rec, idx, "year"))
+		mo, ok := monthMap[monthName]
+		if !ok {
+			http.Error(w, fmt.Sprintf("row %d: invalid month %q", i+2, monthName), http.StatusBadRequest)
+			return
+		}
+		name := strings.TrimSpace(field(rec, idx, "name"))
+		if name == "" {
+			http.Error(w, fmt.Sprintf("row %d: name is required", i+2), http.StatusBadRequest)
+			return
+		}
+		category := strings.TrimSpace(field(rec, idx, "type"))
+		amount, err := strconv.ParseFloat(strings.ReplaceAll(strings.TrimSpace(field(rec, idx, "amount")), ",", ""), 64)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("row %d: invalid amount", i+2), http.StatusBadRequest)
+			return
+		}
+		label := mo + " " + yearStr
+		if err := h.assets.UpsertEntry(assets.AssetEntry{Date: label, Name: name, Category: category, Amount: amount}); err != nil {
+			http.Error(w, fmt.Sprintf("row %d: %v", i+2, err), http.StatusInternalServerError)
+			return
+		}
+		count++
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]int{"imported": count}) //nolint:errcheck
+}
+
+// HandleDebtHistoryCSVTemplate responds with a downloadable CSV template for debt history.
+func (h *Handler) HandleDebtHistoryCSVTemplate(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/csv")
+	w.Header().Set("Content-Disposition", `attachment; filename="debt-history-template.csv"`)
+	wr := csv.NewWriter(w)
+	_ = wr.Write([]string{"month", "year", "totalDebt"})
+	_ = wr.Write([]string{"September", "2021", "25000"})
+	wr.Flush()
+}
+
+// HandleDebtHistoryCSV imports debt history from a multipart CSV upload.
+// Expected columns: month, year, totalDebt
+func (h *Handler) HandleDebtHistoryCSV(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, "missing file field", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	records, err := csv.NewReader(file).ReadAll()
+	if err != nil {
+		http.Error(w, fmt.Sprintf("invalid csv: %v", err), http.StatusBadRequest)
+		return
+	}
+	if len(records) < 2 {
+		http.Error(w, "csv must contain a header row and at least one data row", http.StatusBadRequest)
+		return
+	}
+
+	idx := make(map[string]int, len(records[0]))
+	for i, col := range records[0] {
+		idx[col] = i
+	}
+	for _, col := range []string{"month", "year", "totalDebt"} {
+		if _, ok := idx[col]; !ok {
+			http.Error(w, fmt.Sprintf("missing required column: %s", col), http.StatusBadRequest)
+			return
+		}
+	}
+
+	count := 0
+	for i, rec := range records[1:] {
+		monthName := strings.TrimSpace(field(rec, idx, "month"))
+		yearStr := strings.TrimSpace(field(rec, idx, "year"))
+		mo, ok := monthMap[monthName]
+		if !ok {
+			http.Error(w, fmt.Sprintf("row %d: invalid month %q", i+2, monthName), http.StatusBadRequest)
+			return
+		}
+		totalDebt, err := strconv.ParseFloat(strings.ReplaceAll(strings.TrimSpace(field(rec, idx, "totalDebt")), ",", ""), 64)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("row %d: invalid totalDebt", i+2), http.StatusBadRequest)
+			return
+		}
+		label := mo + " " + yearStr
+		if err := h.debts.UpsertEntry(debts.DebtEntry{Date: label, Name: "Historical", Category: "Historical", Amount: totalDebt}); err != nil {
+			http.Error(w, fmt.Sprintf("row %d: %v", i+2, err), http.StatusInternalServerError)
+			return
+		}
+		count++
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]int{"imported": count}) //nolint:errcheck
 }
 
 // field returns the value at the named column, or "" if the column or index is missing.

@@ -10,9 +10,10 @@ interface LineChartProps {
   yLabel?: string;
   mini?: boolean;
   isCurrency?: boolean;
+  formatValue?: (v: number) => string;
 }
 
-export function LineChart({ labels, data, color, fill, yLabel, mini, isCurrency = true }: LineChartProps) {
+export function LineChart({ labels, data, color, fill, yLabel, mini, isCurrency = true, formatValue }: LineChartProps) {
   const colorA = color + '22';
   const ref = useChart({
     type: 'line',
@@ -40,9 +41,11 @@ export function LineChart({ labels, data, color, fill, yLabel, mini, isCurrency 
           callbacks: {
             label: (ctx: TooltipItem<'line'>) => {
               const val = ctx.parsed.y ?? 0;
-              const formatted = isCurrency
-                ? `$${Math.round(val).toLocaleString()}`
-                : `${Math.round(val * 10) / 10}%`;
+              const formatted = formatValue
+                ? formatValue(val)
+                : isCurrency
+                  ? `$${Math.round(val).toLocaleString()}`
+                  : `${Math.round(val * 10) / 10}%`;
               return `${yLabel ?? 'Value'}: ${formatted}`;
             },
           },
@@ -67,9 +70,8 @@ export function LineChart({ labels, data, color, fill, yLabel, mini, isCurrency 
             maxTicksLimit: mini ? 0 : 5,
             callback: (v: number | string) => {
               const n = Number(v);
-              if (isCurrency) {
-                return '$' + (n >= 1000 ? (n / 1000).toFixed(0) + 'k' : n);
-              }
+              if (formatValue) return formatValue(n);
+              if (isCurrency) return '$' + (n >= 1000 ? (n / 1000).toFixed(0) + 'k' : n);
               return n + '%';
             },
           },

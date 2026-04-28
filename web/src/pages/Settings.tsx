@@ -1,5 +1,6 @@
 import { useState, useRef, type ReactNode, useEffect } from 'react';
 import { api, ApiError } from '../lib/api';
+import type { ExchangeRates } from '../lib/api';
 import type { Entry } from '../lib/storage';
 
 function exportCSV(entries: Entry[]): void {
@@ -51,15 +52,32 @@ export function Settings({ entries, onRefresh, onSavingsRefresh, onClear }: Sett
   const [confirmClear, setConfirmClear]     = useState(false);
   const [currency, setCurrency]             = useState<string>('RON');
   const [isSavingCurrency, setIsSavingCurrency] = useState(false);
+  const [assetsCurrency, setAssetsCurrency] = useState<string>('RON');
+  const [isSavingAssetsCurrency, setIsSavingAssetsCurrency] = useState(false);
+  const [debtsCurrency, setDebtsCurrency]   = useState<string>('RON');
+  const [isSavingDebtsCurrency, setIsSavingDebtsCurrency]   = useState(false);
+  const [assetHistoryDragOver, setAssetHistoryDragOver] = useState(false);
+  const [assetHistoryPendingFile, setAssetHistoryPendingFile] = useState<File | null>(null);
+  const [assetHistoryUploading, setAssetHistoryUploading] = useState(false);
+  const [assetHistoryUploadDone, setAssetHistoryUploadDone] = useState<number | null>(null);
+  const [assetHistoryUploadError, setAssetHistoryUploadError] = useState<string | null>(null);
+  const [debtHistoryDragOver, setDebtHistoryDragOver] = useState(false);
+  const [debtHistoryPendingFile, setDebtHistoryPendingFile] = useState<File | null>(null);
+  const [debtHistoryUploading, setDebtHistoryUploading] = useState(false);
+  const [debtHistoryUploadDone, setDebtHistoryUploadDone] = useState<number | null>(null);
+  const [debtHistoryUploadError, setDebtHistoryUploadError] = useState<string | null>(null);
+  const [exchangeRates, setExchangeRates] = useState<ExchangeRates>({ usdToRon: 4.35, eurToRon: 5.09 });
+  const [isSavingRates, setIsSavingRates] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const savingsFileRef = useRef<HTMLInputElement>(null);
+  const assetHistoryFileRef = useRef<HTMLInputElement>(null);
+  const debtHistoryFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    api.settings.getCurrency()
-      .then(setting => {
-        setCurrency(setting.value);
-      })
-      .catch(console.error);
+    api.settings.getCurrency().then(s => setCurrency(s.value)).catch(console.error);
+    api.settings.getAssetsCurrency().then(s => setAssetsCurrency(s.value)).catch(console.error);
+    api.settings.getDebtsCurrency().then(s => setDebtsCurrency(s.value)).catch(console.error);
+    api.settings.getExchangeRates().then(setExchangeRates).catch(console.error);
   }, []);
 
   const handleFile = (file: File | null | undefined) => {
@@ -147,10 +165,76 @@ export function Settings({ entries, onRefresh, onSavingsRefresh, onClear }: Sett
       await api.settings.setCurrency(newCurrency);
     } catch (err) {
       console.error('Failed to save currency:', err);
-      // Revert on error
       setCurrency(currency);
     } finally {
       setIsSavingCurrency(false);
+    }
+  };
+
+  const handleSaveAssetsCurrency = async (newCurrency: string) => {
+    setAssetsCurrency(newCurrency);
+    setIsSavingAssetsCurrency(true);
+    try {
+      await api.settings.setAssetsCurrency(newCurrency);
+    } catch (err) {
+      console.error('Failed to save assets currency:', err);
+      setAssetsCurrency(assetsCurrency);
+    } finally {
+      setIsSavingAssetsCurrency(false);
+    }
+  };
+
+  const handleAssetHistoryUpload = async () => {
+    if (!assetHistoryPendingFile) return;
+    setAssetHistoryUploading(true);
+    setAssetHistoryUploadError(null);
+    try {
+      const result = await api.upload.assetHistoryCsv(assetHistoryPendingFile);
+      setAssetHistoryUploadDone(result.imported);
+      setAssetHistoryPendingFile(null);
+    } catch (err) {
+      setAssetHistoryUploadError(err instanceof ApiError ? err.message : 'Upload failed');
+    } finally {
+      setAssetHistoryUploading(false);
+    }
+  };
+
+  const handleDebtHistoryUpload = async () => {
+    if (!debtHistoryPendingFile) return;
+    setDebtHistoryUploading(true);
+    setDebtHistoryUploadError(null);
+    try {
+      const result = await api.upload.debtHistoryCsv(debtHistoryPendingFile);
+      setDebtHistoryUploadDone(result.imported);
+      setDebtHistoryPendingFile(null);
+    } catch (err) {
+      setDebtHistoryUploadError(err instanceof ApiError ? err.message : 'Upload failed');
+    } finally {
+      setDebtHistoryUploading(false);
+    }
+  };
+
+  const handleSaveDebtsCurrency = async (newCurrency: string) => {
+    setDebtsCurrency(newCurrency);
+    setIsSavingDebtsCurrency(true);
+    try {
+      await api.settings.setDebtsCurrency(newCurrency);
+    } catch (err) {
+      console.error('Failed to save debts currency:', err);
+      setDebtsCurrency(debtsCurrency);
+    } finally {
+      setIsSavingDebtsCurrency(false);
+    }
+  };
+
+  const handleSaveExchangeRates = async () => {
+    setIsSavingRates(true);
+    try {
+      await api.settings.setExchangeRates(exchangeRates);
+    } catch (err) {
+      console.error('Failed to save exchange rates:', err);
+    } finally {
+      setIsSavingRates(false);
     }
   };
 
@@ -260,6 +344,142 @@ export function Settings({ entries, onRefresh, onSavingsRefresh, onClear }: Sett
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      </SettingSection>
+
+      <SettingSection title="Assets">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Currency</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {['EUR', 'USD', 'RON'].map(c => (
+                <button key={c} onClick={() => handleSaveAssetsCurrency(c)} disabled={isSavingAssetsCurrency}
+                  style={{ padding: '8px 16px', backgroundColor: assetsCurrency === c ? 'var(--primary)' : 'var(--surface2)', color: assetsCurrency === c ? 'white' : 'var(--text)', border: `1px solid ${assetsCurrency === c ? 'var(--primary)' : 'var(--border)'}`, borderRadius: 6, fontSize: 13, fontWeight: assetsCurrency === c ? 600 : 400, cursor: isSavingAssetsCurrency ? 'not-allowed' : 'pointer', opacity: isSavingAssetsCurrency ? 0.6 : 1, transition: 'all .15s' }}>
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 12 }}>Import Historical Data · CSV</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ background: 'var(--surface2)', borderRadius: 10, padding: '12px 14px', fontSize: 12, color: 'var(--text2)', lineHeight: 1.7 }}>
+                <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: 6, fontSize: 13 }}>Expected CSV columns</div>
+                <code style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--purple)', display: 'block', whiteSpace: 'pre' }}>month, year, name, type, amount</code>
+                <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text3)' }}>month: "September" · year: 2021 · one row per asset per month</div>
+              </div>
+              <div onDragOver={e => { e.preventDefault(); setAssetHistoryDragOver(true); }} onDragLeave={() => setAssetHistoryDragOver(false)}
+                onDrop={e => { e.preventDefault(); setAssetHistoryDragOver(false); const f = e.dataTransfer.files[0]; if (f) { setAssetHistoryPendingFile(f); setAssetHistoryUploadDone(null); setAssetHistoryUploadError(null); } }}
+                onClick={() => assetHistoryFileRef.current?.click()}
+                style={{ border: `2px dashed ${assetHistoryDragOver ? 'var(--blue)' : 'var(--border2)'}`, borderRadius: 12, padding: '32px 20px', textAlign: 'center', cursor: 'pointer', background: assetHistoryDragOver ? 'rgba(96,165,250,0.06)' : 'transparent', transition: 'all .15s' }}>
+                <input ref={assetHistoryFileRef} type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) { setAssetHistoryPendingFile(f); setAssetHistoryUploadDone(null); setAssetHistoryUploadError(null); } }} />
+                <div style={{ fontSize: 28, marginBottom: 10, opacity: 0.5 }}>⬆</div>
+                {assetHistoryPendingFile ? <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>{assetHistoryPendingFile.name}</div>
+                  : <><div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>Drop a CSV file here</div><div style={{ fontSize: 12, color: 'var(--text3)' }}>or click to browse</div></>}
+              </div>
+              {assetHistoryPendingFile && (
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <button className="btn-ghost" style={{ fontSize: 12, padding: '7px 14px' }} onClick={() => { setAssetHistoryPendingFile(null); setAssetHistoryUploadError(null); }}>Discard</button>
+                  <button className="btn-primary" style={{ fontSize: 12, padding: '7px 14px' }} onClick={handleAssetHistoryUpload} disabled={assetHistoryUploading}>{assetHistoryUploading ? 'Uploading…' : 'Upload'}</button>
+                </div>
+              )}
+              {assetHistoryUploadError && <div style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: 10, padding: '12px 14px', fontSize: 13, color: '#f87171', fontWeight: 500 }}>✗ {assetHistoryUploadError}</div>}
+              {assetHistoryUploadDone !== null && <div style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)', borderRadius: 10, padding: '12px 14px', fontSize: 13, color: '#34d399', fontWeight: 500 }}>✓ Imported {assetHistoryUploadDone} row{assetHistoryUploadDone !== 1 ? 's' : ''}</div>}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn-ghost" style={{ fontSize: 12, padding: '7px 14px' }} onClick={() => { const a = document.createElement('a'); a.href = api.upload.assetHistoryCsvTemplateURL(); a.download = 'asset-history-template.csv'; a.click(); }}>↓ Download template CSV</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </SettingSection>
+
+      <SettingSection title="Debts">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Currency</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {['EUR', 'USD', 'RON'].map(c => (
+                <button key={c} onClick={() => handleSaveDebtsCurrency(c)} disabled={isSavingDebtsCurrency}
+                  style={{ padding: '8px 16px', backgroundColor: debtsCurrency === c ? 'var(--primary)' : 'var(--surface2)', color: debtsCurrency === c ? 'white' : 'var(--text)', border: `1px solid ${debtsCurrency === c ? 'var(--primary)' : 'var(--border)'}`, borderRadius: 6, fontSize: 13, fontWeight: debtsCurrency === c ? 600 : 400, cursor: isSavingDebtsCurrency ? 'not-allowed' : 'pointer', opacity: isSavingDebtsCurrency ? 0.6 : 1, transition: 'all .15s' }}>
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 12 }}>Import Historical Data · CSV</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ background: 'var(--surface2)', borderRadius: 10, padding: '12px 14px', fontSize: 12, color: 'var(--text2)', lineHeight: 1.7 }}>
+                <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: 6, fontSize: 13 }}>Expected CSV columns</div>
+                <code style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--purple)', display: 'block', whiteSpace: 'pre' }}>month, year, totalDebt</code>
+                <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text3)' }}>month: "September" · year: 2021 · totalDebt as number (amount used)</div>
+              </div>
+              <div onDragOver={e => { e.preventDefault(); setDebtHistoryDragOver(true); }} onDragLeave={() => setDebtHistoryDragOver(false)}
+                onDrop={e => { e.preventDefault(); setDebtHistoryDragOver(false); const f = e.dataTransfer.files[0]; if (f) { setDebtHistoryPendingFile(f); setDebtHistoryUploadDone(null); setDebtHistoryUploadError(null); } }}
+                onClick={() => debtHistoryFileRef.current?.click()}
+                style={{ border: `2px dashed ${debtHistoryDragOver ? 'var(--red)' : 'var(--border2)'}`, borderRadius: 12, padding: '32px 20px', textAlign: 'center', cursor: 'pointer', background: debtHistoryDragOver ? 'rgba(248,113,113,0.06)' : 'transparent', transition: 'all .15s' }}>
+                <input ref={debtHistoryFileRef} type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) { setDebtHistoryPendingFile(f); setDebtHistoryUploadDone(null); setDebtHistoryUploadError(null); } }} />
+                <div style={{ fontSize: 28, marginBottom: 10, opacity: 0.5 }}>⬆</div>
+                {debtHistoryPendingFile ? <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>{debtHistoryPendingFile.name}</div>
+                  : <><div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>Drop a CSV file here</div><div style={{ fontSize: 12, color: 'var(--text3)' }}>or click to browse</div></>}
+              </div>
+              {debtHistoryPendingFile && (
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <button className="btn-ghost" style={{ fontSize: 12, padding: '7px 14px' }} onClick={() => { setDebtHistoryPendingFile(null); setDebtHistoryUploadError(null); }}>Discard</button>
+                  <button className="btn-primary" style={{ fontSize: 12, padding: '7px 14px' }} onClick={handleDebtHistoryUpload} disabled={debtHistoryUploading}>{debtHistoryUploading ? 'Uploading…' : 'Upload'}</button>
+                </div>
+              )}
+              {debtHistoryUploadError && <div style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: 10, padding: '12px 14px', fontSize: 13, color: '#f87171', fontWeight: 500 }}>✗ {debtHistoryUploadError}</div>}
+              {debtHistoryUploadDone !== null && <div style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)', borderRadius: 10, padding: '12px 14px', fontSize: 13, color: '#34d399', fontWeight: 500 }}>✓ Imported {debtHistoryUploadDone} row{debtHistoryUploadDone !== 1 ? 's' : ''}</div>}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn-ghost" style={{ fontSize: 12, padding: '7px 14px' }} onClick={() => { const a = document.createElement('a'); a.href = api.upload.debtHistoryCsvTemplateURL(); a.download = 'debt-history-template.csv'; a.click(); }}>↓ Download template CSV</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </SettingSection>
+
+      <SettingSection title="Exchange Rates">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ fontSize: 13, color: 'var(--text2)' }}>
+            Set the currency conversion rates used for debt entries. Used to convert amounts to RON.
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', minWidth: 80 }}>1 USD =</span>
+              <input
+                type="number"
+                value={exchangeRates.usdToRon}
+                onChange={e => setExchangeRates({ ...exchangeRates, usdToRon: parseFloat(e.target.value) || 0 })}
+                disabled={isSavingRates}
+                style={{ padding: '6px 8px', width: 100, fontSize: 13, borderRadius: 4, border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--text)' }}
+              />
+              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>RON</span>
+              <span style={{ fontSize: 12, color: 'var(--text3)', marginLeft: 'auto' }}>≈ ${(1 / exchangeRates.usdToRon).toFixed(3)}</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', minWidth: 80 }}>1 EUR =</span>
+              <input
+                type="number"
+                value={exchangeRates.eurToRon}
+                onChange={e => setExchangeRates({ ...exchangeRates, eurToRon: parseFloat(e.target.value) || 0 })}
+                disabled={isSavingRates}
+                style={{ padding: '6px 8px', width: 100, fontSize: 13, borderRadius: 4, border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--text)' }}
+              />
+              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>RON</span>
+              <span style={{ fontSize: 12, color: 'var(--text3)', marginLeft: 'auto' }}>€ {(1 / exchangeRates.eurToRon).toFixed(3)}</span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              className="btn-primary"
+              style={{ fontSize: 12, padding: '7px 14px' }}
+              onClick={handleSaveExchangeRates}
+              disabled={isSavingRates}
+            >
+              {isSavingRates ? 'Saving…' : 'Save Rates'}
+            </button>
           </div>
         </div>
       </SettingSection>

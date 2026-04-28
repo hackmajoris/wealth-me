@@ -7,6 +7,7 @@ import { AreaChart } from '../components/charts/AreaChart';
 import { MultiLineChart } from '../components/charts/MultiLineChart';
 import { GroupedBarChart } from '../components/charts/GroupedBarChart';
 import { YoYBarChart } from '../components/charts/YoYBarChart';
+import { DonutChart } from '../components/charts/DonutChart';
 import { fmt$, fmtPct, clsROI } from '../lib/formatters';
 import { sliceRange, type Range } from '../lib/ranges';
 import { buildAnnotations, C } from '../lib/chartDefaults';
@@ -703,6 +704,7 @@ export function Performance({ showModal }: PerformanceProps) {
             />
           )}
         </ChartCard>
+
       </div>
 
       <div>
@@ -745,6 +747,30 @@ export function Performance({ showModal }: PerformanceProps) {
                 { label: 'Stocks', data: monthlyInvestedStocks.slice(start), color: C.blue },
               ]} />
             )}
+          </ChartCard>
+
+          <ChartCard
+            label="Allocation"
+            value={`${displayCryptoAlloc}% Crypto`}
+            change={`${displayStocksAlloc}% Stocks`}
+            changePositive={null}
+            noExpand
+          >
+            <div className="donut-wrap">
+              <DonutChart values={[displayCryptoAlloc, displayStocksAlloc]} colors={[C.purple, C.blue]} />
+              <div className="donut-legend">
+                <div className="donut-item">
+                  <div className="donut-item-label"><span className="donut-dot" style={{ background: C.purple }} />Crypto</div>
+                  <div className="donut-item-value" style={{ color: C.purple }}>{displayCryptoAlloc}%</div>
+                  <div style={{ fontSize: 11, color: 'var(--text3)' }}>{fmt$(lastCryptoInvested, true)} invested</div>
+                </div>
+                <div className="donut-item">
+                  <div className="donut-item-label"><span className="donut-dot" style={{ background: C.blue }} />Stocks</div>
+                  <div className="donut-item-value" style={{ color: C.blue }}>{displayStocksAlloc}%</div>
+                  <div style={{ fontSize: 11, color: 'var(--text3)' }}>{fmt$(lastStocksInvested, true)} invested</div>
+                </div>
+              </div>
+            </div>
           </ChartCard>
         </div>
       </div>

@@ -6,20 +6,22 @@ import { Crypto } from './pages/Crypto';
 import { Performance } from './pages/Performance';
 import { Savings } from './pages/Savings';
 import { Settings } from './pages/Settings';
+import { Assets } from './pages/Assets';
+import { Debts } from './pages/Debts';
 import { api } from './lib/api';
 import type { Entry } from './lib/storage';
 
-type TabId = 'dashboard' | 'stocks' | 'crypto' | 'performance' | 'savings' | 'settings';
+type TabId = 'dashboard' | 'stocks' | 'crypto' | 'performance' | 'savings' | 'assets' | 'debts' | 'settings';
 
 const navIcons: Record<TabId, string> = {
   dashboard: '◈', stocks: '↗', crypto: '◎', performance: '⊞',
-  savings: '◻', settings: '⚙',
+  savings: '◻', assets: '⬡', debts: '⬡', settings: '⚙',
 };
 const navLabels: Record<TabId, string> = {
   dashboard: 'Overview', stocks: 'Stocks', crypto: 'Crypto', performance: 'Performance',
-  savings: 'Savings', settings: 'Settings',
+  savings: 'Savings', assets: 'Assets', debts: 'Debts', settings: 'Settings',
 };
-const TAB_IDS: TabId[] = ['dashboard','performance','stocks','crypto','savings','settings'];
+const TAB_IDS: TabId[] = ['dashboard','performance','stocks','crypto','savings','assets','debts','settings'];
 
 export function App() {
   const [tab, setTab] = useState<TabId>('dashboard');
@@ -52,6 +54,8 @@ export function App() {
       case 'crypto':      return <Crypto showModal={showModal} entries={entries} onDelete={handleDeleteEntry} onRefresh={refreshEntries} />;
       case 'performance': return <Performance showModal={showModal} />;
       case 'savings':     return <Savings showModal={showModal} onEdit={showEditModal} onDelete={handleDeleteEntry} savingsRefreshKey={savingsRefreshTrigger} />;
+      case 'assets':      return <Assets />;
+      case 'debts':       return <Debts />;
       case 'settings':    return <Settings entries={entries} onRefresh={refreshEntries} onSavingsRefresh={refreshSavingsEntries} onClear={refreshEntries} />;
     }
   };

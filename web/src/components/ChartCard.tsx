@@ -15,18 +15,20 @@ interface ChartCardProps {
   children: ReactNode;
   modalContent?: ReactNode;
   typeToggle?: TypeToggle;
+  noExpand?: boolean;
 }
 
 export function ChartCard({
   label, value, change, changePositive,
-  children, modalContent, typeToggle,
+  children, modalContent, typeToggle, noExpand,
 }: ChartCardProps) {
   const [open, setOpen] = useState(false);
+  const expandable = !noExpand;
 
   return (
     <>
-      <div className="chart-card" onClick={() => !typeToggle && setOpen(true)}>
-        <div className="chart-card-header" onClick={() => setOpen(true)}>
+      <div className="chart-card" onClick={() => expandable && !typeToggle && setOpen(true)}>
+        <div className="chart-card-header" onClick={() => expandable && setOpen(true)}>
           <span className="chart-card-label">{label}</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             {typeToggle && (
@@ -42,7 +44,7 @@ export function ChartCard({
                 ))}
               </div>
             )}
-            <span className="chart-card-expand">↗</span>
+            {expandable && <span className="chart-card-expand">↗</span>}
           </div>
         </div>
         <div className={`chart-card-value ${changePositive === null || changePositive === undefined ? '' : changePositive ? 'pos' : 'neg'}`}>

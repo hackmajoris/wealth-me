@@ -8,14 +8,13 @@ import { MultiLineChart } from '../components/charts/MultiLineChart';
 import { InvestedChart } from '../components/charts/InvestedChart';
 import { calcAverage } from '../lib/trendUtils';
 import { GroupedBarChart } from '../components/charts/GroupedBarChart';
-import { DonutChart } from '../components/charts/DonutChart';
 import { SavingsRateFlexChart } from '../components/charts/SavingsRateFlexChart';
 import { IncomeExpFlexChart } from '../components/charts/IncomeExpFlexChart';
 import { fmt$, fmtSign$, fmtPct, clsROI, getCurrencyFormatter } from '../lib/formatters';
 import { sliceRange, type Range } from '../lib/ranges';
 import { buildAnnotations, C } from '../lib/chartDefaults';
 import { type Entry, type SavingsEntry } from '../lib/storage';
-import { api, type StockData, type CryptoData } from '../lib/api';
+import { api, type StockData, type CryptoData, type AssetHistoryPoint, type DebtHistoryPoint } from '../lib/api';
 
 const CHART_OPTS = [{ value: 'bar', label: 'Bar' }, { value: 'line', label: 'Line' }];
 
@@ -47,6 +46,8 @@ export function Dashboard({ showModal, entries, onEditEntry, onDeleteEntry }: Da
   const [savingsEntries, setSavingsEntries] = useState<SavingsEntry[]>([]);
   const [savingsTarget, setSavingsTarget] = useState(30);
   const [currency, setCurrency] = useState('USD');
+  const [assetHistory, setAssetHistory] = useState<AssetHistoryPoint[]>([]);
+  const [debtHistory, setDebtHistory] = useState<DebtHistoryPoint[]>([]);
 
   useEffect(() => {
     Promise.all([
@@ -55,12 +56,16 @@ export function Dashboard({ showModal, entries, onEditEntry, onDeleteEntry }: Da
       api.savings.list(),
       api.settings.getSavingsTarget(),
       api.settings.getCurrency(),
-    ]).then(([stocks, crypto, savs, target, curr]) => {
+      api.assets.history(),
+      api.debts.history(),
+    ]).then(([stocks, crypto, savs, target, curr, ah, dh]) => {
       setStockData(stocks);
       setCryptoData(crypto);
       setSavingsEntries(savs);
       setSavingsTarget(target.value);
       setCurrency(curr.value);
+      setAssetHistory(ah);
+      setDebtHistory(dh);
     }).catch(console.error);
   }, []);
 
@@ -123,13 +128,7 @@ export function Dashboard({ showModal, entries, onEditEntry, onDeleteEntry }: Da
   const roiDelta          = curTotalRoi - prevRoi;
 
   const lastM = allMonths[lastIdx] ?? '';
-  const curCryptoInvested = lastM ? (() => { const ci = crypto.months.indexOf(lastM); return ci >= 0 ? crypto.invested[ci] : 0; })() : 0;
-  const curCryptoRoi      = lastM ? (() => { const ci = crypto.months.indexOf(lastM); return ci >= 0 ? (crypto.roi[ci] ?? 0) : 0; })() : 0;
-  const curStocksInvested = lastM ? (() => { const si = stocks.months.indexOf(lastM); return si >= 0 ? stocks.invested[si] : 0; })() : 0;
-
-  const totalInvestedForAlloc = curCryptoInvested + curStocksInvested;
-  const cryptoAllocPct = totalInvestedForAlloc > 0 ? Math.round(curCryptoInvested / totalInvestedForAlloc * 100) : 50;
-  const stocksAllocPct = 100 - cryptoAllocPct;
+  const curCryptoRoi = lastM ? (() => { const ci = crypto.months.indexOf(lastM); return ci >= 0 ? (crypto.roi[ci] ?? 0) : 0; })() : 0;
 
   const bestAsset = curCryptoRoi >= (crypto.totalRoi ?? 0) ? 'Crypto' : 'Stocks';
 
@@ -137,6 +136,59 @@ export function Dashboard({ showModal, entries, onEditEntry, onDeleteEntry }: Da
   const spxSeries  = allMonths.map(m => { const i = D.months.indexOf(m); return i >= 0 ? D.spxRoi[i] : null; });
   const nasdaqSeries = allMonths.map(m => { const i = D.months.indexOf(m); return i >= 0 ? D.nasdaqRoi[i] : null; });
   const lastSpx    = spxSeries.filter(v => v !== null).pop() ?? 0;
+
+  // ── Net Worth timeline (Jan 2021 → now) ──────────────────────────────────
+  const NW_MONTHS = useMemo(() => {
+    const result: string[] = [];
+    const moNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const now = new Date();
+    let yr = 2021, mo = 0;
+    while (yr < now.getFullYear() || (yr === now.getFullYear() && mo <= now.getMonth())) {
+      result.push(`${moNames[mo]} ${yr}`);
+      mo++;
+      if (mo > 11) { mo = 0; yr++; }
+    }
+    return result;
+  }, []);
+
+  const normDate = (d: string): string => {
+    // convert ISO "2024-04-01" → "Apr 2024", leave "Apr 2024" as-is
+    if (/^\d{4}-\d{2}/.test(d)) {
+      const dt = new Date(d);
+      return `${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][dt.getUTCMonth()]} ${dt.getUTCFullYear()}`;
+    }
+    return d;
+  };
+
+  const nwPortfolio = NW_MONTHS.map(m => {
+    const i = allMonths.indexOf(m);
+    return i >= 0 ? combinedReturn[i] : null;
+  });
+  const nwAssets = NW_MONTHS.map(m => {
+    const pt = assetHistory.find(p => normDate(p.date) === m);
+    return pt ? pt.totalValue : null;
+  });
+  const nwDebts = NW_MONTHS.map(m => {
+    const pt = debtHistory.find(p => normDate(p.date) === m);
+    return pt ? pt.totalDebt : null;
+  });
+  const nwTotal = NW_MONTHS.map((_, i) => {
+    const port = nwPortfolio[i];
+    const asset = nwAssets[i];
+    const debt = nwDebts[i];
+    if (port === null && asset === null) return null;
+    return (port ?? 0) + (asset ?? 0) - (debt ?? 0);
+  });
+  const nwNoAssets = NW_MONTHS.map((_, i) => {
+    const port = nwPortfolio[i];
+    const debt = nwDebts[i];
+    if (port === null) return null;
+    return (port ?? 0) - (debt ?? 0);
+  });
+
+  const latestNW = nwTotal.filter(v => v !== null).pop() ?? null;
+  const latestNWNoAssets = nwNoAssets.filter(v => v !== null).pop() ?? null;
+  // ─────────────────────────────────────────────────────────────────────────
 
   const { start } = sliceRange(range, allMonths.length);
   const labels = allMonths.slice(start);
@@ -264,42 +316,91 @@ export function Dashboard({ showModal, entries, onEditEntry, onDeleteEntry }: Da
           {/* Portfolio Charts */}
           {hasPortfolioData && (
             <>
+              {/* Net Worth — full width */}
+              <div>
+                <div className="section-row" style={{ marginBottom: 10 }}>
+                  <div className="section-title">Net Worth · Jan 2021 – Present</div>
+                </div>
+                <ChartCard
+                  label="Net Worth Overview"
+                  value={latestNW !== null ? fmt$(latestNW, true) : '—'}
+                  change={latestNWNoAssets !== null ? `${fmt$(latestNWNoAssets, true)} excl. assets` : '—'}
+                  changePositive={latestNW !== null ? latestNW >= 0 : null}
+                  modalContent={
+                    <MultiLineChart
+                      labels={NW_MONTHS}
+                      valueFormat="number"
+                      datasets={[
+                        { label: 'Stocks & Crypto', data: nwPortfolio, color: C.blue },
+                        { label: 'Debts',           data: nwDebts,    color: C.red },
+                        { label: 'Net Worth',       data: nwTotal,    color: C.green },
+                        { label: 'Net Worth (excl. assets)', data: nwNoAssets, color: C.yellow, dashed: true },
+                      ]}
+                    />
+                  }
+                >
+                  <MultiLineChart
+                    labels={NW_MONTHS}
+                    valueFormat="number"
+                    datasets={[
+                      { label: 'Stocks & Crypto', data: nwPortfolio, color: C.blue },
+                      { label: 'Debts',           data: nwDebts,    color: C.red },
+                      { label: 'Net Worth',       data: nwTotal,    color: C.green },
+                      { label: 'Net Worth (excl. assets)', data: nwNoAssets, color: C.yellow, dashed: true },
+                    ]}
+                  />
+                </ChartCard>
+              </div>
+
+              {/* Portfolio Value — full width */}
+              <ChartCard
+                label="Portfolio Value"
+                value={fmt$(curPortfolioValue, true)}
+                change={fmtPct(curTotalRoi) + ' all-time'}
+                changePositive={curTotalRoi >= 0}
+                typeToggle={{
+                  value: portfolioValueType,
+                  onChange: (v) => setPortfolioValueType(v as 'area' | 'bar'),
+                  options: [{ value: 'area', label: 'Area' }, { value: 'bar', label: 'Bar' }],
+                }}
+                modalContent={portfolioValueType === 'area' ? (
+                  <AreaChart labels={labels} annotations={ann} datasets={[
+                    { label: 'Total Value', data: combinedReturn.slice(start), color: C.green },
+                    { label: 'Invested',    data: combinedInvested.slice(start), color: C.blue },
+                  ]} />
+                ) : (
+                  <GroupedBarChart
+                    labels={labels}
+                    dataset1={{ label: 'Total Value', data: combinedReturn.slice(start), color: C.green }}
+                    dataset2={{ label: 'Invested',    data: combinedInvested.slice(start), color: C.blue }}
+                  />
+                )}
+              >
+                {portfolioValueType === 'area' ? (
+                  <AreaChart labels={labels} datasets={[
+                    { label: 'Total Value', data: combinedReturn.slice(start), color: C.green },
+                    { label: 'Invested',    data: combinedInvested.slice(start), color: C.blue },
+                  ]} />
+                ) : (
+                  <GroupedBarChart
+                    labels={labels}
+                    dataset1={{ label: 'Total Value', data: combinedReturn.slice(start), color: C.green }}
+                    dataset2={{ label: 'Invested',    data: combinedInvested.slice(start), color: C.blue }}
+                  />
+                )}
+              </ChartCard>
+
+              {/* Monthly Invested + ROI vs Benchmarks */}
               <div className="chart-grid">
                 <ChartCard
-                  label="Portfolio Value"
-                  value={fmt$(curPortfolioValue, true)}
-                  change={fmtPct(curTotalRoi) + ' all-time'}
-                  changePositive={curTotalRoi >= 0}
-                  typeToggle={{
-                    value: portfolioValueType,
-                    onChange: (v) => setPortfolioValueType(v as 'area' | 'bar'),
-                    options: [{ value: 'area', label: 'Area' }, { value: 'bar', label: 'Bar' }],
-                  }}
-                  modalContent={portfolioValueType === 'area' ? (
-                    <AreaChart labels={labels} annotations={ann} datasets={[
-                      { label: 'Total Value', data: combinedReturn.slice(start), color: C.green },
-                      { label: 'Invested',    data: combinedInvested.slice(start), color: C.blue },
-                    ]} />
-                  ) : (
-                    <GroupedBarChart
-                      labels={labels}
-                      dataset1={{ label: 'Total Value', data: combinedReturn.slice(start), color: C.green }}
-                      dataset2={{ label: 'Invested',    data: combinedInvested.slice(start), color: C.blue }}
-                    />
-                  )}
+                  label="Monthly Invested"
+                  value={fmt$(slicedTotal.reduce((a, b) => a + b, 0), true)}
+                  change={`Avg: ${fmt$(avgTotal, true)} / Current: ${fmt$(curTotal, true)}`}
+                  changePositive={curTotal >= avgTotal}
+                  typeToggle={{ value: totalChartType, onChange: v => setTotalChartType(v as 'bar' | 'line'), options: CHART_OPTS }}
+                  modalContent={<InvestedChart labels={labels} data={slicedTotal} color={C.blue} chartType={totalChartType} />}
                 >
-                  {portfolioValueType === 'area' ? (
-                    <AreaChart labels={labels} datasets={[
-                      { label: 'Total Value', data: combinedReturn.slice(start), color: C.green },
-                      { label: 'Invested',    data: combinedInvested.slice(start), color: C.blue },
-                    ]} />
-                  ) : (
-                    <GroupedBarChart
-                      labels={labels}
-                      dataset1={{ label: 'Total Value', data: combinedReturn.slice(start), color: C.green }}
-                      dataset2={{ label: 'Invested',    data: combinedInvested.slice(start), color: C.blue }}
-                    />
-                  )}
+                  <InvestedChart labels={labels} data={slicedTotal} color={C.blue} chartType={totalChartType} />
                 </ChartCard>
 
                 <ChartCard
@@ -325,17 +426,6 @@ export function Dashboard({ showModal, entries, onEditEntry, onDeleteEntry }: Da
                     { label: 'S&P 500',       data: spxSeries.slice(start),       color: C.orange, dashed: true },
                     { label: 'Nasdaq',        data: nasdaqSeries.slice(start),    color: C.yellow, dashed: true },
                   ]} />
-                </ChartCard>
-
-                <ChartCard
-                  label="Monthly Invested"
-                  value={fmt$(slicedTotal.reduce((a, b) => a + b, 0), true)}
-                  change={`Avg: ${fmt$(avgTotal, true)} / Current: ${fmt$(curTotal, true)}`}
-                  changePositive={curTotal >= avgTotal}
-                  typeToggle={{ value: totalChartType, onChange: v => setTotalChartType(v as 'bar' | 'line'), options: CHART_OPTS }}
-                  modalContent={<InvestedChart labels={labels} data={slicedTotal} color={C.blue} chartType={totalChartType} />}
-                >
-                  <InvestedChart labels={labels} data={slicedTotal} color={C.blue} chartType={totalChartType} />
                 </ChartCard>
               </div>
 
@@ -369,31 +459,6 @@ export function Dashboard({ showModal, entries, onEditEntry, onDeleteEntry }: Da
                 </div>
               </div>
 
-              {/* Allocation */}
-              <div className="chart-grid">
-                <ChartCard
-                  label="Allocation"
-                  value={`${cryptoAllocPct}% Crypto`}
-                  change={`${stocksAllocPct}% Stocks`}
-                  changePositive={null}
-                >
-                  <div className="donut-wrap">
-                    <DonutChart values={[cryptoAllocPct, stocksAllocPct]} colors={[C.purple, C.blue]} />
-                    <div className="donut-legend">
-                      <div className="donut-item">
-                        <div className="donut-item-label"><span className="donut-dot" style={{ background: C.purple }} />Crypto</div>
-                        <div className="donut-item-value" style={{ color: C.purple }}>{cryptoAllocPct}%</div>
-                        <div style={{ fontSize: 11, color: 'var(--text3)' }}>{fmt$(curCryptoInvested, true)} invested</div>
-                      </div>
-                      <div className="donut-item">
-                        <div className="donut-item-label"><span className="donut-dot" style={{ background: C.blue }} />Stocks</div>
-                        <div className="donut-item-value" style={{ color: C.blue }}>{stocksAllocPct}%</div>
-                        <div style={{ fontSize: 11, color: 'var(--text3)' }}>{fmt$(curStocksInvested, true)} invested</div>
-                      </div>
-                    </div>
-                  </div>
-                </ChartCard>
-              </div>
             </>
           )}
 

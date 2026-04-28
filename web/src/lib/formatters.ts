@@ -60,6 +60,19 @@ export function getCurrencyFormatter(currency: string): (v: number | null) => st
   }
 }
 
+export function fmtCompact(currency: string, v: number | null): string {
+  if (v === null || v === undefined) return '—';
+  if (Math.abs(v) >= 1000) {
+    switch (currency) {
+      case 'EUR': return '€' + (v / 1000).toFixed(1) + 'k';
+      case 'USD': return '$' + (v / 1000).toFixed(1) + 'k';
+      case 'RON':
+      default: return (v / 1000).toFixed(1) + 'k lei';
+    }
+  }
+  return getCurrencyFormatter(currency)(v);
+}
+
 export function getCurrencySignFormatter(currency: string): (v: number | null) => string {
   switch (currency) {
     case 'EUR':
@@ -69,5 +82,38 @@ export function getCurrencySignFormatter(currency: string): (v: number | null) =
     case 'RON':
     default:
       return RONsign;
+  }
+}
+
+export function convertCurrency(
+  amount: number,
+  from: string,
+  to: string,
+  usdToRon: number,
+  eurToRon: number
+): number {
+  if (from === to) return amount;
+
+  // Convert to RON first as base currency
+  let ronValue: number;
+  if (from === 'RON') {
+    ronValue = amount;
+  } else if (from === 'USD') {
+    ronValue = amount * usdToRon;
+  } else if (from === 'EUR') {
+    ronValue = amount * eurToRon;
+  } else {
+    return amount;
+  }
+
+  // Convert from RON to target currency
+  if (to === 'RON') {
+    return ronValue;
+  } else if (to === 'USD') {
+    return ronValue / usdToRon;
+  } else if (to === 'EUR') {
+    return ronValue / eurToRon;
+  } else {
+    return amount;
   }
 }
