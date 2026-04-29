@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hackmajoris/go-finance/pkg/yahoo"
 	"github.com/hackmajoris/wealth-me/pkg/assets"
 	"github.com/hackmajoris/wealth-me/pkg/crypto"
 	"github.com/hackmajoris/wealth-me/pkg/debts"
@@ -75,6 +76,10 @@ func run(args []string, out io.Writer) error {
 		return err
 	}
 
+	if err := fetchExchangeRates(db); err != nil {
+		fmt.Fprintf(out, "warn: fetch exchange rates: %v\n", err)
+	}
+
 	if err := initMonth(db); err != nil {
 		fmt.Fprintf(out, "warn: init month: %v\n", err)
 	}
@@ -123,7 +128,6 @@ func run(args []string, out io.Writer) error {
 	mux.HandleFunc("GET /api/settings/debts-currency", settingsHandler.GetDebtsCurrency)
 	mux.HandleFunc("POST /api/settings/debts-currency", settingsHandler.SetDebtsCurrency)
 	mux.HandleFunc("GET /api/settings/exchange-rates", settingsHandler.GetExchangeRates)
-	mux.HandleFunc("POST /api/settings/exchange-rates", settingsHandler.SetExchangeRates)
 
 	mux.HandleFunc("GET /api/upload/csv/template", uploadHandler.HandleCSVTemplate)
 	mux.HandleFunc("POST /api/upload/csv", uploadHandler.HandleCSV)
@@ -251,6 +255,46 @@ func initMonth(db *sql.DB) error {
 			return fmt.Errorf("init month: %w", err)
 		}
 	}
+	return nil
+}
+
+// fetchExchangeRates fetches current exchange rates and stores them in the database.
+func fetchExchangeRates(db *sql.DB) error {
+	client, err := yahoo.New()
+	if err != nil {
+		return fmt.Errorf("create yahoo client: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Fetch EUR to RON
+	eurRon, err := client.GetQuote(ctx, "EUR-RON")
+	if err != nil {
+		return fmt.Errorf("fetch EUR-RON: %w", err)
+	}
+
+	// Fetch USD to RON
+	usdRon, err := client.GetQuote(ctx, "USD-RON")
+	if err != nil {
+		return fmt.Errorf("fetch USD-RON: %w", err)
+	}
+
+	// Store rates in database
+	if _, err := db.Exec(`
+		INSERT INTO settings (key, value) VALUES (?, ?)
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+		"rate_eur_to_ron", eurRon.Price); err != nil {
+		return fmt.Errorf("store EUR-RON rate: %w", err)
+	}
+
+	if _, err := db.Exec(`
+		INSERT INTO settings (key, value) VALUES (?, ?)
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+		"rate_usd_to_ron", usdRon.Price); err != nil {
+		return fmt.Errorf("store USD-RON rate: %w", err)
+	}
+
 	return nil
 }
 

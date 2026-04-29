@@ -67,7 +67,6 @@ export function Settings({ entries, onRefresh, onSavingsRefresh, onClear }: Sett
   const [debtHistoryUploadDone, setDebtHistoryUploadDone] = useState<number | null>(null);
   const [debtHistoryUploadError, setDebtHistoryUploadError] = useState<string | null>(null);
   const [exchangeRates, setExchangeRates] = useState<ExchangeRates>({ usdToRon: 4.35, eurToRon: 5.09 });
-  const [isSavingRates, setIsSavingRates] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const savingsFileRef = useRef<HTMLInputElement>(null);
   const assetHistoryFileRef = useRef<HTMLInputElement>(null);
@@ -227,16 +226,6 @@ export function Settings({ entries, onRefresh, onSavingsRefresh, onClear }: Sett
     }
   };
 
-  const handleSaveExchangeRates = async () => {
-    setIsSavingRates(true);
-    try {
-      await api.settings.setExchangeRates(exchangeRates);
-    } catch (err) {
-      console.error('Failed to save exchange rates:', err);
-    } finally {
-      setIsSavingRates(false);
-    }
-  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 680, margin: '0 auto' }}>
@@ -443,43 +432,19 @@ export function Settings({ entries, onRefresh, onSavingsRefresh, onClear }: Sett
       <SettingSection title="Exchange Rates">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ fontSize: 13, color: 'var(--text2)' }}>
-            Set the currency conversion rates used for debt entries. Used to convert amounts to RON.
+            Current exchange rates (auto-fetched from Yahoo Finance).
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', minWidth: 80 }}>1 USD =</span>
-              <input
-                type="number"
-                value={exchangeRates.usdToRon}
-                onChange={e => setExchangeRates({ ...exchangeRates, usdToRon: parseFloat(e.target.value) || 0 })}
-                disabled={isSavingRates}
-                style={{ padding: '6px 8px', width: 100, fontSize: 13, borderRadius: 4, border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--text)' }}
-              />
-              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>RON</span>
-              <span style={{ fontSize: 12, color: 'var(--text3)', marginLeft: 'auto' }}>≈ ${(1 / exchangeRates.usdToRon).toFixed(3)}</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: 'var(--surface2)', borderRadius: 6 }}>
+              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>1 USD =</span>
+              <span style={{ fontSize: 13, color: 'var(--text)', fontFamily: 'JetBrains Mono, monospace' }}>{exchangeRates.usdToRon.toFixed(4)} RON</span>
+              <span style={{ fontSize: 12, color: 'var(--text3)' }}>≈ ${(1 / exchangeRates.usdToRon).toFixed(3)}</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', minWidth: 80 }}>1 EUR =</span>
-              <input
-                type="number"
-                value={exchangeRates.eurToRon}
-                onChange={e => setExchangeRates({ ...exchangeRates, eurToRon: parseFloat(e.target.value) || 0 })}
-                disabled={isSavingRates}
-                style={{ padding: '6px 8px', width: 100, fontSize: 13, borderRadius: 4, border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--text)' }}
-              />
-              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>RON</span>
-              <span style={{ fontSize: 12, color: 'var(--text3)', marginLeft: 'auto' }}>€ {(1 / exchangeRates.eurToRon).toFixed(3)}</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: 'var(--surface2)', borderRadius: 6 }}>
+              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>1 EUR =</span>
+              <span style={{ fontSize: 13, color: 'var(--text)', fontFamily: 'JetBrains Mono, monospace' }}>{exchangeRates.eurToRon.toFixed(4)} RON</span>
+              <span style={{ fontSize: 12, color: 'var(--text3)' }}>€ {(1 / exchangeRates.eurToRon).toFixed(3)}</span>
             </div>
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              className="btn-primary"
-              style={{ fontSize: 12, padding: '7px 14px' }}
-              onClick={handleSaveExchangeRates}
-              disabled={isSavingRates}
-            >
-              {isSavingRates ? 'Saving…' : 'Save Rates'}
-            </button>
           </div>
         </div>
       </SettingSection>

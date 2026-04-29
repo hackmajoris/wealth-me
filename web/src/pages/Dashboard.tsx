@@ -136,9 +136,6 @@ export function Dashboard({ showModal, entries, onEditEntry, onDeleteEntry }: Da
   const prevRoi           = lastIdx > 0 ? combinedRoi[lastIdx - 1] : curTotalRoi;
   const roiDelta          = curTotalRoi - prevRoi;
 
-  const lastM = allMonths[lastIdx] ?? '';
-  const curCryptoRoi = lastM ? (() => { const ci = crypto.months.indexOf(lastM); return ci >= 0 ? (crypto.roi[ci] ?? 0) : 0; })() : 0;
-
   // Benchmark ROI from mock (aligned to allMonths)
   const spxSeries  = allMonths.map(m => { const i = D.months.indexOf(m); return i >= 0 ? D.spxRoi[i] : null; });
   const nasdaqSeries = allMonths.map(m => { const i = D.months.indexOf(m); return i >= 0 ? D.nasdaqRoi[i] : null; });
