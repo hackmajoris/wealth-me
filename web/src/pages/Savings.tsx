@@ -5,6 +5,7 @@ import { SavingsRateFlexChart } from '../components/charts/SavingsRateFlexChart'
 import { IncomeExpFlexChart } from '../components/charts/IncomeExpFlexChart';
 import { CumSavingsFlexChart } from '../components/charts/CumSavingsFlexChart';
 import { AnnualSavingsFlexChart } from '../components/charts/AnnualSavingsFlexChart';
+import { IncomeHistoryFlexChart } from '../components/charts/IncomeHistoryFlexChart';
 import { api } from '../lib/api';
 import { getCurrencyFormatter } from '../lib/formatters';
 import { loadSavingsEntries, type SavingsEntry } from '../lib/storage';
@@ -42,6 +43,7 @@ export function Savings({ showModal: _showModal, onEdit: _onEdit, onDelete: _onD
   const [incomeExpChartType, setIncomeExpChartType] = useState<'line' | 'bar'>('line');
   const [cumSavingsChartType, setCumSavingsChartType] = useState<'line' | 'bar'>('line');
   const [annualSavingsChartType, setAnnualSavingsChartType] = useState<'bar' | 'line'>('line');
+  const [incomeHistoryChartType, setIncomeHistoryChartType] = useState<'line' | 'bar'>('bar');
 
   useEffect(() => {
     api.savings.list().then(setSavingsEntries).catch(console.error);
@@ -155,6 +157,37 @@ export function Savings({ showModal: _showModal, onEdit: _onEdit, onDelete: _onD
               <div className="kpi-change neu">All entries</div>
             </div>
           </div>
+
+          {/* Income History — full width */}
+          <ChartCard
+            label="Monthly Income History"
+            value={fmt(current.netIncome)}
+            change="With polynomial trend"
+            changePositive={null}
+            typeToggle={{
+              value: incomeHistoryChartType,
+              onChange: (v) => setIncomeHistoryChartType(v as 'line' | 'bar'),
+              options: [
+                { value: 'bar', label: 'Bar' },
+                { value: 'line', label: 'Line' },
+              ],
+            }}
+            modalContent={
+              <IncomeHistoryFlexChart
+                labels={sortedChronological.map(e => getMonthLabel(e))}
+                income={sortedChronological.map(e => e.netIncome)}
+                chartType={incomeHistoryChartType}
+                formatValue={fmt}
+              />
+            }
+          >
+            <IncomeHistoryFlexChart
+              labels={sortedChronological.map(e => getMonthLabel(e))}
+              income={sortedChronological.map(e => e.netIncome)}
+              chartType={incomeHistoryChartType}
+              formatValue={fmt}
+            />
+          </ChartCard>
 
           {/* Charts */}
           <div className="chart-grid">
