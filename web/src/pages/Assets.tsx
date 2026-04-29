@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
 import type { AssetEntry, AssetHistoryPoint } from '../lib/api';
 import { fmtCompact } from '../lib/formatters';
@@ -237,7 +237,6 @@ export function Assets() {
   const [currency, setCurrency] = useState('RON');
   const [modal, setModal] = useState<ModalState>(false);
   const [chartType, setChartType] = useState<'line' | 'bar'>('line');
-  const autoCreatedRef = useRef(false);
 
   const refresh = () => {
     api.assetEntries.list().then(setEntries).catch(console.error);
@@ -248,31 +247,6 @@ export function Assets() {
     refresh();
     api.settings.getAssetsCurrency().then(s => setCurrency(s.value)).catch(console.error);
   }, []);
-
-  useEffect(() => {
-    if (entries.length === 0 || autoCreatedRef.current) return;
-
-    const currentDate = `${MO_SHORT[now.getMonth()]} ${now.getFullYear()}`;
-    const hasCurrentMonth = entries.some(e => e.date === currentDate);
-
-    if (!hasCurrentMonth) {
-      autoCreatedRef.current = true;
-      const latestMonth = entries[0]?.date;
-      if (latestMonth) {
-        const latestEntries = entries.filter(e => e.date === latestMonth);
-        latestEntries.forEach(e => {
-          api.assetEntries.create({
-            date: currentDate,
-            name: e.name,
-            category: e.category,
-            amount: e.amount,
-            note: e.note,
-          }).catch(console.error);
-        });
-        setTimeout(() => refresh(), 300);
-      }
-    }
-  }, [entries]);
 
   const handleDelete = async (id: number) => {
     if (!confirm('Delete this entry?')) return;

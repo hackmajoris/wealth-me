@@ -244,6 +244,10 @@ const debtEntries = {
   remove: (id: number)                         => del<void>(`/api/debt-entries/${id}`),
 };
 
+// ── /api/init-month ──────────────────────────────────────────────────────────
+
+const initMonth = () => post<void>('/api/init-month', {});
+
 // ── Public surface ───────────────────────────────────────────────────────────
 
-export const api = { entries, savings, upload, stocks, crypto, settings, assets: assetApi, debts: debtApi, debtEntries, assetEntries };
+export const api = { entries, savings, upload, stocks, crypto, settings, assets: assetApi, debts: debtApi, debtEntries, assetEntries, initMonth };

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { api } from '../lib/api';
 import type { DebtHistoryPoint, DebtEntry, ExchangeRates } from '../lib/api';
 import { fmtCompact, convertCurrency } from '../lib/formatters';
@@ -143,12 +143,11 @@ function EntryModal({ entry, currency, exchangeRates, defaultDate, onClose, onSa
     const amountN = parseFloat(amount) || 0;
     if (amountN <= 0) { alert('Amount must be greater than 0'); return; }
     setSaving(true);
-    const convertedAmount = convertCurrency(amountN, entryCurrency, currency, exchangeRates.usdToRon, exchangeRates.eurToRon);
     const body = {
       date: `${MO_SHORT[month]} ${year}`,
       name: name.trim(),
       category,
-      amount: convertedAmount,
+      amount: amountN,
       currency: entryCurrency,
       note,
     };
@@ -169,7 +168,7 @@ function EntryModal({ entry, currency, exchangeRates, defaultDate, onClose, onSa
   };
 
   return (
-    <div className="modal-backdrop" onClick={ev => ev.target === ev.currentTarget && onClose()}>
+    <div className="modal-backdrop">
       <div className="modal">
         <div className="modal-header">
           <div className="modal-title">{isEditing ? 'Edit' : 'Add'} Debt Entry</div>
@@ -268,7 +267,6 @@ export function Debts() {
   const [exchangeRates, setExchangeRates] = useState<ExchangeRates>({ usdToRon: 4.35, eurToRon: 5.09 });
   const [chartType, setChartType] = useState<'line' | 'bar'>('line');
   const [modal, setModal] = useState<ModalState>(false);
-  const autoCreatedRef = useRef(false);
 
   const refresh = () => {
     api.debtEntries.list().then(setEntries).catch(console.error);
@@ -280,35 +278,6 @@ export function Debts() {
     api.settings.getDebtsCurrency().then(s => setCurrency(s.value)).catch(console.error);
     api.settings.getExchangeRates().then(setExchangeRates).catch(console.error);
   }, []);
-
-  useEffect(() => {
-    if (entries.length === 0 || autoCreatedRef.current) return;
-
-    const currentDate = `${MO_SHORT[now.getMonth()]} ${now.getFullYear()}`;
-    const hasCurrentMonth = entries.some(e => e.date === currentDate);
-
-    if (!hasCurrentMonth) {
-      autoCreatedRef.current = true;
-      // Find the latest month with entries
-      const latestMonth = entries[0]?.date;
-      if (latestMonth) {
-        const latestMonthEntries = entries.filter(e => e.date === latestMonth);
-        // Create entries for current month based on latest month
-        latestMonthEntries.forEach(e => {
-          api.debtEntries.create({
-            date: currentDate,
-            name: e.name,
-            category: e.category,
-            amount: e.amount,
-            currency: e.currency,
-            note: e.note,
-          }).catch(console.error);
-        });
-        // Refresh after creating entries
-        setTimeout(() => refresh(), 300);
-      }
-    }
-  }, [entries]);
 
   const handleDelete = async (id: number) => {
     if (!confirm('Delete this entry?')) return;
@@ -328,8 +297,16 @@ export function Debts() {
   }, {});
   const dates = Object.keys(grouped);
 
-  const latestTotal = history.length > 0 ? history[history.length - 1].totalDebt : 0;
-  const latestDate = history.length > 0 ? history[history.length - 1].date : '—';
+  const computedHistory = useMemo(() => {
+    const byDate: Record<string, number> = {};
+    for (const e of entries) {
+      byDate[e.date] = (byDate[e.date] ?? 0) + convertCurrency(e.amount, e.currency, currency, exchangeRates.usdToRon, exchangeRates.eurToRon);
+    }
+    return history.map(h => ({ date: h.date, totalDebt: byDate[h.date] ?? h.totalDebt }));
+  }, [entries, history, currency, exchangeRates]);
+
+  const latestTotal = computedHistory.length > 0 ? computedHistory[computedHistory.length - 1].totalDebt : 0;
+  const latestDate = computedHistory.length > 0 ? computedHistory[computedHistory.length - 1].date : '—';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -372,7 +349,7 @@ export function Debts() {
       </div>
 
       {/* History chart */}
-      {history.length > 0 && (
+      {computedHistory.length > 0 && (
         <ChartCard
           label="Total Debt · Historical"
           value={fmtCompact(currency, latestTotal)}
@@ -387,36 +364,36 @@ export function Debts() {
           modalContent={
             chartType === 'line' ? (
               <MultiLineChart
-                labels={history.map(p => p.date)}
+                labels={computedHistory.map(p => p.date)}
                 datasets={[
-                  { label: 'Total Debt', data: history.map(p => p.totalDebt), color: C.red },
-                  { label: 'Trend', data: polyTrend(history.map(p => p.totalDebt), 2), color: C.yellow },
+                  { label: 'Total Debt', data: computedHistory.map(p => p.totalDebt), color: C.red },
+                  { label: 'Trend', data: polyTrend(computedHistory.map(p => p.totalDebt), 2), color: C.yellow },
                 ]}
                 valueFormat="number"
               />
             ) : (
               <DebtBarChart
-                labels={history.map(p => p.date)}
-                data={history.map(p => p.totalDebt)}
-                trend={polyTrend(history.map(p => p.totalDebt), 2)}
+                labels={computedHistory.map(p => p.date)}
+                data={computedHistory.map(p => p.totalDebt)}
+                trend={polyTrend(computedHistory.map(p => p.totalDebt), 2)}
               />
             )
           }
         >
           {chartType === 'line' ? (
             <MultiLineChart
-              labels={history.map(p => p.date)}
+              labels={computedHistory.map(p => p.date)}
               datasets={[
-                { label: 'Total Debt', data: history.map(p => p.totalDebt), color: C.red },
-                { label: 'Trend', data: polyTrend(history.map(p => p.totalDebt), 2), color: C.yellow },
+                { label: 'Total Debt', data: computedHistory.map(p => p.totalDebt), color: C.red },
+                { label: 'Trend', data: polyTrend(computedHistory.map(p => p.totalDebt), 2), color: C.yellow },
               ]}
               valueFormat="number"
             />
           ) : (
             <DebtBarChart
-              labels={history.map(p => p.date)}
-              data={history.map(p => p.totalDebt)}
-              trend={polyTrend(history.map(p => p.totalDebt), 2)}
+              labels={computedHistory.map(p => p.date)}
+              data={computedHistory.map(p => p.totalDebt)}
+              trend={polyTrend(computedHistory.map(p => p.totalDebt), 2)}
             />
           )}
         </ChartCard>
@@ -433,7 +410,7 @@ export function Debts() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
           {dates.map(date => {
             const group = grouped[date];
-            const total = group.reduce((s, e) => s + e.amount, 0);
+            const total = group.reduce((s, e) => s + convertCurrency(e.amount, e.currency, currency, exchangeRates.usdToRon, exchangeRates.eurToRon), 0);
             return (
               <div key={date}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', background: 'var(--surface2)', borderBottom: '1px solid var(--border)', borderTop: '1px solid var(--border)' }}>
@@ -454,11 +431,11 @@ export function Debts() {
                         <td style={{ fontWeight: 500 }}>{e.name}</td>
                         <td style={{ color: 'var(--text2)', fontSize: 12 }}>{e.category}</td>
                         <td className="neg" style={{ fontWeight: 500, textAlign: 'right' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
-                            {fmtCompact(currency, e.amount)}
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+                            <span>{fmtCompact(e.currency || currency, e.amount)}</span>
                             {e.currency && e.currency !== currency && (
-                              <span style={{ fontSize: 10, color: 'var(--text3)', padding: '2px 6px', background: 'var(--surface2)', borderRadius: 3 }}>
-                                {e.currency}
+                              <span style={{ fontSize: 11, color: 'var(--text3)' }}>
+                                ≈ {fmtCompact(currency, convertCurrency(e.amount, e.currency, currency, exchangeRates.usdToRon, exchangeRates.eurToRon))}
                               </span>
                             )}
                           </div>

@@ -38,7 +38,9 @@ export function App() {
     setSavingsRefreshTrigger(t => t + 1);
   }, []);
 
-  useEffect(() => { refreshEntries(); }, [refreshEntries]);
+  useEffect(() => {
+    api.initMonth().catch(console.error).finally(() => refreshEntries());
+  }, [refreshEntries]);
 
   const handleDeleteEntry = (id: number) => {
     api.entries.remove(id).then(refreshEntries).catch(console.error);

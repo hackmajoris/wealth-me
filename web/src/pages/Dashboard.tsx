@@ -10,11 +10,11 @@ import { calcAverage } from '../lib/trendUtils';
 import { GroupedBarChart } from '../components/charts/GroupedBarChart';
 import { SavingsRateFlexChart } from '../components/charts/SavingsRateFlexChart';
 import { IncomeExpFlexChart } from '../components/charts/IncomeExpFlexChart';
-import { fmt$, fmtSign$, fmtPct, clsROI, getCurrencyFormatter } from '../lib/formatters';
+import { fmt$, fmtSign$, fmtPct, clsROI, getCurrencyFormatter, convertCurrency } from '../lib/formatters';
 import { sliceRange, type Range } from '../lib/ranges';
 import { buildAnnotations, C } from '../lib/chartDefaults';
 import { type Entry, type SavingsEntry } from '../lib/storage';
-import { api, type StockData, type CryptoData, type AssetHistoryPoint, type DebtHistoryPoint } from '../lib/api';
+import { api, type StockData, type CryptoData, type AssetHistoryPoint, type DebtHistoryPoint, type DebtEntry, type ExchangeRates } from '../lib/api';
 
 const CHART_OPTS = [{ value: 'bar', label: 'Bar' }, { value: 'line', label: 'Line' }];
 
@@ -47,7 +47,10 @@ export function Dashboard({ showModal, entries, onEditEntry, onDeleteEntry }: Da
   const [savingsTarget, setSavingsTarget] = useState(30);
   const [currency, setCurrency] = useState('USD');
   const [assetHistory, setAssetHistory] = useState<AssetHistoryPoint[]>([]);
-  const [debtHistory, setDebtHistory] = useState<DebtHistoryPoint[]>([]);
+  const [rawDebtHistory, setRawDebtHistory] = useState<DebtHistoryPoint[]>([]);
+  const [debtEntries, setDebtEntries] = useState<DebtEntry[]>([]);
+  const [debtsCurrency, setDebtsCurrency] = useState('USD');
+  const [exchangeRates, setExchangeRates] = useState<ExchangeRates>({ usdToRon: 4.35, eurToRon: 5.09 });
 
   useEffect(() => {
     Promise.all([
@@ -58,14 +61,20 @@ export function Dashboard({ showModal, entries, onEditEntry, onDeleteEntry }: Da
       api.settings.getCurrency(),
       api.assets.history(),
       api.debts.history(),
-    ]).then(([stocks, crypto, savs, target, curr, ah, dh]) => {
+      api.debtEntries.list(),
+      api.settings.getDebtsCurrency(),
+      api.settings.getExchangeRates(),
+    ]).then(([stocks, crypto, savs, target, curr, ah, dh, de, dc, er]) => {
       setStockData(stocks);
       setCryptoData(crypto);
       setSavingsEntries(savs);
       setSavingsTarget(target.value);
       setCurrency(curr.value);
       setAssetHistory(ah);
-      setDebtHistory(dh);
+      setRawDebtHistory(dh);
+      setDebtEntries(de);
+      setDebtsCurrency(dc.value);
+      setExchangeRates(er);
     }).catch(console.error);
   }, []);
 
@@ -130,8 +139,6 @@ export function Dashboard({ showModal, entries, onEditEntry, onDeleteEntry }: Da
   const lastM = allMonths[lastIdx] ?? '';
   const curCryptoRoi = lastM ? (() => { const ci = crypto.months.indexOf(lastM); return ci >= 0 ? (crypto.roi[ci] ?? 0) : 0; })() : 0;
 
-  const bestAsset = curCryptoRoi >= (crypto.totalRoi ?? 0) ? 'Crypto' : 'Stocks';
-
   // Benchmark ROI from mock (aligned to allMonths)
   const spxSeries  = allMonths.map(m => { const i = D.months.indexOf(m); return i >= 0 ? D.spxRoi[i] : null; });
   const nasdaqSeries = allMonths.map(m => { const i = D.months.indexOf(m); return i >= 0 ? D.nasdaqRoi[i] : null; });
@@ -168,6 +175,15 @@ export function Dashboard({ showModal, entries, onEditEntry, onDeleteEntry }: Da
     const pt = assetHistory.find(p => normDate(p.date) === m);
     return pt ? pt.totalValue : null;
   });
+  const debtHistory = useMemo(() => {
+    const byDate: Record<string, number> = {};
+    for (const e of debtEntries) {
+      const from = e.currency || debtsCurrency;
+      byDate[e.date] = (byDate[e.date] ?? 0) + convertCurrency(e.amount, from, debtsCurrency, exchangeRates.usdToRon, exchangeRates.eurToRon);
+    }
+    return rawDebtHistory.map(h => ({ date: h.date, totalDebt: byDate[h.date] ?? h.totalDebt }));
+  }, [debtEntries, rawDebtHistory, debtsCurrency, exchangeRates]);
+
   const nwDebts = NW_MONTHS.map(m => {
     const pt = debtHistory.find(p => normDate(p.date) === m);
     return pt ? pt.totalDebt : null;
@@ -188,6 +204,11 @@ export function Dashboard({ showModal, entries, onEditEntry, onDeleteEntry }: Da
 
   const latestNW = nwTotal.filter(v => v !== null).pop() ?? null;
   const latestNWNoAssets = nwNoAssets.filter(v => v !== null).pop() ?? null;
+
+  const latestDebt = nwDebts.filter(v => v !== null).pop() ?? null;
+  const latestDebtUSD = latestDebt !== null
+    ? convertCurrency(latestDebt, debtsCurrency, 'USD', exchangeRates.usdToRon, exchangeRates.eurToRon)
+    : null;
   // ─────────────────────────────────────────────────────────────────────────
 
   const { start } = sliceRange(range, allMonths.length);
@@ -274,9 +295,9 @@ export function Dashboard({ showModal, entries, onEditEntry, onDeleteEntry }: Da
                 <div className={`kpi-change ${roiDelta >= 0 ? 'pos' : 'neg'}`}>{fmtPct(roiDelta)} vs last month</div>
               </div>
               <div className="kpi-card">
-                <div className="kpi-label">Best Asset</div>
-                <div className="kpi-value" style={{ color: bestAsset === 'Crypto' ? C.purple : C.blue }}>{bestAsset}</div>
-                <div className="kpi-change pos">{fmtPct(curCryptoRoi)} crypto ROI</div>
+                <div className="kpi-label">Total Debt</div>
+                <div className="kpi-value neg">{latestDebtUSD !== null ? fmt$(latestDebtUSD, true) : '—'}</div>
+                <div className="kpi-change neu">in USD</div>
               </div>
             </div>
           )}
