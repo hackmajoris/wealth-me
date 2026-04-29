@@ -27,8 +27,8 @@ lint:
 	golangci-lint run ./...
 
 fmt:
-	gofmt -w .
-	goimports -w .
+	find . -name "*.go" -not -path "*/vendor/*" | xargs gofmt -w
+	find . -name "*.go" -not -path "*/vendor/*" | xargs goimports -w
 
 clean:
 	rm -rf .bin/ web/dist/ pkg/web/dist/ electron/dist/
