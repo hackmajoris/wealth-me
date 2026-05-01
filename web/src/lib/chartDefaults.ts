@@ -41,11 +41,11 @@ export interface KeyEvent {
 }
 
 export const KEY_EVENTS: KeyEvent[] = [
-  { id: 'covid',  month: 'Mar 20', label: 'COVID Crash',  color: '#f87171', icon: '↓', desc: 'Markets -35% in weeks' },
-  { id: 'btcath', month: 'Nov 21', label: 'BTC ATH',      color: '#fbbf24', icon: '★', desc: 'BTC peaks at ~$69k' },
-  { id: 'ftx',    month: 'Nov 22', label: 'FTX Collapse', color: '#f87171', icon: '↓', desc: 'FTX files for bankruptcy' },
-  { id: 'etf',    month: 'Jan 24', label: 'Spot ETF',     color: '#34d399', icon: '↑', desc: 'Bitcoin spot ETF approved' },
-  { id: 'btc100k',month: 'Dec 24', label: 'BTC $100k',    color: '#a78bfa', icon: '★', desc: 'BTC hits $100k milestone' },
+  { id: 'covid',  month: 'Mar 2020', label: 'COVID Crash',  color: '#f87171', icon: '↓', desc: 'Markets -35% in weeks' },
+  { id: 'btcath', month: 'Nov 2021', label: 'BTC ATH',      color: '#fbbf24', icon: '★', desc: 'BTC peaks at ~$69k' },
+  { id: 'ftx',    month: 'Nov 2022', label: 'FTX Collapse', color: '#f87171', icon: '↓', desc: 'FTX files for bankruptcy' },
+  { id: 'etf',    month: 'Jan 2024', label: 'Spot ETF',     color: '#34d399', icon: '↑', desc: 'Bitcoin spot ETF approved' },
+  { id: 'btc100k',month: 'Dec 2024', label: 'BTC $100k',    color: '#a78bfa', icon: '★', desc: 'BTC hits $100k milestone' },
 ];
 
 export function buildAnnotations(labels: string[], showEvents: boolean): KeyEvent[] {

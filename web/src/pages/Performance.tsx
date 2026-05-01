@@ -76,6 +76,7 @@ export function Performance({ showModal }: PerformanceProps) {
   const [cryptoVsStocksType, setCryptoVsStocksType] = useState<'line' | 'bar'>('line');
   const [allocationType, setAllocationType] = useState<'line' | 'area' | 'bar'>('line');
   const [monthlyInvestedType, setMonthlyInvestedType] = useState<'bar' | 'line'>('bar');
+  const [showMonthlyTrend, setShowMonthlyTrend] = useState(false);
   const [focusYear, setFocusYear] = useState<number | null>(null);
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
   const [tooltipData, setTooltipData] = useState<{ text: string; x: number; y: number } | null>(null);
@@ -722,11 +723,24 @@ export function Performance({ showModal }: PerformanceProps) {
                 { value: 'line', label: 'Line' },
               ],
             }}
+            extraControls={monthlyInvestedType === 'bar' ? (
+              <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', fontSize: 11, color: 'rgba(238,238,248,0.55)', userSelect: 'none' }}>
+                <input
+                  type="checkbox"
+                  checked={showMonthlyTrend}
+                  onChange={e => setShowMonthlyTrend(e.target.checked)}
+                  style={{ accentColor: '#34d399', width: 12, height: 12 }}
+                />
+                Trend
+              </label>
+            ) : undefined}
             modalContent={monthlyInvestedType === 'bar' ? (
               <GroupedBarChart
                 labels={labels}
                 dataset1={{ label: 'Crypto', data: monthlyInvestedCrypto.slice(start), color: C.purple }}
                 dataset2={{ label: 'Stocks', data: monthlyInvestedStocks.slice(start), color: C.blue }}
+                medianLine={medianMonthlyCrypto + medianMonthlyStocks}
+                showTrend={showMonthlyTrend}
               />
             ) : (
               <MultiLineChart valueFormat="number" labels={labels} datasets={[
@@ -740,6 +754,8 @@ export function Performance({ showModal }: PerformanceProps) {
                 labels={labels}
                 dataset1={{ label: 'Crypto', data: monthlyInvestedCrypto.slice(start), color: C.purple }}
                 dataset2={{ label: 'Stocks', data: monthlyInvestedStocks.slice(start), color: C.blue }}
+                medianLine={medianMonthlyCrypto + medianMonthlyStocks}
+                showTrend={showMonthlyTrend}
               />
             ) : (
               <MultiLineChart valueFormat="number" labels={labels} datasets={[

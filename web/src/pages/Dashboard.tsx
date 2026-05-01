@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from 'react';
 import { WealthData as D } from '../data/wealthData';
 import { ChartCard } from '../components/ChartCard';
 import { TimeRange } from '../components/TimeRange';
-import { EntriesLog } from '../components/EntriesLog';
 import { AreaChart } from '../components/charts/AreaChart';
 import { MultiLineChart } from '../components/charts/MultiLineChart';
 import { InvestedChart } from '../components/charts/InvestedChart';
@@ -13,7 +12,7 @@ import { IncomeExpFlexChart } from '../components/charts/IncomeExpFlexChart';
 import { fmt$, fmtSign$, fmtPct, clsROI, getCurrencyFormatter, convertCurrency } from '../lib/formatters';
 import { sliceRange, type Range } from '../lib/ranges';
 import { buildAnnotations, C } from '../lib/chartDefaults';
-import { type Entry, type SavingsEntry } from '../lib/storage';
+import { type SavingsEntry } from '../lib/storage';
 import { api, type StockData, type CryptoData, type AssetHistoryPoint, type DebtHistoryPoint, type DebtEntry, type ExchangeRates } from '../lib/api';
 
 const CHART_OPTS = [{ value: 'bar', label: 'Bar' }, { value: 'line', label: 'Line' }];
@@ -23,14 +22,7 @@ const MO_ORDER: Record<string, number> = {
   Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11,
 };
 
-interface DashboardProps {
-  showModal: () => void;
-  entries: Entry[];
-  onEditEntry: (entry: Entry) => void;
-  onDeleteEntry: (id: number) => void;
-}
-
-export function Dashboard({ showModal, entries, onEditEntry, onDeleteEntry }: DashboardProps) {
+export function Dashboard() {
   const [range, setRange] = useState<Range>('ALL');
   const [showEvents, setShowEvents] = useState(true);
   const [portfolioValueType, setPortfolioValueType] = useState<'area' | 'bar'>('area');
@@ -248,23 +240,17 @@ export function Dashboard({ showModal, entries, onEditEntry, onDeleteEntry }: Da
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div className="page-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div>
-            <div className="page-title">Dashboard</div>
-            <div className="page-sub">
-              {hasPortfolioData
-                ? `${allMonths[0]} – ${allMonths[lastIdx]} · All investments`
-                : 'No portfolio data yet'}
-            </div>
+        <div>
+          <div className="page-title">Dashboard</div>
+          <div className="page-sub">
+            {hasPortfolioData
+              ? `${allMonths[0]} – ${allMonths[lastIdx]} · All investments`
+              : 'No portfolio data yet'}
           </div>
-          {entries.length > 0 && <span className="entries-badge">{entries.length}</span>}
         </div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <button className="add-btn" onClick={showModal}>+ Add Entry</button>
-          {hasPortfolioData && (
-            <TimeRange value={range} onChange={setRange} showEvents={showEvents} onToggleEvents={() => setShowEvents(v => !v)} />
-          )}
-        </div>
+        {hasPortfolioData && (
+          <TimeRange value={range} onChange={setRange} showEvents={showEvents} onToggleEvents={() => setShowEvents(v => !v)} />
+        )}
       </div>
 
       {!hasPortfolioData && !hasSavings ? (
@@ -547,16 +533,6 @@ export function Dashboard({ showModal, entries, onEditEntry, onDeleteEntry }: Da
             </div>
           )}
 
-          {/* My Entries */}
-          <div>
-            <div className="section-row" style={{ marginBottom: 10 }}>
-              <div className="section-title">
-                My Entries {entries.length > 0 && <span className="entries-badge">{entries.length}</span>}
-              </div>
-              <button className="add-btn" onClick={showModal} style={{ fontSize: 12, padding: '5px 12px' }}>+ Add Entry</button>
-            </div>
-            <EntriesLog entries={entries} onEdit={onEditEntry} onDelete={onDeleteEntry} />
-          </div>
         </>
       )}
     </div>

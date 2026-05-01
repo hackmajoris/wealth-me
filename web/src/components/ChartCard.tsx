@@ -16,11 +16,12 @@ interface ChartCardProps {
   modalContent?: ReactNode;
   typeToggle?: TypeToggle;
   noExpand?: boolean;
+  extraControls?: ReactNode;
 }
 
 export function ChartCard({
   label, value, change, changePositive,
-  children, modalContent, typeToggle, noExpand,
+  children, modalContent, typeToggle, noExpand, extraControls,
 }: ChartCardProps) {
   const [open, setOpen] = useState(false);
   const expandable = !noExpand;
@@ -31,6 +32,9 @@ export function ChartCard({
         <div className="chart-card-header" onClick={() => expandable && setOpen(true)}>
           <span className="chart-card-label">{label}</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {extraControls && (
+              <div onClick={e => e.stopPropagation()}>{extraControls}</div>
+            )}
             {typeToggle && (
               <div className="chart-type-toggle" onClick={e => e.stopPropagation()}>
                 {typeToggle.options.map(o => (
@@ -61,6 +65,7 @@ export function ChartCard({
           label={label} value={value} change={change} changePositive={changePositive}
           onClose={() => setOpen(false)}
           typeToggle={typeToggle}
+          extraControls={extraControls}
         >
           {modalContent ?? children}
         </ChartModal>

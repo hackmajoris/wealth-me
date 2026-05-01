@@ -51,7 +51,7 @@ export function App() {
 
   const renderTab = () => {
     switch (tab) {
-      case 'dashboard':   return <Dashboard showModal={showModal} entries={entries} onEditEntry={showEditModal} onDeleteEntry={handleDeleteEntry} />;
+      case 'dashboard':   return <Dashboard />;
       case 'stocks':      return <Stocks showModal={showModal} entries={entries} onDelete={handleDeleteEntry} onRefresh={refreshEntries} />;
       case 'crypto':      return <Crypto showModal={showModal} entries={entries} onDelete={handleDeleteEntry} onRefresh={refreshEntries} />;
       case 'performance': return <Performance showModal={showModal} />;
@@ -82,15 +82,11 @@ export function App() {
           >
             <span className="nav-icon">{navIcons[id]}</span>
             {navLabels[id]}
-            {id === 'dashboard' && entries.length > 0
-              ? <span className="entries-badge" style={{ marginLeft: 'auto' }}>{entries.length}</span>
-              : <span className="nav-dot" />
-            }
+            <span className="nav-dot" />
           </button>
         ))}
         <div className="sidebar-footer">
           <div>Live data · Apr 2026</div>
-          <div style={{ marginTop: 4 }}>{entries.length} entries</div>
         </div>
       </nav>
 

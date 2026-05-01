@@ -14,9 +14,10 @@ interface ChartModalProps {
   onClose: () => void;
   children: ReactNode;
   typeToggle?: TypeToggle;
+  extraControls?: ReactNode;
 }
 
-export function ChartModal({ label, value, change, changePositive, onClose, children, typeToggle }: ChartModalProps) {
+export function ChartModal({ label, value, change, changePositive, onClose, children, typeToggle, extraControls }: ChartModalProps) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', handler);
@@ -37,6 +38,9 @@ export function ChartModal({ label, value, change, changePositive, onClose, chil
             )}
           </div>
           <div className="chart-modal-actions">
+            {extraControls && (
+              <div style={{ marginRight: 8 }}>{extraControls}</div>
+            )}
             {typeToggle && (
               <div className="chart-type-toggle" style={{ marginRight: 8 }}>
                 {typeToggle.options.map(o => (
