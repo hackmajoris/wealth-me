@@ -6,6 +6,8 @@ import { polyTrend } from '../lib/trendUtils';
 import { MultiLineChart } from '../components/charts/MultiLineChart';
 import { useChart } from '../components/charts/useChart';
 import { ChartCard } from '../components/ChartCard';
+import { YearToggle } from '../components/YearToggle';
+import { groupByYear } from '../lib/groupByYear';
 import { C, chartDefaults } from '../lib/chartDefaults';
 import type { TooltipItem } from 'chart.js';
 
@@ -266,6 +268,7 @@ export function Debts() {
   const [currency, setCurrency] = useState('RON');
   const [exchangeRates, setExchangeRates] = useState<ExchangeRates>({ usdToRon: 4.35, eurToRon: 5.09 });
   const [chartType, setChartType] = useState<'line' | 'bar'>('line');
+  const [histGrouping, setHistGrouping] = useState<'month' | 'year'>('month');
   const [modal, setModal] = useState<ModalState>(false);
 
   const refresh = () => {
@@ -349,55 +352,59 @@ export function Debts() {
       </div>
 
       {/* History chart */}
-      {computedHistory.length > 0 && (
-        <ChartCard
-          label="Total Debt · Historical"
-          value={fmtCompact(currency, latestTotal)}
-          typeToggle={{
-            value: chartType,
-            onChange: (v) => setChartType(v as 'line' | 'bar'),
-            options: [
-              { value: 'line', label: 'Line' },
-              { value: 'bar', label: 'Bar' },
-            ],
-          }}
-          modalContent={
-            chartType === 'line' ? (
+      {computedHistory.length > 0 && (() => {
+        const histLabels = computedHistory.map(p => p.date);
+        const histData = computedHistory.map(p => p.totalDebt);
+        const _grp = histGrouping === 'year'
+          ? groupByYear(histLabels, [histData], ['last'])
+          : null;
+        const chartLabels = _grp ? _grp.years : histLabels;
+        const chartData = (_grp ? _grp.grouped[0] : histData) as number[];
+        const trendData = polyTrend(chartData, 2);
+
+        return (
+          <ChartCard
+            label="Total Debt · Historical"
+            value={fmtCompact(currency, latestTotal)}
+            extraControls={<YearToggle value={histGrouping} onChange={setHistGrouping} />}
+            typeToggle={{
+              value: chartType,
+              onChange: (v) => setChartType(v as 'line' | 'bar'),
+              options: [
+                { value: 'line', label: 'Line' },
+                { value: 'bar', label: 'Bar' },
+              ],
+            }}
+            modalContent={
+              chartType === 'line' ? (
+                <MultiLineChart
+                  labels={chartLabels}
+                  datasets={[
+                    { label: 'Total Debt', data: chartData, color: C.red },
+                    { label: 'Trend', data: trendData, color: C.yellow },
+                  ]}
+                  valueFormat="number"
+                />
+              ) : (
+                <DebtBarChart labels={chartLabels} data={chartData} trend={trendData} />
+              )
+            }
+          >
+            {chartType === 'line' ? (
               <MultiLineChart
-                labels={computedHistory.map(p => p.date)}
+                labels={chartLabels}
                 datasets={[
-                  { label: 'Total Debt', data: computedHistory.map(p => p.totalDebt), color: C.red },
-                  { label: 'Trend', data: polyTrend(computedHistory.map(p => p.totalDebt), 2), color: C.yellow },
+                  { label: 'Total Debt', data: chartData, color: C.red },
+                  { label: 'Trend', data: trendData, color: C.yellow },
                 ]}
                 valueFormat="number"
               />
             ) : (
-              <DebtBarChart
-                labels={computedHistory.map(p => p.date)}
-                data={computedHistory.map(p => p.totalDebt)}
-                trend={polyTrend(computedHistory.map(p => p.totalDebt), 2)}
-              />
-            )
-          }
-        >
-          {chartType === 'line' ? (
-            <MultiLineChart
-              labels={computedHistory.map(p => p.date)}
-              datasets={[
-                { label: 'Total Debt', data: computedHistory.map(p => p.totalDebt), color: C.red },
-                { label: 'Trend', data: polyTrend(computedHistory.map(p => p.totalDebt), 2), color: C.yellow },
-              ]}
-              valueFormat="number"
-            />
-          ) : (
-            <DebtBarChart
-              labels={computedHistory.map(p => p.date)}
-              data={computedHistory.map(p => p.totalDebt)}
-              trend={polyTrend(computedHistory.map(p => p.totalDebt), 2)}
-            />
-          )}
-        </ChartCard>
-      )}
+              <DebtBarChart labels={chartLabels} data={chartData} trend={trendData} />
+            )}
+          </ChartCard>
+        );
+      })()}
 
       {/* Monthly groups */}
       {dates.length === 0 ? (

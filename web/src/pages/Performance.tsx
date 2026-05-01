@@ -11,6 +11,8 @@ import { DonutChart } from '../components/charts/DonutChart';
 import { fmt$, fmtPct, clsROI } from '../lib/formatters';
 import { sliceRange, type Range } from '../lib/ranges';
 import { buildAnnotations, C } from '../lib/chartDefaults';
+import { groupByYear } from '../lib/groupByYear';
+import { YearToggle } from '../components/YearToggle';
 
 interface PerformanceProps { showModal: () => void; }
 
@@ -77,6 +79,11 @@ export function Performance({ showModal }: PerformanceProps) {
   const [allocationType, setAllocationType] = useState<'line' | 'area' | 'bar'>('line');
   const [monthlyInvestedType, setMonthlyInvestedType] = useState<'bar' | 'line'>('bar');
   const [showMonthlyTrend, setShowMonthlyTrend] = useState(false);
+  const [portGrouping, setPortGrouping] = useState<'month' | 'year'>('month');
+  const [roiGrouping, setRoiGrouping] = useState<'month' | 'year'>('month');
+  const [cryptoStocksGrouping, setCryptoStocksGrouping] = useState<'month' | 'year'>('month');
+  const [allocGrouping, setAllocGrouping] = useState<'month' | 'year'>('month');
+  const [invAllocGrouping, setInvAllocGrouping] = useState<'month' | 'year'>('month');
   const [focusYear, setFocusYear] = useState<number | null>(null);
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
   const [tooltipData, setTooltipData] = useState<{ text: string; x: number; y: number } | null>(null);
@@ -373,6 +380,55 @@ export function Performance({ showModal }: PerformanceProps) {
 
   const hasData = stocks.months.length > 0 || crypto.months.length > 0;
 
+  // Pre-compute chart data series aligned to range-sliced labels
+  const perfPortfolioReturn   = combinedReturn.slice(start);
+  const perfPortfolioInvested = combinedInvested.slice(start);
+  const perfPortfolioRoi = labels.map(m => {
+    const si = stocks.months.indexOf(m); const ci = crypto.months.indexOf(m);
+    const inv = (si >= 0 ? stocks.invested[si] : 0) + (ci >= 0 ? crypto.invested[ci] : 0);
+    const ret = (si >= 0 ? stocks.return[si] : 0) + (ci >= 0 ? crypto.return[ci] : 0);
+    return inv > 0 ? ((ret - inv) / inv) * 100 : 0;
+  });
+  const perfCryptoRoi   = labels.map(m => { const ci = crypto.months.indexOf(m); return ci >= 0 ? crypto.roi[ci] : null; });
+  const perfStocksRoi   = labels.map(m => { const si = stocks.months.indexOf(m); return si >= 0 ? stocks.roi[si] : null; });
+  const perfSpxRoi      = labels.map(m => { const i = D.months.indexOf(m); return i >= 0 ? D.spxRoi[i] : null; });
+  const perfNasdaqRoi   = labels.map(m => { const i = D.months.indexOf(m); return i >= 0 ? D.nasdaqRoi[i] : null; });
+  const perfCryptoRet   = labels.map(m => { const ci = crypto.months.indexOf(m); return ci >= 0 ? crypto.return[ci] : 0; });
+  const perfStocksRet   = labels.map(m => { const si = stocks.months.indexOf(m); return si >= 0 ? stocks.return[si] : 0; });
+  const perfCryptoAlloc = labels.map(m => { const ci = crypto.months.indexOf(m); return ci >= 0 ? crypto.allocation[ci] : 0; });
+  const perfStocksAlloc = labels.map(m => { const si = stocks.months.indexOf(m); return si >= 0 ? stocks.allocation[si] : 0; });
+  const perfInvCrypto   = monthlyInvestedCrypto.slice(start);
+  const perfInvStocks   = monthlyInvestedStocks.slice(start);
+
+  // Year-grouped variants
+  const _portGrp = portGrouping === 'year' ? groupByYear(labels, [perfPortfolioReturn, perfPortfolioInvested], ['last', 'last']) : null;
+  const portLabels   = _portGrp ? _portGrp.years : labels;
+  const portReturn   = (_portGrp ? _portGrp.grouped[0] : perfPortfolioReturn) as (number | null)[];
+  const portInvested = (_portGrp ? _portGrp.grouped[1] : perfPortfolioInvested) as (number | null)[];
+
+  const _roiGrp = roiGrouping === 'year' ? groupByYear(labels, [perfPortfolioRoi, perfCryptoRoi, perfStocksRoi, perfSpxRoi, perfNasdaqRoi], ['last', 'last', 'last', 'last', 'last']) : null;
+  const roiLabels      = _roiGrp ? _roiGrp.years : labels;
+  const roiPortfolio   = (_roiGrp ? _roiGrp.grouped[0] : perfPortfolioRoi) as (number | null)[];
+  const roiCrypto      = (_roiGrp ? _roiGrp.grouped[1] : perfCryptoRoi) as (number | null)[];
+  const roiStocks      = (_roiGrp ? _roiGrp.grouped[2] : perfStocksRoi) as (number | null)[];
+  const roiSpx         = (_roiGrp ? _roiGrp.grouped[3] : perfSpxRoi) as (number | null)[];
+  const roiNasdaq      = (_roiGrp ? _roiGrp.grouped[4] : perfNasdaqRoi) as (number | null)[];
+
+  const _csGrp = cryptoStocksGrouping === 'year' ? groupByYear(labels, [perfCryptoRet, perfStocksRet], ['last', 'last']) : null;
+  const csLabels  = _csGrp ? _csGrp.years : labels;
+  const csCrypto  = (_csGrp ? _csGrp.grouped[0] : perfCryptoRet) as (number | null)[];
+  const csStocks  = (_csGrp ? _csGrp.grouped[1] : perfStocksRet) as (number | null)[];
+
+  const _allocGrp = allocGrouping === 'year' ? groupByYear(labels, [perfCryptoAlloc, perfStocksAlloc], ['last', 'last']) : null;
+  const allocLabels  = _allocGrp ? _allocGrp.years : labels;
+  const allocCrypto  = (_allocGrp ? _allocGrp.grouped[0] : perfCryptoAlloc) as (number | null)[];
+  const allocStocks  = (_allocGrp ? _allocGrp.grouped[1] : perfStocksAlloc) as (number | null)[];
+
+  const _invGrp = invAllocGrouping === 'year' ? groupByYear(labels, [perfInvCrypto, perfInvStocks], ['sum', 'sum']) : null;
+  const invLabels  = _invGrp ? _invGrp.years : labels;
+  const invCrypto  = (_invGrp ? _invGrp.grouped[0] : perfInvCrypto) as (number | null)[];
+  const invStocks  = (_invGrp ? _invGrp.grouped[1] : perfInvStocks) as (number | null)[];
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div className="page-header">
@@ -422,37 +478,35 @@ export function Performance({ showModal }: PerformanceProps) {
           value={fmt$(currentCombinedValue, true)}
           change={`Invested: ${fmt$(currentCombinedInvested, true)}`}
           changePositive={null}
+          extraControls={<YearToggle value={portGrouping} onChange={setPortGrouping} />}
           typeToggle={{
             value: portfolioValueType,
             onChange: (v) => setPortfolioValueType(v as 'area' | 'bar'),
-            options: [
-              { value: 'area', label: 'Area' },
-              { value: 'bar', label: 'Bar' },
-            ],
+            options: [{ value: 'area', label: 'Area' }, { value: 'bar', label: 'Bar' }],
           }}
           modalContent={portfolioValueType === 'area' ? (
-            <AreaChart labels={labels} annotations={ann} datasets={[
-              { label: 'Total Value',    data: combinedReturn.slice(start),   color: C.green },
-              { label: 'Total Invested', data: combinedInvested.slice(start), color: C.blue },
+            <AreaChart labels={portLabels} annotations={portGrouping === 'month' ? ann : undefined} datasets={[
+              { label: 'Total Value',    data: portReturn as number[],   color: C.green },
+              { label: 'Total Invested', data: portInvested as number[], color: C.blue },
             ]} />
           ) : (
             <GroupedBarChart
-              labels={labels}
-              dataset1={{ label: 'Total Value', data: combinedReturn.slice(start), color: C.green }}
-              dataset2={{ label: 'Total Invested', data: combinedInvested.slice(start), color: C.blue }}
+              labels={portLabels}
+              dataset1={{ label: 'Total Value',    data: portReturn as number[],   color: C.green }}
+              dataset2={{ label: 'Total Invested', data: portInvested as number[], color: C.blue }}
             />
           )}
         >
           {portfolioValueType === 'area' ? (
-            <AreaChart labels={labels} datasets={[
-              { label: 'Total Value',    data: combinedReturn.slice(start),   color: C.green },
-              { label: 'Total Invested', data: combinedInvested.slice(start), color: C.blue },
+            <AreaChart labels={portLabels} datasets={[
+              { label: 'Total Value',    data: portReturn as number[],   color: C.green },
+              { label: 'Total Invested', data: portInvested as number[], color: C.blue },
             ]} />
           ) : (
             <GroupedBarChart
-              labels={labels}
-              dataset1={{ label: 'Total Value', data: combinedReturn.slice(start), color: C.green }}
-              dataset2={{ label: 'Total Invested', data: combinedInvested.slice(start), color: C.blue }}
+              labels={portLabels}
+              dataset1={{ label: 'Total Value',    data: portReturn as number[],   color: C.green }}
+              dataset2={{ label: 'Total Invested', data: portInvested as number[], color: C.blue }}
             />
           )}
         </ChartCard>
@@ -462,97 +516,29 @@ export function Performance({ showModal }: PerformanceProps) {
           value={fmtPct(currentCombinedRoi)}
           change="Portfolio vs S&P 500, Nasdaq"
           changePositive={currentCombinedRoi >= 0}
+          extraControls={<YearToggle value={roiGrouping} onChange={setRoiGrouping} />}
           typeToggle={{
             value: roiBenchmarkType,
             onChange: (v) => setRoiBenchmarkType(v as 'line' | 'bar'),
-            options: [
-              { value: 'line', label: 'Line' },
-              { value: 'bar', label: 'Bar' },
-            ],
+            options: [{ value: 'line', label: 'Line' }, { value: 'bar', label: 'Bar' }],
           }}
-          modalContent={roiBenchmarkType === 'line' ? (
-            <MultiLineChart labels={labels} annotations={ann} datasets={[
-              { label: 'Portfolio', data: labels.map((m) => {
-                const si = stocks.months.indexOf(m);
-                const ci = crypto.months.indexOf(m);
-                const totalInv = (si >= 0 ? stocks.invested[si] : 0) + (ci >= 0 ? crypto.invested[ci] : 0);
-                const totalRet = (si >= 0 ? stocks.return[si] : 0) + (ci >= 0 ? crypto.return[ci] : 0);
-                return totalInv > 0 ? ((totalRet - totalInv) / totalInv) * 100 : 0;
-              }), color: C.green },
-              { label: 'Crypto',    data: labels.map((m) => {
-                const ci = crypto.months.indexOf(m);
-                return ci >= 0 ? crypto.roi[ci] : null;
-              }), color: C.purple },
-              { label: 'Stocks',    data: labels.map((m) => {
-                const si = stocks.months.indexOf(m);
-                return si >= 0 ? stocks.roi[si] : null;
-              }), color: C.blue },
-              { label: 'S&P 500',   data: D.spxRoi.slice(start),   color: C.orange, dashed: true },
-              { label: 'Nasdaq',    data: D.nasdaqRoi.slice(start), color: C.yellow, dashed: true },
+          modalContent={
+            <MultiLineChart labels={roiLabels} annotations={roiGrouping === 'month' ? ann : undefined} datasets={[
+              { label: 'Portfolio', data: roiPortfolio, color: C.green },
+              { label: 'Crypto',    data: roiCrypto,    color: C.purple },
+              { label: 'Stocks',    data: roiStocks,    color: C.blue },
+              { label: 'S&P 500',   data: roiSpx,       color: C.orange, dashed: true },
+              { label: 'Nasdaq',    data: roiNasdaq,    color: C.yellow, dashed: true },
             ]} />
-          ) : (
-            <MultiLineChart labels={labels} datasets={[
-              { label: 'Portfolio', data: labels.map((m) => {
-                const si = stocks.months.indexOf(m);
-                const ci = crypto.months.indexOf(m);
-                const totalInv = (si >= 0 ? stocks.invested[si] : 0) + (ci >= 0 ? crypto.invested[ci] : 0);
-                const totalRet = (si >= 0 ? stocks.return[si] : 0) + (ci >= 0 ? crypto.return[ci] : 0);
-                return totalInv > 0 ? ((totalRet - totalInv) / totalInv) * 100 : 0;
-              }), color: C.green },
-              { label: 'Crypto', data: labels.map((m) => {
-                const ci = crypto.months.indexOf(m);
-                return ci >= 0 ? crypto.roi[ci] : null;
-              }), color: C.purple },
-              { label: 'Stocks', data: labels.map((m) => {
-                const si = stocks.months.indexOf(m);
-                return si >= 0 ? stocks.roi[si] : null;
-              }), color: C.blue },
-              { label: 'S&P 500', data: D.spxRoi.slice(start), color: C.orange },
-              { label: 'Nasdaq', data: D.nasdaqRoi.slice(start), color: C.yellow },
-            ]} />
-          )}
+          }
         >
-          {roiBenchmarkType === 'line' ? (
-            <MultiLineChart labels={labels} datasets={[
-              { label: 'Portfolio', data: labels.map((m) => {
-                const si = stocks.months.indexOf(m);
-                const ci = crypto.months.indexOf(m);
-                const totalInv = (si >= 0 ? stocks.invested[si] : 0) + (ci >= 0 ? crypto.invested[ci] : 0);
-                const totalRet = (si >= 0 ? stocks.return[si] : 0) + (ci >= 0 ? crypto.return[ci] : 0);
-                return totalInv > 0 ? ((totalRet - totalInv) / totalInv) * 100 : 0;
-              }), color: C.green },
-              { label: 'Crypto',    data: labels.map((m) => {
-                const ci = crypto.months.indexOf(m);
-                return ci >= 0 ? crypto.roi[ci] : null;
-              }), color: C.purple },
-              { label: 'Stocks',    data: labels.map((m) => {
-                const si = stocks.months.indexOf(m);
-                return si >= 0 ? stocks.roi[si] : null;
-              }), color: C.blue },
-              { label: 'S&P 500',   data: D.spxRoi.slice(start),   color: C.orange, dashed: true },
-              { label: 'Nasdaq',    data: D.nasdaqRoi.slice(start), color: C.yellow, dashed: true },
-            ]} />
-          ) : (
-            <MultiLineChart labels={labels} datasets={[
-              { label: 'Portfolio', data: labels.map((m) => {
-                const si = stocks.months.indexOf(m);
-                const ci = crypto.months.indexOf(m);
-                const totalInv = (si >= 0 ? stocks.invested[si] : 0) + (ci >= 0 ? crypto.invested[ci] : 0);
-                const totalRet = (si >= 0 ? stocks.return[si] : 0) + (ci >= 0 ? crypto.return[ci] : 0);
-                return totalInv > 0 ? ((totalRet - totalInv) / totalInv) * 100 : 0;
-              }), color: C.green },
-              { label: 'Crypto', data: labels.map((m) => {
-                const ci = crypto.months.indexOf(m);
-                return ci >= 0 ? crypto.roi[ci] : null;
-              }), color: C.purple },
-              { label: 'Stocks', data: labels.map((m) => {
-                const si = stocks.months.indexOf(m);
-                return si >= 0 ? stocks.roi[si] : null;
-              }), color: C.blue },
-              { label: 'S&P 500', data: D.spxRoi.slice(start), color: C.orange },
-              { label: 'Nasdaq', data: D.nasdaqRoi.slice(start), color: C.yellow },
-            ]} />
-          )}
+          <MultiLineChart labels={roiLabels} datasets={[
+            { label: 'Portfolio', data: roiPortfolio, color: C.green },
+            { label: 'Crypto',    data: roiCrypto,    color: C.purple },
+            { label: 'Stocks',    data: roiStocks,    color: C.blue },
+            { label: 'S&P 500',   data: roiSpx,       color: C.orange, dashed: true },
+            { label: 'Nasdaq',    data: roiNasdaq,    color: C.yellow, dashed: true },
+          ]} />
         </ChartCard>
 
         <ChartCard
@@ -560,61 +546,35 @@ export function Performance({ showModal }: PerformanceProps) {
           value={`${fmt$(displayCryptoValue, true)} / ${fmt$(displayStocksValue, true)}`}
           change="Current value by asset class"
           changePositive={null}
+          extraControls={<YearToggle value={cryptoStocksGrouping} onChange={setCryptoStocksGrouping} />}
           typeToggle={{
             value: cryptoVsStocksType,
             onChange: (v) => setCryptoVsStocksType(v as 'line' | 'bar'),
-            options: [
-              { value: 'line', label: 'Line' },
-              { value: 'bar', label: 'Bar' },
-            ],
+            options: [{ value: 'line', label: 'Line' }, { value: 'bar', label: 'Bar' }],
           }}
           modalContent={cryptoVsStocksType === 'line' ? (
-            <MultiLineChart valueFormat="number" labels={labels} datasets={[
-              { label: 'Crypto', data: labels.map((m) => {
-                const ci = crypto.months.indexOf(m);
-                return ci >= 0 ? crypto.return[ci] : 0;
-              }), color: C.purple },
-              { label: 'Stocks', data: labels.map((m) => {
-                const si = stocks.months.indexOf(m);
-                return si >= 0 ? stocks.return[si] : 0;
-              }), color: C.blue },
+            <MultiLineChart valueFormat="number" labels={csLabels} datasets={[
+              { label: 'Crypto', data: csCrypto, color: C.purple },
+              { label: 'Stocks', data: csStocks, color: C.blue },
             ]} />
           ) : (
             <GroupedBarChart
-              labels={labels}
-              dataset1={{ label: 'Crypto', data: labels.map((m) => {
-                const ci = crypto.months.indexOf(m);
-                return ci >= 0 ? crypto.return[ci] : 0;
-              }), color: C.purple }}
-              dataset2={{ label: 'Stocks', data: labels.map((m) => {
-                const si = stocks.months.indexOf(m);
-                return si >= 0 ? stocks.return[si] : 0;
-              }), color: C.blue }}
+              labels={csLabels}
+              dataset1={{ label: 'Crypto', data: csCrypto as number[], color: C.purple }}
+              dataset2={{ label: 'Stocks', data: csStocks as number[], color: C.blue }}
             />
           )}
         >
           {cryptoVsStocksType === 'line' ? (
-            <MultiLineChart valueFormat="number" labels={labels} datasets={[
-              { label: 'Crypto', data: labels.map((m) => {
-                const ci = crypto.months.indexOf(m);
-                return ci >= 0 ? crypto.return[ci] : 0;
-              }), color: C.purple },
-              { label: 'Stocks', data: labels.map((m) => {
-                const si = stocks.months.indexOf(m);
-                return si >= 0 ? stocks.return[si] : 0;
-              }), color: C.blue },
+            <MultiLineChart valueFormat="number" labels={csLabels} datasets={[
+              { label: 'Crypto', data: csCrypto, color: C.purple },
+              { label: 'Stocks', data: csStocks, color: C.blue },
             ]} />
           ) : (
             <GroupedBarChart
-              labels={labels}
-              dataset1={{ label: 'Crypto', data: labels.map((m) => {
-                const ci = crypto.months.indexOf(m);
-                return ci >= 0 ? crypto.return[ci] : 0;
-              }), color: C.purple }}
-              dataset2={{ label: 'Stocks', data: labels.map((m) => {
-                const si = stocks.months.indexOf(m);
-                return si >= 0 ? stocks.return[si] : 0;
-              }), color: C.blue }}
+              labels={csLabels}
+              dataset1={{ label: 'Crypto', data: csCrypto as number[], color: C.purple }}
+              dataset2={{ label: 'Stocks', data: csStocks as number[], color: C.blue }}
             />
           )}
         </ChartCard>
@@ -624,6 +584,7 @@ export function Performance({ showModal }: PerformanceProps) {
           value={`${displayCryptoAlloc}% / ${displayStocksAlloc}%`}
           change="Crypto % vs Stocks %"
           changePositive={null}
+          extraControls={<YearToggle value={allocGrouping} onChange={setAllocGrouping} />}
           typeToggle={{
             value: allocationType,
             onChange: (v) => setAllocationType(v as 'line' | 'area' | 'bar'),
@@ -634,74 +595,38 @@ export function Performance({ showModal }: PerformanceProps) {
             ],
           }}
           modalContent={allocationType === 'line' ? (
-            <MultiLineChart labels={labels} datasets={[
-              { label: 'Crypto %', data: labels.map((m) => {
-                const ci = crypto.months.indexOf(m);
-                return ci >= 0 ? crypto.allocation[ci] : 0;
-              }), color: C.purple },
-              { label: 'Stocks %', data: labels.map((m) => {
-                const si = stocks.months.indexOf(m);
-                return si >= 0 ? stocks.allocation[si] : 0;
-              }), color: C.blue },
+            <MultiLineChart labels={allocLabels} datasets={[
+              { label: 'Crypto %', data: allocCrypto, color: C.purple },
+              { label: 'Stocks %', data: allocStocks, color: C.blue },
             ]} />
           ) : allocationType === 'area' ? (
-            <AreaChart labels={labels} datasets={[
-              { label: 'Crypto %', data: labels.map((m) => {
-                const ci = crypto.months.indexOf(m);
-                return ci >= 0 ? crypto.allocation[ci] : 0;
-              }), color: C.purple },
-              { label: 'Stocks %', data: labels.map((m) => {
-                const si = stocks.months.indexOf(m);
-                return si >= 0 ? stocks.allocation[si] : 0;
-              }), color: C.blue },
+            <AreaChart labels={allocLabels} datasets={[
+              { label: 'Crypto %', data: allocCrypto as number[], color: C.purple },
+              { label: 'Stocks %', data: allocStocks as number[], color: C.blue },
             ]} />
           ) : (
             <GroupedBarChart
-              labels={labels}
-              dataset1={{ label: 'Crypto %', data: labels.map((m) => {
-                const ci = crypto.months.indexOf(m);
-                return ci >= 0 ? crypto.allocation[ci] : 0;
-              }), color: C.purple }}
-              dataset2={{ label: 'Stocks %', data: labels.map((m) => {
-                const si = stocks.months.indexOf(m);
-                return si >= 0 ? stocks.allocation[si] : 0;
-              }), color: C.blue }}
+              labels={allocLabels}
+              dataset1={{ label: 'Crypto %', data: allocCrypto as number[], color: C.purple }}
+              dataset2={{ label: 'Stocks %', data: allocStocks as number[], color: C.blue }}
             />
           )}
         >
           {allocationType === 'line' ? (
-            <MultiLineChart labels={labels} datasets={[
-              { label: 'Crypto %', data: labels.map((m) => {
-                const ci = crypto.months.indexOf(m);
-                return ci >= 0 ? crypto.allocation[ci] : 0;
-              }), color: C.purple },
-              { label: 'Stocks %', data: labels.map((m) => {
-                const si = stocks.months.indexOf(m);
-                return si >= 0 ? stocks.allocation[si] : 0;
-              }), color: C.blue },
+            <MultiLineChart labels={allocLabels} datasets={[
+              { label: 'Crypto %', data: allocCrypto, color: C.purple },
+              { label: 'Stocks %', data: allocStocks, color: C.blue },
             ]} />
           ) : allocationType === 'area' ? (
-            <AreaChart labels={labels} datasets={[
-              { label: 'Crypto %', data: labels.map((m) => {
-                const ci = crypto.months.indexOf(m);
-                return ci >= 0 ? crypto.allocation[ci] : 0;
-              }), color: C.purple },
-              { label: 'Stocks %', data: labels.map((m) => {
-                const si = stocks.months.indexOf(m);
-                return si >= 0 ? stocks.allocation[si] : 0;
-              }), color: C.blue },
+            <AreaChart labels={allocLabels} datasets={[
+              { label: 'Crypto %', data: allocCrypto as number[], color: C.purple },
+              { label: 'Stocks %', data: allocStocks as number[], color: C.blue },
             ]} />
           ) : (
             <GroupedBarChart
-              labels={labels}
-              dataset1={{ label: 'Crypto %', data: labels.map((m) => {
-                const ci = crypto.months.indexOf(m);
-                return ci >= 0 ? crypto.allocation[ci] : 0;
-              }), color: C.purple }}
-              dataset2={{ label: 'Stocks %', data: labels.map((m) => {
-                const si = stocks.months.indexOf(m);
-                return si >= 0 ? stocks.allocation[si] : 0;
-              }), color: C.blue }}
+              labels={allocLabels}
+              dataset1={{ label: 'Crypto %', data: allocCrypto as number[], color: C.purple }}
+              dataset2={{ label: 'Stocks %', data: allocStocks as number[], color: C.blue }}
             />
           )}
         </ChartCard>
@@ -711,56 +636,53 @@ export function Performance({ showModal }: PerformanceProps) {
       <div>
         <div className="chart-grid">
           <ChartCard
-            label="Monthly Invested Allocation"
+            label={invAllocGrouping === 'year' ? 'Annual Invested Allocation' : 'Monthly Invested Allocation'}
             value={fmt$((totalMonthlyInvestedCrypto + totalMonthlyInvestedStocks), true)}
             change={`Median: ${fmt$(medianMonthlyCrypto + medianMonthlyStocks, true)} / Current Month: ${fmt$(currentMonthCrypto + currentMonthStocks, true)}`}
             changePositive={(currentMonthCrypto + currentMonthStocks) >= (medianMonthlyCrypto + medianMonthlyStocks)}
             typeToggle={{
               value: monthlyInvestedType,
               onChange: (v) => setMonthlyInvestedType(v as 'bar' | 'line'),
-              options: [
-                { value: 'bar', label: 'Bar' },
-                { value: 'line', label: 'Line' },
-              ],
+              options: [{ value: 'bar', label: 'Bar' }, { value: 'line', label: 'Line' }],
             }}
-            extraControls={monthlyInvestedType === 'bar' ? (
-              <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', fontSize: 11, color: 'rgba(238,238,248,0.55)', userSelect: 'none' }}>
-                <input
-                  type="checkbox"
-                  checked={showMonthlyTrend}
-                  onChange={e => setShowMonthlyTrend(e.target.checked)}
-                  style={{ accentColor: '#34d399', width: 12, height: 12 }}
-                />
-                Trend
-              </label>
-            ) : undefined}
+            extraControls={
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {monthlyInvestedType === 'bar' && invAllocGrouping === 'month' && (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', fontSize: 11, color: 'rgba(238,238,248,0.55)', userSelect: 'none' }}>
+                    <input type="checkbox" checked={showMonthlyTrend} onChange={e => setShowMonthlyTrend(e.target.checked)} style={{ accentColor: '#34d399', width: 12, height: 12 }} />
+                    Trend
+                  </label>
+                )}
+                <YearToggle value={invAllocGrouping} onChange={setInvAllocGrouping} />
+              </div>
+            }
             modalContent={monthlyInvestedType === 'bar' ? (
               <GroupedBarChart
-                labels={labels}
-                dataset1={{ label: 'Crypto', data: monthlyInvestedCrypto.slice(start), color: C.purple }}
-                dataset2={{ label: 'Stocks', data: monthlyInvestedStocks.slice(start), color: C.blue }}
-                medianLine={medianMonthlyCrypto + medianMonthlyStocks}
-                showTrend={showMonthlyTrend}
+                labels={invLabels}
+                dataset1={{ label: 'Crypto', data: invCrypto as number[], color: C.purple }}
+                dataset2={{ label: 'Stocks', data: invStocks as number[], color: C.blue }}
+                medianLine={invAllocGrouping === 'month' ? medianMonthlyCrypto + medianMonthlyStocks : undefined}
+                showTrend={invAllocGrouping === 'month' ? showMonthlyTrend : false}
               />
             ) : (
-              <MultiLineChart valueFormat="number" labels={labels} datasets={[
-                { label: 'Crypto', data: monthlyInvestedCrypto.slice(start), color: C.purple },
-                { label: 'Stocks', data: monthlyInvestedStocks.slice(start), color: C.blue },
+              <MultiLineChart valueFormat="number" labels={invLabels} datasets={[
+                { label: 'Crypto', data: invCrypto, color: C.purple },
+                { label: 'Stocks', data: invStocks, color: C.blue },
               ]} />
             )}
           >
             {monthlyInvestedType === 'bar' ? (
               <GroupedBarChart
-                labels={labels}
-                dataset1={{ label: 'Crypto', data: monthlyInvestedCrypto.slice(start), color: C.purple }}
-                dataset2={{ label: 'Stocks', data: monthlyInvestedStocks.slice(start), color: C.blue }}
-                medianLine={medianMonthlyCrypto + medianMonthlyStocks}
-                showTrend={showMonthlyTrend}
+                labels={invLabels}
+                dataset1={{ label: 'Crypto', data: invCrypto as number[], color: C.purple }}
+                dataset2={{ label: 'Stocks', data: invStocks as number[], color: C.blue }}
+                medianLine={invAllocGrouping === 'month' ? medianMonthlyCrypto + medianMonthlyStocks : undefined}
+                showTrend={invAllocGrouping === 'month' ? showMonthlyTrend : false}
               />
             ) : (
-              <MultiLineChart valueFormat="number" labels={labels} datasets={[
-                { label: 'Crypto', data: monthlyInvestedCrypto.slice(start), color: C.purple },
-                { label: 'Stocks', data: monthlyInvestedStocks.slice(start), color: C.blue },
+              <MultiLineChart valueFormat="number" labels={invLabels} datasets={[
+                { label: 'Crypto', data: invCrypto, color: C.purple },
+                { label: 'Stocks', data: invStocks, color: C.blue },
               ]} />
             )}
           </ChartCard>

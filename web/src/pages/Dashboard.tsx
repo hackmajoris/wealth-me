@@ -13,6 +13,8 @@ import { fmt$, fmtSign$, fmtPct, clsROI, getCurrencyFormatter, convertCurrency }
 import { sliceRange, type Range } from '../lib/ranges';
 import { buildAnnotations, C } from '../lib/chartDefaults';
 import { type SavingsEntry } from '../lib/storage';
+import { groupByYear } from '../lib/groupByYear';
+import { YearToggle } from '../components/YearToggle';
 import { api, type StockData, type CryptoData, type AssetHistoryPoint, type DebtHistoryPoint, type DebtEntry, type ExchangeRates } from '../lib/api';
 
 const CHART_OPTS = [{ value: 'bar', label: 'Bar' }, { value: 'line', label: 'Line' }];
@@ -32,6 +34,14 @@ export function Dashboard() {
   const [stocksChartType, setStocksChartType] = useState<'bar' | 'line'>('bar');
   const [savingsRateChartType, setSavingsRateChartType] = useState<'line' | 'bar'>('line');
   const [incomeExpChartType, setIncomeExpChartType] = useState<'line' | 'bar'>('line');
+  const [nwGrouping, setNwGrouping] = useState<'month' | 'year'>('month');
+  const [portGrouping, setPortGrouping] = useState<'month' | 'year'>('month');
+  const [invTotalGrouping, setInvTotalGrouping] = useState<'month' | 'year'>('month');
+  const [roiGrouping, setRoiGrouping] = useState<'month' | 'year'>('month');
+  const [cryptoInvGrouping, setCryptoInvGrouping] = useState<'month' | 'year'>('month');
+  const [stocksInvGrouping, setStocksInvGrouping] = useState<'month' | 'year'>('month');
+  const [savRateGrouping, setSavRateGrouping] = useState<'month' | 'year'>('month');
+  const [incExpGrouping, setIncExpGrouping] = useState<'month' | 'year'>('month');
 
   const [stockData, setStockData] = useState<StockData | null>(null);
   const [cryptoData, setCryptoData] = useState<CryptoData | null>(null);
@@ -237,6 +247,65 @@ export function Dashboard() {
   const savingsIncome  = chronologicalSavings.map(e => e.netIncome);
   const savingsExpenses = chronologicalSavings.map(e => e.totalExpenses);
 
+  // Year-grouped variants for Dashboard charts
+  const _nwGrp = nwGrouping === 'year'
+    ? groupByYear(NW_MONTHS, [nwPortfolio, nwDebts, nwTotal, nwNoAssets], ['last', 'last', 'last', 'last'])
+    : null;
+  const nwLabels     = _nwGrp ? _nwGrp.years : NW_MONTHS;
+  const nwPortG      = _nwGrp ? _nwGrp.grouped[0] : nwPortfolio;
+  const nwDebtG      = _nwGrp ? _nwGrp.grouped[1] : nwDebts;
+  const nwTotalG     = _nwGrp ? _nwGrp.grouped[2] : nwTotal;
+  const nwNoAssetsG  = _nwGrp ? _nwGrp.grouped[3] : nwNoAssets;
+
+  const _portGrp = portGrouping === 'year'
+    ? groupByYear(labels, [combinedReturn.slice(start), combinedInvested.slice(start)], ['last', 'last'])
+    : null;
+  const portLabels    = _portGrp ? _portGrp.years : labels;
+  const portReturn    = (_portGrp ? _portGrp.grouped[0] : combinedReturn.slice(start)) as (number | null)[];
+  const portInvested  = (_portGrp ? _portGrp.grouped[1] : combinedInvested.slice(start)) as (number | null)[];
+  const portAnn       = portGrouping === 'month' ? ann : undefined;
+
+  const _invTotalGrp = invTotalGrouping === 'year'
+    ? groupByYear(labels, [slicedTotal], ['sum'])
+    : null;
+  const invTotalLabels = _invTotalGrp ? _invTotalGrp.years : labels;
+  const invTotalData   = (_invTotalGrp ? _invTotalGrp.grouped[0] : slicedTotal) as number[];
+
+  const _roiGrp = roiGrouping === 'year'
+    ? groupByYear(labels, [combinedRoi.slice(start), spxSeries.slice(start), nasdaqSeries.slice(start)], ['last', 'last', 'last'])
+    : null;
+  const roiLabels    = _roiGrp ? _roiGrp.years : labels;
+  const roiPortfolio = (_roiGrp ? _roiGrp.grouped[0] : combinedRoi.slice(start)) as (number | null)[];
+  const roiSpx       = (_roiGrp ? _roiGrp.grouped[1] : spxSeries.slice(start)) as (number | null)[];
+  const roiNasdaq    = (_roiGrp ? _roiGrp.grouped[2] : nasdaqSeries.slice(start)) as (number | null)[];
+  const roiAnn       = roiGrouping === 'month' ? ann : undefined;
+
+  const _cryptoInvGrp = cryptoInvGrouping === 'year'
+    ? groupByYear(labels, [slicedCrypto], ['sum'])
+    : null;
+  const cryptoInvLabels = _cryptoInvGrp ? _cryptoInvGrp.years : labels;
+  const cryptoInvData   = (_cryptoInvGrp ? _cryptoInvGrp.grouped[0] : slicedCrypto) as number[];
+
+  const _stocksInvGrp = stocksInvGrouping === 'year'
+    ? groupByYear(labels, [slicedStocks], ['sum'])
+    : null;
+  const stocksInvLabels = _stocksInvGrp ? _stocksInvGrp.years : labels;
+  const stocksInvData   = (_stocksInvGrp ? _stocksInvGrp.grouped[0] : slicedStocks) as number[];
+
+  const _savRateGrp = savRateGrouping === 'year'
+    ? groupByYear(savingsLabels, [savingsRates, savingsTargets], ['avg', 'last'])
+    : null;
+  const savRateLabels   = _savRateGrp ? _savRateGrp.years : savingsLabels;
+  const savRatesData    = (_savRateGrp ? _savRateGrp.grouped[0] : savingsRates) as number[];
+  const savTargetsData  = (_savRateGrp ? _savRateGrp.grouped[1] : savingsTargets) as number[];
+
+  const _incExpGrp = incExpGrouping === 'year'
+    ? groupByYear(savingsLabels, [savingsIncome, savingsExpenses], ['sum', 'sum'])
+    : null;
+  const incExpLabels    = _incExpGrp ? _incExpGrp.years : savingsLabels;
+  const incExpIncome    = (_incExpGrp ? _incExpGrp.grouped[0] : savingsIncome) as number[];
+  const incExpExpenses  = (_incExpGrp ? _incExpGrp.grouped[1] : savingsExpenses) as number[];
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div className="page-header">
@@ -330,27 +399,28 @@ export function Dashboard() {
                   value={latestNW !== null ? fmt$(latestNW, true) : '—'}
                   change={latestNWNoAssets !== null ? `${fmt$(latestNWNoAssets, true)} excl. assets` : '—'}
                   changePositive={latestNW !== null ? latestNW >= 0 : null}
+                  extraControls={<YearToggle value={nwGrouping} onChange={setNwGrouping} />}
                   modalContent={
                     <MultiLineChart
-                      labels={NW_MONTHS}
+                      labels={nwLabels}
                       valueFormat="number"
                       datasets={[
-                        { label: 'Stocks & Crypto', data: nwPortfolio, color: C.blue },
-                        { label: 'Debts',           data: nwDebts,    color: C.red },
-                        { label: 'Net Worth',       data: nwTotal,    color: C.green },
-                        { label: 'Net Worth (excl. assets)', data: nwNoAssets, color: C.yellow, dashed: true },
+                        { label: 'Stocks & Crypto', data: nwPortG,     color: C.blue },
+                        { label: 'Debts',           data: nwDebtG,     color: C.red },
+                        { label: 'Net Worth',       data: nwTotalG,    color: C.green },
+                        { label: 'Net Worth (excl. assets)', data: nwNoAssetsG, color: C.yellow, dashed: true },
                       ]}
                     />
                   }
                 >
                   <MultiLineChart
-                    labels={NW_MONTHS}
+                    labels={nwLabels}
                     valueFormat="number"
                     datasets={[
-                      { label: 'Stocks & Crypto', data: nwPortfolio, color: C.blue },
-                      { label: 'Debts',           data: nwDebts,    color: C.red },
-                      { label: 'Net Worth',       data: nwTotal,    color: C.green },
-                      { label: 'Net Worth (excl. assets)', data: nwNoAssets, color: C.yellow, dashed: true },
+                      { label: 'Stocks & Crypto', data: nwPortG,     color: C.blue },
+                      { label: 'Debts',           data: nwDebtG,     color: C.red },
+                      { label: 'Net Worth',       data: nwTotalG,    color: C.green },
+                      { label: 'Net Worth (excl. assets)', data: nwNoAssetsG, color: C.yellow, dashed: true },
                     ]}
                   />
                 </ChartCard>
@@ -362,34 +432,35 @@ export function Dashboard() {
                 value={fmt$(curPortfolioValue, true)}
                 change={fmtPct(curTotalRoi) + ' all-time'}
                 changePositive={curTotalRoi >= 0}
+                extraControls={<YearToggle value={portGrouping} onChange={setPortGrouping} />}
                 typeToggle={{
                   value: portfolioValueType,
                   onChange: (v) => setPortfolioValueType(v as 'area' | 'bar'),
                   options: [{ value: 'area', label: 'Area' }, { value: 'bar', label: 'Bar' }],
                 }}
                 modalContent={portfolioValueType === 'area' ? (
-                  <AreaChart labels={labels} annotations={ann} datasets={[
-                    { label: 'Total Value', data: combinedReturn.slice(start), color: C.green },
-                    { label: 'Invested',    data: combinedInvested.slice(start), color: C.blue },
+                  <AreaChart labels={portLabels} annotations={portAnn} datasets={[
+                    { label: 'Total Value', data: portReturn as number[], color: C.green },
+                    { label: 'Invested',    data: portInvested as number[], color: C.blue },
                   ]} />
                 ) : (
                   <GroupedBarChart
-                    labels={labels}
-                    dataset1={{ label: 'Total Value', data: combinedReturn.slice(start), color: C.green }}
-                    dataset2={{ label: 'Invested',    data: combinedInvested.slice(start), color: C.blue }}
+                    labels={portLabels}
+                    dataset1={{ label: 'Total Value', data: portReturn as number[], color: C.green }}
+                    dataset2={{ label: 'Invested',    data: portInvested as number[], color: C.blue }}
                   />
                 )}
               >
                 {portfolioValueType === 'area' ? (
-                  <AreaChart labels={labels} datasets={[
-                    { label: 'Total Value', data: combinedReturn.slice(start), color: C.green },
-                    { label: 'Invested',    data: combinedInvested.slice(start), color: C.blue },
+                  <AreaChart labels={portLabels} datasets={[
+                    { label: 'Total Value', data: portReturn as number[], color: C.green },
+                    { label: 'Invested',    data: portInvested as number[], color: C.blue },
                   ]} />
                 ) : (
                   <GroupedBarChart
-                    labels={labels}
-                    dataset1={{ label: 'Total Value', data: combinedReturn.slice(start), color: C.green }}
-                    dataset2={{ label: 'Invested',    data: combinedInvested.slice(start), color: C.blue }}
+                    labels={portLabels}
+                    dataset1={{ label: 'Total Value', data: portReturn as number[], color: C.green }}
+                    dataset2={{ label: 'Invested',    data: portInvested as number[], color: C.blue }}
                   />
                 )}
               </ChartCard>
@@ -397,14 +468,15 @@ export function Dashboard() {
               {/* Monthly Invested + ROI vs Benchmarks */}
               <div className="chart-grid">
                 <ChartCard
-                  label="Monthly Invested"
+                  label={invTotalGrouping === 'year' ? 'Annual Invested' : 'Monthly Invested'}
                   value={fmt$(slicedTotal.reduce((a, b) => a + b, 0), true)}
                   change={`Avg: ${fmt$(avgTotal, true)} / Current: ${fmt$(curTotal, true)}`}
                   changePositive={curTotal >= avgTotal}
+                  extraControls={<YearToggle value={invTotalGrouping} onChange={setInvTotalGrouping} />}
                   typeToggle={{ value: totalChartType, onChange: v => setTotalChartType(v as 'bar' | 'line'), options: CHART_OPTS }}
-                  modalContent={<InvestedChart labels={labels} data={slicedTotal} color={C.blue} chartType={totalChartType} />}
+                  modalContent={<InvestedChart labels={invTotalLabels} data={invTotalData} color={C.blue} chartType={totalChartType} />}
                 >
-                  <InvestedChart labels={labels} data={slicedTotal} color={C.blue} chartType={totalChartType} />
+                  <InvestedChart labels={invTotalLabels} data={invTotalData} color={C.blue} chartType={totalChartType} />
                 </ChartCard>
 
                 <ChartCard
@@ -412,23 +484,24 @@ export function Dashboard() {
                   value={fmtPct(curTotalRoi)}
                   change={fmtPct(curTotalRoi - (lastSpx as number)) + ' vs S&P 500'}
                   changePositive={curTotalRoi > (lastSpx as number)}
+                  extraControls={<YearToggle value={roiGrouping} onChange={setRoiGrouping} />}
                   typeToggle={{
                     value: roiBenchmarkType,
                     onChange: (v) => setRoiBenchmarkType(v as 'line' | 'bar'),
                     options: [{ value: 'line', label: 'Line' }, { value: 'bar', label: 'Bar' }],
                   }}
                   modalContent={
-                    <MultiLineChart labels={labels} annotations={ann} datasets={[
-                      { label: 'Portfolio ROI', data: combinedRoi.slice(start),     color: C.green },
-                      { label: 'S&P 500',       data: spxSeries.slice(start),       color: C.orange, dashed: true },
-                      { label: 'Nasdaq',        data: nasdaqSeries.slice(start),    color: C.yellow, dashed: true },
+                    <MultiLineChart labels={roiLabels} annotations={roiAnn} datasets={[
+                      { label: 'Portfolio ROI', data: roiPortfolio, color: C.green },
+                      { label: 'S&P 500',       data: roiSpx,       color: C.orange, dashed: true },
+                      { label: 'Nasdaq',        data: roiNasdaq,    color: C.yellow, dashed: true },
                     ]} />
                   }
                 >
-                  <MultiLineChart labels={labels} datasets={[
-                    { label: 'Portfolio ROI', data: combinedRoi.slice(start),     color: C.green },
-                    { label: 'S&P 500',       data: spxSeries.slice(start),       color: C.orange, dashed: true },
-                    { label: 'Nasdaq',        data: nasdaqSeries.slice(start),    color: C.yellow, dashed: true },
+                  <MultiLineChart labels={roiLabels} datasets={[
+                    { label: 'Portfolio ROI', data: roiPortfolio, color: C.green },
+                    { label: 'S&P 500',       data: roiSpx,       color: C.orange, dashed: true },
+                    { label: 'Nasdaq',        data: roiNasdaq,    color: C.yellow, dashed: true },
                   ]} />
                 </ChartCard>
               </div>
@@ -440,25 +513,27 @@ export function Dashboard() {
                 </div>
                 <div className="chart-grid">
                   <ChartCard
-                    label="Monthly Crypto Invested"
+                    label={cryptoInvGrouping === 'year' ? 'Annual Crypto Invested' : 'Monthly Crypto Invested'}
                     value={fmt$(totalCrypto, true)}
                     change={`Avg: ${fmt$(avgCrypto, true)} / Current: ${fmt$(curCrypto, true)}`}
                     changePositive={curCrypto >= avgCrypto}
+                    extraControls={<YearToggle value={cryptoInvGrouping} onChange={setCryptoInvGrouping} />}
                     typeToggle={{ value: cryptoChartType, onChange: v => setCryptoChartType(v as 'bar' | 'line'), options: CHART_OPTS }}
-                    modalContent={<InvestedChart labels={labels} data={slicedCrypto} color={C.purple} chartType={cryptoChartType} />}
+                    modalContent={<InvestedChart labels={cryptoInvLabels} data={cryptoInvData} color={C.purple} chartType={cryptoChartType} />}
                   >
-                    <InvestedChart labels={labels} data={slicedCrypto} color={C.purple} chartType={cryptoChartType} />
+                    <InvestedChart labels={cryptoInvLabels} data={cryptoInvData} color={C.purple} chartType={cryptoChartType} />
                   </ChartCard>
 
                   <ChartCard
-                    label="Monthly Stocks Invested"
+                    label={stocksInvGrouping === 'year' ? 'Annual Stocks Invested' : 'Monthly Stocks Invested'}
                     value={fmt$(totalStocks, true)}
                     change={`Avg: ${fmt$(avgStocks, true)} / Current: ${fmt$(curStocks, true)}`}
                     changePositive={curStocks >= avgStocks}
+                    extraControls={<YearToggle value={stocksInvGrouping} onChange={setStocksInvGrouping} />}
                     typeToggle={{ value: stocksChartType, onChange: v => setStocksChartType(v as 'bar' | 'line'), options: CHART_OPTS }}
-                    modalContent={<InvestedChart labels={labels} data={slicedStocks} color={C.blue} chartType={stocksChartType} />}
+                    modalContent={<InvestedChart labels={stocksInvLabels} data={stocksInvData} color={C.blue} chartType={stocksChartType} />}
                   >
-                    <InvestedChart labels={labels} data={slicedStocks} color={C.blue} chartType={stocksChartType} />
+                    <InvestedChart labels={stocksInvLabels} data={stocksInvData} color={C.blue} chartType={stocksChartType} />
                   </ChartCard>
                 </div>
               </div>
@@ -481,6 +556,7 @@ export function Dashboard() {
                   value={latestSavings ? latestSavings.savingRate.toFixed(1) + '%' : '—'}
                   change={vsTarget >= 0 ? `+${vsTarget}% above target` : `${vsTarget}% below target`}
                   changePositive={vsTarget >= 0}
+                  extraControls={<YearToggle value={savRateGrouping} onChange={setSavRateGrouping} />}
                   typeToggle={{
                     value: savingsRateChartType,
                     onChange: (v) => setSavingsRateChartType(v as 'line' | 'bar'),
@@ -488,17 +564,17 @@ export function Dashboard() {
                   }}
                   modalContent={
                     <SavingsRateFlexChart
-                      labels={savingsLabels}
-                      rates={savingsRates}
-                      targets={savingsTargets}
+                      labels={savRateLabels}
+                      rates={savRatesData}
+                      targets={savTargetsData}
                       chartType={savingsRateChartType}
                     />
                   }
                 >
                   <SavingsRateFlexChart
-                    labels={savingsLabels}
-                    rates={savingsRates}
-                    targets={savingsTargets}
+                    labels={savRateLabels}
+                    rates={savRatesData}
+                    targets={savTargetsData}
                     chartType={savingsRateChartType}
                   />
                 </ChartCard>
@@ -508,6 +584,7 @@ export function Dashboard() {
                   value={latestSavings ? fmt(latestSavings.netIncome) : '—'}
                   change={latestSavings ? fmt(latestSavings.savings) + ' saved' : '—'}
                   changePositive={latestSavings ? latestSavings.savings > 0 : null}
+                  extraControls={<YearToggle value={incExpGrouping} onChange={setIncExpGrouping} />}
                   typeToggle={{
                     value: incomeExpChartType,
                     onChange: (v) => setIncomeExpChartType(v as 'line' | 'bar'),
@@ -515,17 +592,17 @@ export function Dashboard() {
                   }}
                   modalContent={
                     <IncomeExpFlexChart
-                      labels={savingsLabels}
-                      income={savingsIncome}
-                      expenses={savingsExpenses}
+                      labels={incExpLabels}
+                      income={incExpIncome}
+                      expenses={incExpExpenses}
                       chartType={incomeExpChartType}
                     />
                   }
                 >
                   <IncomeExpFlexChart
-                    labels={savingsLabels}
-                    income={savingsIncome}
-                    expenses={savingsExpenses}
+                    labels={incExpLabels}
+                    income={incExpIncome}
+                    expenses={incExpExpenses}
                     chartType={incomeExpChartType}
                   />
                 </ChartCard>
