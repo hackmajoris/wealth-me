@@ -1,9 +1,12 @@
-.PHONY: build serve dev test lint fmt clean generate \
-        web-dev web-build electron-dev electron-build \
-        up down logs
-
 APP := server
 BIN := .bin/$(APP)
+
+.PHONY: build serve dev clean generate \
+        test lint fmt \
+        web-dev web-build \
+        up down logs
+
+# ── Build ──────────────────────────────────────────────────────────────────────
 
 build: web-build
 	CGO_ENABLED=1 go build -ldflags="-s -w" -o $(BIN) ./cmd/$(APP)
@@ -20,6 +23,14 @@ dev: build
 		"DB_PATH=data/wealth.db $(BIN)" \
 		"cd web && npm run dev"
 
+clean:
+	rm -rf .bin/ web/dist/ pkg/web/dist/ electron/dist/
+
+generate:
+	go generate ./...
+
+# ── Quality ────────────────────────────────────────────────────────────────────
+
 test:
 	go test -race -cover ./...
 
@@ -30,11 +41,7 @@ fmt:
 	find . -name "*.go" -not -path "*/vendor/*" | xargs gofmt -w
 	find . -name "*.go" -not -path "*/vendor/*" | xargs goimports -w
 
-clean:
-	rm -rf .bin/ web/dist/ pkg/web/dist/ electron/dist/
-
-generate:
-	go generate ./...
+# ── Web ────────────────────────────────────────────────────────────────────────
 
 web-dev:
 	cd web && npm run dev
@@ -44,11 +51,7 @@ web-build:
 	@mkdir -p pkg/web/dist
 	cp -r web/dist/. pkg/web/dist/
 
-electron-dev: build
-	cd electron && npm run dev
-
-electron-build: build
-	cd electron && npm ci && npm run dist
+# ── Docker ────────────────────────────────────────────────────────────────────
 
 up:
 	docker compose up -d
