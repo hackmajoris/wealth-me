@@ -3,7 +3,7 @@ BIN := .bin/$(APP)
 
 .PHONY: build serve dev clean generate \
         test lint fmt \
-        web-dev web-build \
+        web-dev web-build web-fmt web-fmt-check \
         up down logs
 
 # ── Build ──────────────────────────────────────────────────────────────────────
@@ -40,11 +40,18 @@ lint:
 fmt:
 	find . -name "*.go" -not -path "*/vendor/*" | xargs gofmt -w
 	find . -name "*.go" -not -path "*/vendor/*" | xargs goimports -w
+	cd web && npm run format
 
 # ── Web ────────────────────────────────────────────────────────────────────────
 
 web-dev:
 	cd web && npm run dev
+
+web-fmt:
+	cd web && npm run format
+
+web-fmt-check:
+	cd web && npm run format:check
 
 web-build:
 	cd web && npm ci && npm run build
