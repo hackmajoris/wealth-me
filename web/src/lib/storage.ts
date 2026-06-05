@@ -28,8 +28,11 @@ export interface SavingsEntry {
 }
 
 export function loadEntries(): Entry[] {
-  try { return JSON.parse(localStorage.getItem('wm_entries') ?? '[]') as Entry[]; }
-  catch { return []; }
+  try {
+    return JSON.parse(localStorage.getItem('wm_entries') ?? '[]') as Entry[];
+  } catch {
+    return [];
+  }
 }
 
 export function saveEntries(entries: Entry[]): void {
@@ -62,8 +65,11 @@ export interface Debt {
 }
 
 export function loadSavingsEntries(): SavingsEntry[] {
-  try { return JSON.parse(localStorage.getItem('wm_savings') ?? '[]') as SavingsEntry[]; }
-  catch { return []; }
+  try {
+    return JSON.parse(localStorage.getItem('wm_savings') ?? '[]') as SavingsEntry[];
+  } catch {
+    return [];
+  }
 }
 
 export function saveSavingsEntries(entries: SavingsEntry[]): void {

@@ -17,20 +17,36 @@ interface ChartModalProps {
   extraControls?: ReactNode;
 }
 
-export function ChartModal({ label, value, change, changePositive, onClose, children, typeToggle, extraControls }: ChartModalProps) {
+export function ChartModal({
+  label,
+  value,
+  change,
+  changePositive,
+  onClose,
+  children,
+  typeToggle,
+  extraControls,
+}: ChartModalProps) {
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [onClose]);
 
   return (
-    <div className="chart-modal-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div
+      className="chart-modal-backdrop"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
       <div className="chart-modal">
         <div className="chart-modal-header">
           <div className="chart-modal-meta">
             <div className="chart-modal-label">{label}</div>
-            <div className={`chart-modal-value ${changePositive === null || changePositive === undefined ? '' : changePositive ? 'pos' : 'neg'}`}>
+            <div
+              className={`chart-modal-value ${changePositive === null || changePositive === undefined ? '' : changePositive ? 'pos' : 'neg'}`}
+            >
               {value}
             </div>
             {change && (
@@ -38,12 +54,10 @@ export function ChartModal({ label, value, change, changePositive, onClose, chil
             )}
           </div>
           <div className="chart-modal-actions">
-            {extraControls && (
-              <div style={{ marginRight: 8 }}>{extraControls}</div>
-            )}
+            {extraControls && <div style={{ marginRight: 8 }}>{extraControls}</div>}
             {typeToggle && (
               <div className="chart-type-toggle" style={{ marginRight: 8 }}>
-                {typeToggle.options.map(o => (
+                {typeToggle.options.map((o) => (
                   <button
                     key={o.value}
                     className={`chart-type-btn ${typeToggle.value === o.value ? 'active' : ''}`}
@@ -54,7 +68,13 @@ export function ChartModal({ label, value, change, changePositive, onClose, chil
                 ))}
               </div>
             )}
-            <button className="modal-close" style={{ width: 36, height: 36, fontSize: 16 }} onClick={onClose}>✕</button>
+            <button
+              className="modal-close"
+              style={{ width: 36, height: 36, fontSize: 16 }}
+              onClick={onClose}
+            >
+              ✕
+            </button>
           </div>
         </div>
         <div className="chart-modal-body">{children}</div>

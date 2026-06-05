@@ -23,9 +23,9 @@ export function InvestedChart({ labels, data, color, chartType }: InvestedChartP
         valueFormat="number"
         labels={labels}
         datasets={[
-          { label: 'Monthly',  data,                           color },
-          { label: 'Average',  data: data.map(() => avg),      color: C.orange, dashed: true },
-          { label: 'Trend',    data: trend,                    color: C.yellow },
+          { label: 'Monthly', data, color },
+          { label: 'Average', data: data.map(() => avg), color: C.orange, dashed: true },
+          { label: 'Trend', data: trend, color: C.yellow },
         ]}
       />
     );
@@ -35,7 +35,13 @@ export function InvestedChart({ labels, data, color, chartType }: InvestedChartP
 }
 
 /** Chart.js mixed chart: bars for data + line overlays for average and trend. */
-function MixedBarChart({ labels, data, color, avg, trend }: {
+function MixedBarChart({
+  labels,
+  data,
+  color,
+  avg,
+  trend,
+}: {
   labels: string[];
   data: number[];
   color: string;
@@ -103,7 +109,7 @@ function MixedBarChart({ labels, data, color, avg, trend }: {
           },
         },
         tooltip: {
-          ...(chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object,
+          ...((chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object),
           mode: 'index' as const,
           intersect: false,
           callbacks: {
@@ -118,7 +124,7 @@ function MixedBarChart({ labels, data, color, avg, trend }: {
         x: {
           ...chartDefaults.scales?.['x'],
           ticks: {
-            ...(chartDefaults.scales?.['x'] as Record<string, unknown>)?.['ticks'] as object,
+            ...((chartDefaults.scales?.['x'] as Record<string, unknown>)?.['ticks'] as object),
             maxRotation: 44,
             minRotation: 44,
             maxTicksLimit: 100,
@@ -127,7 +133,7 @@ function MixedBarChart({ labels, data, color, avg, trend }: {
         y: {
           ...chartDefaults.scales?.['y'],
           ticks: {
-            ...(chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object,
+            ...((chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object),
             callback: (v: number | string) => {
               const n = Number(v);
               return '$' + (n >= 1000 ? (n / 1000).toFixed(0) + 'k' : n);

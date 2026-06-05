@@ -11,17 +11,46 @@ import { Debts } from './pages/Debts';
 import { api } from './lib/api';
 import type { Entry } from './lib/storage';
 
-type TabId = 'dashboard' | 'stocks' | 'crypto' | 'performance' | 'savings' | 'assets' | 'debts' | 'settings';
+type TabId =
+  | 'dashboard'
+  | 'stocks'
+  | 'crypto'
+  | 'performance'
+  | 'savings'
+  | 'assets'
+  | 'debts'
+  | 'settings';
 
 const navIcons: Record<TabId, string> = {
-  dashboard: '◈', stocks: '↗', crypto: '◎', performance: '⊞',
-  savings: '◻', assets: '⬡', debts: '⬡', settings: '⚙',
+  dashboard: '◈',
+  stocks: '↗',
+  crypto: '◎',
+  performance: '⊞',
+  savings: '◻',
+  assets: '⬡',
+  debts: '⬡',
+  settings: '⚙',
 };
 const navLabels: Record<TabId, string> = {
-  dashboard: 'Overview', stocks: 'Stocks', crypto: 'Crypto', performance: 'Performance',
-  savings: 'Savings', assets: 'Assets', debts: 'Debts', settings: 'Settings',
+  dashboard: 'Overview',
+  stocks: 'Stocks',
+  crypto: 'Crypto',
+  performance: 'Performance',
+  savings: 'Savings',
+  assets: 'Assets',
+  debts: 'Debts',
+  settings: 'Settings',
 };
-const TAB_IDS: TabId[] = ['dashboard','performance','stocks','crypto','savings','assets','debts','settings'];
+const TAB_IDS: TabId[] = [
+  'dashboard',
+  'performance',
+  'stocks',
+  'crypto',
+  'savings',
+  'assets',
+  'debts',
+  'settings',
+];
 
 export function App() {
   const [tab, setTab] = useState<TabId>('dashboard');
@@ -35,30 +64,75 @@ export function App() {
   }, []);
 
   const refreshSavingsEntries = useCallback(() => {
-    setSavingsRefreshTrigger(t => t + 1);
+    setSavingsRefreshTrigger((t) => t + 1);
   }, []);
 
   useEffect(() => {
-    api.initMonth().catch(console.error).finally(() => refreshEntries());
+    api
+      .initMonth()
+      .catch(console.error)
+      .finally(() => refreshEntries());
   }, [refreshEntries]);
 
   const handleDeleteEntry = (id: number) => {
     api.entries.remove(id).then(refreshEntries).catch(console.error);
   };
 
-  const showModal = () => { setEditEntry(undefined); setModalOpen(true); };
-  const showEditModal = (entry: Entry) => { setEditEntry(entry); setModalOpen(true); };
+  const showModal = () => {
+    setEditEntry(undefined);
+    setModalOpen(true);
+  };
+  const showEditModal = (entry: Entry) => {
+    setEditEntry(entry);
+    setModalOpen(true);
+  };
 
   const renderTab = () => {
     switch (tab) {
-      case 'dashboard':   return <Dashboard />;
-      case 'stocks':      return <Stocks showModal={showModal} entries={entries} onDelete={handleDeleteEntry} onRefresh={refreshEntries} />;
-      case 'crypto':      return <Crypto showModal={showModal} entries={entries} onDelete={handleDeleteEntry} onRefresh={refreshEntries} />;
-      case 'performance': return <Performance showModal={showModal} />;
-      case 'savings':     return <Savings showModal={showModal} onEdit={showEditModal} onDelete={handleDeleteEntry} savingsRefreshKey={savingsRefreshTrigger} />;
-      case 'assets':      return <Assets />;
-      case 'debts':       return <Debts />;
-      case 'settings':    return <Settings entries={entries} onRefresh={refreshEntries} onSavingsRefresh={refreshSavingsEntries} onClear={refreshEntries} />;
+      case 'dashboard':
+        return <Dashboard />;
+      case 'stocks':
+        return (
+          <Stocks
+            showModal={showModal}
+            entries={entries}
+            onDelete={handleDeleteEntry}
+            onRefresh={refreshEntries}
+          />
+        );
+      case 'crypto':
+        return (
+          <Crypto
+            showModal={showModal}
+            entries={entries}
+            onDelete={handleDeleteEntry}
+            onRefresh={refreshEntries}
+          />
+        );
+      case 'performance':
+        return <Performance showModal={showModal} />;
+      case 'savings':
+        return (
+          <Savings
+            showModal={showModal}
+            onEdit={showEditModal}
+            onDelete={handleDeleteEntry}
+            savingsRefreshKey={savingsRefreshTrigger}
+          />
+        );
+      case 'assets':
+        return <Assets />;
+      case 'debts':
+        return <Debts />;
+      case 'settings':
+        return (
+          <Settings
+            entries={entries}
+            onRefresh={refreshEntries}
+            onSavingsRefresh={refreshSavingsEntries}
+            onClear={refreshEntries}
+          />
+        );
     }
   };
 
@@ -74,7 +148,7 @@ export function App() {
           <div className="logo-icon">W</div>
           Wealth Me
         </div>
-        {TAB_IDS.map(id => (
+        {TAB_IDS.map((id) => (
           <button
             key={id}
             className={`nav-item ${tab === id ? 'active' : ''}`}
@@ -91,14 +165,12 @@ export function App() {
       </nav>
 
       {/* Content */}
-      <main className="main">
-        {renderTab()}
-      </main>
+      <main className="main">{renderTab()}</main>
 
       {/* Bottom nav (mobile) */}
       <nav className="bottom-nav">
         <div className="bottom-nav-inner">
-          {TAB_IDS.map(id => (
+          {TAB_IDS.map((id) => (
             <button
               key={id}
               className={`bottom-nav-item ${tab === id ? 'active' : ''}`}

@@ -10,18 +10,57 @@ import { C, chartDefaults } from '../lib/chartDefaults';
 import type { TooltipItem } from 'chart.js';
 
 const CATEGORIES = ['Real Estate', 'Vehicle', 'Cash / Savings', 'Investment', 'Personal', 'Other'];
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const MO_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+const MO_SHORT = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
 const now = new Date();
 
 const btnStyle: React.CSSProperties = {
-  background: 'none', border: 'none', cursor: 'pointer',
-  fontSize: 13, padding: '2px 5px', borderRadius: 4, lineHeight: 1,
+  background: 'none',
+  border: 'none',
+  cursor: 'pointer',
+  fontSize: 13,
+  padding: '2px 5px',
+  borderRadius: 4,
+  lineHeight: 1,
 };
 
 // ── Asset Bar Chart ──────────────────────────────────────────────────────────
 
-function AssetBarChart({ labels, data, trend }: { labels: string[]; data: number[]; trend: number[] }) {
+function AssetBarChart({
+  labels,
+  data,
+  trend,
+}: {
+  labels: string[];
+  data: number[];
+  trend: number[];
+}) {
   const ref = useChart({
     type: 'bar',
     data: {
@@ -69,7 +108,7 @@ function AssetBarChart({ labels, data, trend }: { labels: string[]; data: number
           },
         },
         tooltip: {
-          ...(chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object,
+          ...((chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object),
           mode: 'index' as const,
           intersect: false,
           callbacks: {
@@ -84,7 +123,7 @@ function AssetBarChart({ labels, data, trend }: { labels: string[]; data: number
         x: {
           ...chartDefaults.scales?.['x'],
           ticks: {
-            ...(chartDefaults.scales?.['x'] as Record<string, unknown>)?.['ticks'] as object,
+            ...((chartDefaults.scales?.['x'] as Record<string, unknown>)?.['ticks'] as object),
             maxRotation: 44,
             minRotation: 44,
             maxTicksLimit: 100,
@@ -93,7 +132,7 @@ function AssetBarChart({ labels, data, trend }: { labels: string[]; data: number
         y: {
           ...chartDefaults.scales?.['y'],
           ticks: {
-            ...(chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object,
+            ...((chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object),
             callback: (v: number | string) => {
               const n = Number(v);
               return n >= 1000 ? (n / 1000).toFixed(0) + 'k' : n;
@@ -129,8 +168,8 @@ function EntryModal({ entry, currency, defaultDate, onClose, onSave }: EntryModa
   const def = entry
     ? parseDate(entry.date)
     : defaultDate
-    ? parseDate(defaultDate)
-    : { mo: now.getMonth(), yr: now.getFullYear() };
+      ? parseDate(defaultDate)
+      : { mo: now.getMonth(), yr: now.getFullYear() };
 
   const [name, setName] = useState(entry?.name ?? '');
   const [category, setCategory] = useState(entry?.category ?? 'Real Estate');
@@ -141,9 +180,15 @@ function EntryModal({ entry, currency, defaultDate, onClose, onSave }: EntryModa
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
-    if (!name.trim()) { alert('Name is required'); return; }
+    if (!name.trim()) {
+      alert('Name is required');
+      return;
+    }
     const amountN = parseFloat(amount) || 0;
-    if (amountN <= 0) { alert('Amount must be greater than 0'); return; }
+    if (amountN <= 0) {
+      alert('Amount must be greater than 0');
+      return;
+    }
     setSaving(true);
     const body = {
       date: `${MO_SHORT[month]} ${year}`,
@@ -169,25 +214,39 @@ function EntryModal({ entry, currency, defaultDate, onClose, onSave }: EntryModa
   };
 
   return (
-    <div className="modal-backdrop" onClick={ev => ev.target === ev.currentTarget && onClose()}>
+    <div className="modal-backdrop" onClick={(ev) => ev.target === ev.currentTarget && onClose()}>
       <div className="modal">
         <div className="modal-header">
           <div className="modal-title">{isEditing ? 'Edit' : 'Add'} Asset Entry</div>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose}>
+            ✕
+          </button>
         </div>
         <div className="modal-body">
           <div className="modal-section">
-            <div className="modal-section-label" style={{ color: 'var(--text2)' }}>Month</div>
+            <div className="modal-section-label" style={{ color: 'var(--text2)' }}>
+              Month
+            </div>
             <div className="field-row">
               <div className="field" style={{ flex: 2 }}>
                 <label>Month</label>
-                <select value={month} onChange={e => setMonth(Number(e.target.value))}>
-                  {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
+                <select value={month} onChange={(e) => setMonth(Number(e.target.value))}>
+                  {MONTHS.map((m, i) => (
+                    <option key={m} value={i}>
+                      {m}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="field" style={{ flex: 1 }}>
                 <label>Year</label>
-                <input type="number" value={year} onChange={e => setYear(Number(e.target.value))} min={2000} max={2100} />
+                <input
+                  type="number"
+                  value={year}
+                  onChange={(e) => setYear(Number(e.target.value))}
+                  min={2000}
+                  max={2100}
+                />
               </div>
             </div>
           </div>
@@ -195,29 +254,48 @@ function EntryModal({ entry, currency, defaultDate, onClose, onSave }: EntryModa
             <div className="field-row">
               <div className="field" style={{ flex: 2 }}>
                 <label>Name</label>
-                <input type="text" placeholder="e.g. Primary House" value={name} onChange={e => setName(e.target.value)} />
+                <input
+                  type="text"
+                  placeholder="e.g. Primary House"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
               </div>
               <div className="field" style={{ flex: 1 }}>
                 <label>Type</label>
-                <select value={category} onChange={e => setCategory(e.target.value)}>
-                  {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                <select value={category} onChange={(e) => setCategory(e.target.value)}>
+                  {CATEGORIES.map((c) => (
+                    <option key={c}>{c}</option>
+                  ))}
                 </select>
               </div>
             </div>
             <div className="field-row">
               <div className="field">
                 <label>Amount ({currency})</label>
-                <input type="number" placeholder="0" value={amount} onChange={e => setAmount(e.target.value)} />
+                <input
+                  type="number"
+                  placeholder="0"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                />
               </div>
               <div className="field">
                 <label>Note (optional)</label>
-                <input type="text" placeholder="" value={note} onChange={e => setNote(e.target.value)} />
+                <input
+                  type="text"
+                  placeholder=""
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                />
               </div>
             </div>
           </div>
         </div>
         <div className="modal-footer">
-          <button className="btn-ghost" onClick={onClose} disabled={saving}>Cancel</button>
+          <button className="btn-ghost" onClick={onClose} disabled={saving}>
+            Cancel
+          </button>
           <button className="btn-primary" onClick={handleSave} disabled={saving}>
             {saving ? 'Saving…' : isEditing ? 'Update Entry' : 'Add Entry'}
           </button>
@@ -229,7 +307,10 @@ function EntryModal({ entry, currency, defaultDate, onClose, onSave }: EntryModa
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
-type ModalState = false | { type: 'create'; defaultDate?: string } | { type: 'edit'; entry: AssetEntry };
+type ModalState =
+  | false
+  | { type: 'create'; defaultDate?: string }
+  | { type: 'edit'; entry: AssetEntry };
 
 export function Assets() {
   const [entries, setEntries] = useState<AssetEntry[]>([]);
@@ -245,7 +326,10 @@ export function Assets() {
 
   useEffect(() => {
     refresh();
-    api.settings.getAssetsCurrency().then(s => setCurrency(s.value)).catch(console.error);
+    api.settings
+      .getAssetsCurrency()
+      .then((s) => setCurrency(s.value))
+      .catch(console.error);
   }, []);
 
   const handleDelete = async (id: number) => {
@@ -279,9 +363,13 @@ export function Assets() {
       <div className="page-header">
         <div>
           <div className="page-title">Assets</div>
-          <div className="page-sub">Track what you own · {dates.length} month{dates.length !== 1 ? 's' : ''} tracked</div>
+          <div className="page-sub">
+            Track what you own · {dates.length} month{dates.length !== 1 ? 's' : ''} tracked
+          </div>
         </div>
-        <button className="add-btn" onClick={() => setModal({ type: 'create' })}>+ Add Entry</button>
+        <button className="add-btn" onClick={() => setModal({ type: 'create' })}>
+          + Add Entry
+        </button>
       </div>
 
       {/* KPI */}
@@ -319,36 +407,56 @@ export function Assets() {
           modalContent={
             chartType === 'line' ? (
               <MultiLineChart
-                labels={history.map(p => p.date)}
+                labels={history.map((p) => p.date)}
                 datasets={[
-                  { label: 'Total Value', data: history.map(p => p.totalValue), color: C.blue },
-                  { label: 'Trend', data: polyTrend(history.map(p => p.totalValue), 2), color: C.yellow },
+                  { label: 'Total Value', data: history.map((p) => p.totalValue), color: C.blue },
+                  {
+                    label: 'Trend',
+                    data: polyTrend(
+                      history.map((p) => p.totalValue),
+                      2
+                    ),
+                    color: C.yellow,
+                  },
                 ]}
                 valueFormat="number"
               />
             ) : (
               <AssetBarChart
-                labels={history.map(p => p.date)}
-                data={history.map(p => p.totalValue)}
-                trend={polyTrend(history.map(p => p.totalValue), 2)}
+                labels={history.map((p) => p.date)}
+                data={history.map((p) => p.totalValue)}
+                trend={polyTrend(
+                  history.map((p) => p.totalValue),
+                  2
+                )}
               />
             )
           }
         >
           {chartType === 'line' ? (
             <MultiLineChart
-              labels={history.map(p => p.date)}
+              labels={history.map((p) => p.date)}
               datasets={[
-                { label: 'Total Value', data: history.map(p => p.totalValue), color: C.blue },
-                { label: 'Trend', data: polyTrend(history.map(p => p.totalValue), 2), color: C.yellow },
+                { label: 'Total Value', data: history.map((p) => p.totalValue), color: C.blue },
+                {
+                  label: 'Trend',
+                  data: polyTrend(
+                    history.map((p) => p.totalValue),
+                    2
+                  ),
+                  color: C.yellow,
+                },
               ]}
               valueFormat="number"
             />
           ) : (
             <AssetBarChart
-              labels={history.map(p => p.date)}
-              data={history.map(p => p.totalValue)}
-              trend={polyTrend(history.map(p => p.totalValue), 2)}
+              labels={history.map((p) => p.date)}
+              data={history.map((p) => p.totalValue)}
+              trend={polyTrend(
+                history.map((p) => p.totalValue),
+                2
+              )}
             />
           )}
         </ChartCard>
@@ -356,56 +464,90 @@ export function Assets() {
 
       {/* Monthly groups */}
       {dates.length === 0 ? (
-        <div style={{ color: 'var(--text3)', textAlign: 'center', padding: '60px 0', fontSize: 14 }}>
+        <div
+          style={{ color: 'var(--text3)', textAlign: 'center', padding: '60px 0', fontSize: 14 }}
+        >
           No entries yet. Import historical data in Settings or add an entry above.
         </div>
       ) : (
         <div className="data-table-wrap">
-        <div className="table-scroll" style={{ maxHeight: 520 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-          {dates.map(date => {
-            const group = grouped[date];
-            const total = group.reduce((s, e) => s + e.amount, 0);
-            return (
-              <div key={date}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', background: 'var(--surface2)', borderBottom: '1px solid var(--border)', borderTop: '1px solid var(--border)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{date}</span>
-                    <span style={{ fontSize: 12, color: 'var(--text3)' }}>{group.length} entr{group.length !== 1 ? 'ies' : 'y'}</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--blue)' }}>{fmtCompact(currency, total)}</span>
-                    <button
-                      style={{ ...btnStyle, fontSize: 12, color: 'var(--text2)', border: '1px solid var(--border)', padding: '3px 8px' }}
-                      onClick={() => setModal({ type: 'create', defaultDate: date })}
+          <div className="table-scroll" style={{ maxHeight: 520 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+              {dates.map((date) => {
+                const group = grouped[date];
+                const total = group.reduce((s, e) => s + e.amount, 0);
+                return (
+                  <div key={date}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '10px 16px',
+                        background: 'var(--surface2)',
+                        borderBottom: '1px solid var(--border)',
+                        borderTop: '1px solid var(--border)',
+                      }}
                     >
-                      + Add
-                    </button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
+                          {date}
+                        </span>
+                        <span style={{ fontSize: 12, color: 'var(--text3)' }}>
+                          {group.length} entr{group.length !== 1 ? 'ies' : 'y'}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--blue)' }}>
+                          {fmtCompact(currency, total)}
+                        </span>
+                        <button
+                          style={{
+                            ...btnStyle,
+                            fontSize: 12,
+                            color: 'var(--text2)',
+                            border: '1px solid var(--border)',
+                            padding: '3px 8px',
+                          }}
+                          onClick={() => setModal({ type: 'create', defaultDate: date })}
+                        >
+                          + Add
+                        </button>
+                      </div>
+                    </div>
+                    <table className="data-table" style={{ margin: 0 }}>
+                      <tbody>
+                        {group.map((e) => (
+                          <tr key={e.id}>
+                            <td style={{ fontWeight: 500 }}>{e.name}</td>
+                            <td style={{ color: 'var(--text2)', fontSize: 12 }}>{e.category}</td>
+                            <td className="pos" style={{ fontWeight: 500, textAlign: 'right' }}>
+                              {fmtCompact(currency, e.amount)}
+                            </td>
+                            <td style={{ color: 'var(--text3)', fontSize: 12 }}>{e.note || '—'}</td>
+                            <td>
+                              <button
+                                style={{ ...btnStyle, color: 'var(--text2)' }}
+                                onClick={() => setModal({ type: 'edit', entry: e })}
+                              >
+                                ✎
+                              </button>
+                              <button
+                                style={{ ...btnStyle, color: 'var(--red)' }}
+                                onClick={() => handleDelete(e.id)}
+                              >
+                                ✕
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                </div>
-                <table className="data-table" style={{ margin: 0 }}>
-                  <tbody>
-                    {group.map(e => (
-                      <tr key={e.id}>
-                        <td style={{ fontWeight: 500 }}>{e.name}</td>
-                        <td style={{ color: 'var(--text2)', fontSize: 12 }}>{e.category}</td>
-                        <td className="pos" style={{ fontWeight: 500, textAlign: 'right' }}>
-                          {fmtCompact(currency, e.amount)}
-                        </td>
-                        <td style={{ color: 'var(--text3)', fontSize: 12 }}>{e.note || '—'}</td>
-                        <td>
-                          <button style={{ ...btnStyle, color: 'var(--text2)' }} onClick={() => setModal({ type: 'edit', entry: e })}>✎</button>
-                          <button style={{ ...btnStyle, color: 'var(--red)' }} onClick={() => handleDelete(e.id)}>✕</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            );
-          })}
-        </div>
-        </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
     </div>

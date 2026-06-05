@@ -16,18 +16,18 @@ export function AnnualSavingsBarChart({ stats }: AnnualSavingsBarChartProps) {
   const ref = useChart({
     type: 'bar',
     data: {
-      labels: stats.map(s => String(s.year)),
+      labels: stats.map((s) => String(s.year)),
       datasets: [
         {
           label: 'Avg. Rate',
-          data: stats.map(s => s.avgRate),
+          data: stats.map((s) => s.avgRate),
           backgroundColor: C.green + 'bb',
           borderRadius: 4,
         },
         {
           type: 'line' as const,
           label: 'Target',
-          data: stats.map(s => s.target),
+          data: stats.map((s) => s.target),
           backgroundColor: 'transparent',
           borderColor: C.yellow,
           borderWidth: 2,
@@ -41,7 +41,8 @@ export function AnnualSavingsBarChart({ stats }: AnnualSavingsBarChartProps) {
       plugins: {
         ...chartDefaults.plugins,
         legend: {
-          display: true, position: 'top',
+          display: true,
+          position: 'top',
           labels: {
             color: 'rgba(238,238,248,0.55)',
             font: { size: 11, family: 'Outfit' },
@@ -49,8 +50,9 @@ export function AnnualSavingsBarChart({ stats }: AnnualSavingsBarChartProps) {
           },
         },
         tooltip: {
-          ...(chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object,
-          mode: 'index', intersect: false,
+          ...((chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object),
+          mode: 'index',
+          intersect: false,
           callbacks: {
             label: (ctx: TooltipItem<'bar'>) =>
               ` ${ctx.dataset.label ?? ''}: ${(ctx.parsed.y ?? 0).toFixed(1)}%`,
@@ -62,7 +64,7 @@ export function AnnualSavingsBarChart({ stats }: AnnualSavingsBarChartProps) {
         y: {
           ...chartDefaults.scales?.['y'],
           ticks: {
-            ...(chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object,
+            ...((chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object),
             callback: (v: number | string) => Number(v) + '%',
           },
         },

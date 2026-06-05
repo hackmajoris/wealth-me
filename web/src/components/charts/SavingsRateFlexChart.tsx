@@ -10,9 +10,21 @@ interface SavingsRateFlexChartProps {
   chartType: 'line' | 'bar';
 }
 
-export function SavingsRateFlexChart({ labels, rates, targets, chartType }: SavingsRateFlexChartProps) {
+export function SavingsRateFlexChart({
+  labels,
+  rates,
+  targets,
+  chartType,
+}: SavingsRateFlexChartProps) {
   // Generate trend line (polynomial degree 2)
-  const trendLine = rates.length > 1 ? generateTrendLine(Array.from({ length: rates.length }, (_, i) => i), rates, 2) : rates;
+  const trendLine =
+    rates.length > 1
+      ? generateTrendLine(
+          Array.from({ length: rates.length }, (_, i) => i),
+          rates,
+          2
+        )
+      : rates;
 
   const ref = useChart({
     type: chartType,
@@ -42,17 +54,21 @@ export function SavingsRateFlexChart({ labels, rates, targets, chartType }: Savi
           tension: 0,
           fill: false,
         },
-        ...(chartType === 'line' ? [{
-          label: 'Trend',
-          data: trendLine,
-          borderColor: C.blue,
-          backgroundColor: 'transparent',
-          borderDash: [5, 4],
-          borderWidth: 1.5,
-          pointRadius: 0,
-          tension: 0.4,
-          fill: false,
-        }] : []),
+        ...(chartType === 'line'
+          ? [
+              {
+                label: 'Trend',
+                data: trendLine,
+                borderColor: C.blue,
+                backgroundColor: 'transparent',
+                borderDash: [5, 4],
+                borderWidth: 1.5,
+                pointRadius: 0,
+                tension: 0.4,
+                fill: false,
+              },
+            ]
+          : []),
       ],
     },
     options: {
@@ -61,16 +77,20 @@ export function SavingsRateFlexChart({ labels, rates, targets, chartType }: Savi
       plugins: {
         ...chartDefaults.plugins,
         legend: {
-          display: true, position: 'top',
+          display: true,
+          position: 'top',
           labels: {
             color: 'rgba(238,238,248,0.55)',
             font: { size: 11, family: 'Outfit' },
-            boxWidth: 20, pointStyle: 'line', usePointStyle: true,
+            boxWidth: 20,
+            pointStyle: 'line',
+            usePointStyle: true,
           },
         },
         tooltip: {
-          ...(chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object,
-          mode: 'index', intersect: false,
+          ...((chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object),
+          mode: 'index',
+          intersect: false,
           callbacks: {
             label: (ctx: TooltipItem<any>) =>
               ` ${ctx.dataset.label ?? ''}: ${(ctx.parsed.y ?? 0).toFixed(1)}%`,
@@ -93,7 +113,7 @@ export function SavingsRateFlexChart({ labels, rates, targets, chartType }: Savi
           ...chartDefaults.scales?.['y'],
           min: 0,
           ticks: {
-            ...(chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object,
+            ...((chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object),
             callback: (v: number | string) => Number(v) + '%',
           },
         },

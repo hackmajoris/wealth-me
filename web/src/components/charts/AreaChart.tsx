@@ -37,16 +37,20 @@ export function AreaChart({ labels, datasets, annotations }: AreaChartProps) {
       plugins: {
         ...chartDefaults.plugins,
         legend: {
-          display: true, position: 'top',
+          display: true,
+          position: 'top',
           labels: {
             color: 'rgba(238,238,248,0.55)',
             font: { size: 11, family: 'Outfit' },
-            boxWidth: 20, pointStyle: 'line', usePointStyle: true,
+            boxWidth: 20,
+            pointStyle: 'line',
+            usePointStyle: true,
           },
         },
         tooltip: {
-          ...(chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object,
-          mode: 'index', intersect: false,
+          ...((chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object),
+          mode: 'index',
+          intersect: false,
           callbacks: {
             label: (ctx: TooltipItem<'line'>) =>
               `${ctx.dataset.label ?? 'Value'}: $${Math.round(ctx.parsed.y ?? 0).toLocaleString()}`,
@@ -58,7 +62,7 @@ export function AreaChart({ labels, datasets, annotations }: AreaChartProps) {
         x: {
           ...chartDefaults.scales?.['x'],
           ticks: {
-            ...(chartDefaults.scales?.['x'] as Record<string, unknown>)?.['ticks'] as object,
+            ...((chartDefaults.scales?.['x'] as Record<string, unknown>)?.['ticks'] as object),
             maxRotation: 44,
             minRotation: 44,
             maxTicksLimit: 100,
@@ -67,7 +71,7 @@ export function AreaChart({ labels, datasets, annotations }: AreaChartProps) {
         y: {
           ...chartDefaults.scales?.['y'],
           ticks: {
-            ...(chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object,
+            ...((chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object),
             callback: (v: number | string) => {
               const n = Number(v);
               return '$' + (n >= 1000 ? (n / 1000).toFixed(0) + 'k' : n);

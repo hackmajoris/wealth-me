@@ -22,13 +22,20 @@ interface AnnualSavingsFlexChartProps {
 }
 
 export function AnnualSavingsFlexChart({ stats, chartType }: AnnualSavingsFlexChartProps) {
-  const labels = stats.map(s => s.mo ? `${s.mo} ${s.year}` : String(s.year));
-  const rates = stats.map(s => s.avgRate);
+  const labels = stats.map((s) => (s.mo ? `${s.mo} ${s.year}` : String(s.year)));
+  const rates = stats.map((s) => s.avgRate);
   const overallAverage = stats.length > 0 ? rates.reduce((a, b) => a + b, 0) / rates.length : 0;
   const averageLine = rates.map(() => overallAverage);
 
   // Generate trend line (polynomial degree 2)
-  const trendLine = stats.length > 1 ? generateTrendLine(Array.from({ length: rates.length }, (_, i) => i), rates, 2) : rates;
+  const trendLine =
+    stats.length > 1
+      ? generateTrendLine(
+          Array.from({ length: rates.length }, (_, i) => i),
+          rates,
+          2
+        )
+      : rates;
 
   if (chartType === 'line') {
     return (
@@ -106,7 +113,7 @@ export function AnnualSavingsFlexChart({ stats, chartType }: AnnualSavingsFlexCh
           },
         },
         tooltip: {
-          ...(chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object,
+          ...((chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object),
           mode: 'index',
           intersect: false,
           callbacks: {
@@ -130,7 +137,7 @@ export function AnnualSavingsFlexChart({ stats, chartType }: AnnualSavingsFlexCh
         y: {
           ...chartDefaults.scales?.['y'],
           ticks: {
-            ...(chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object,
+            ...((chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object),
             callback: (v: number | string) => Number(v) + '%',
           },
         },

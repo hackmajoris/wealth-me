@@ -11,19 +11,67 @@ import { groupByYear } from '../lib/groupByYear';
 import { C, chartDefaults } from '../lib/chartDefaults';
 import type { TooltipItem } from 'chart.js';
 
-const CATEGORIES = ['Credit Card', 'Mortgage', 'Auto Loan', 'Student Loan', 'Personal Loan', 'Medical', 'Historical', 'Other'];
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const MO_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const CATEGORIES = [
+  'Credit Card',
+  'Mortgage',
+  'Auto Loan',
+  'Student Loan',
+  'Personal Loan',
+  'Medical',
+  'Historical',
+  'Other',
+];
+const MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+const MO_SHORT = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
 const now = new Date();
 
 const btnStyle: React.CSSProperties = {
-  background: 'none', border: 'none', cursor: 'pointer',
-  fontSize: 13, padding: '2px 5px', borderRadius: 4, lineHeight: 1,
+  background: 'none',
+  border: 'none',
+  cursor: 'pointer',
+  fontSize: 13,
+  padding: '2px 5px',
+  borderRadius: 4,
+  lineHeight: 1,
 };
 
 // ── Debt Bar Chart ───────────────────────────────────────────────────────────
 
-function DebtBarChart({ labels, data, trend }: { labels: string[]; data: number[]; trend: number[] }) {
+function DebtBarChart({
+  labels,
+  data,
+  trend,
+}: {
+  labels: string[];
+  data: number[];
+  trend: number[];
+}) {
   const ref = useChart({
     type: 'bar',
     data: {
@@ -71,7 +119,7 @@ function DebtBarChart({ labels, data, trend }: { labels: string[]; data: number[
           },
         },
         tooltip: {
-          ...(chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object,
+          ...((chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object),
           mode: 'index' as const,
           intersect: false,
           callbacks: {
@@ -86,7 +134,7 @@ function DebtBarChart({ labels, data, trend }: { labels: string[]; data: number[
         x: {
           ...chartDefaults.scales?.['x'],
           ticks: {
-            ...(chartDefaults.scales?.['x'] as Record<string, unknown>)?.['ticks'] as object,
+            ...((chartDefaults.scales?.['x'] as Record<string, unknown>)?.['ticks'] as object),
             maxRotation: 44,
             minRotation: 44,
             maxTicksLimit: 100,
@@ -95,7 +143,7 @@ function DebtBarChart({ labels, data, trend }: { labels: string[]; data: number[
         y: {
           ...chartDefaults.scales?.['y'],
           ticks: {
-            ...(chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object,
+            ...((chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object),
             callback: (v: number | string) => {
               const n = Number(v);
               return '$' + (n >= 1000 ? (n / 1000).toFixed(0) + 'k' : n);
@@ -120,7 +168,14 @@ interface EntryModalProps {
   onSave: () => void;
 }
 
-function EntryModal({ entry, currency, exchangeRates, defaultDate, onClose, onSave }: EntryModalProps) {
+function EntryModal({
+  entry,
+  currency,
+  exchangeRates,
+  defaultDate,
+  onClose,
+  onSave,
+}: EntryModalProps) {
   const isEditing = !!entry && entry.id > 0;
 
   const parseDate = (dateStr: string) => {
@@ -129,7 +184,11 @@ function EntryModal({ entry, currency, exchangeRates, defaultDate, onClose, onSa
     return { mo: mo >= 0 ? mo : now.getMonth(), yr: parseInt(parts[1]) || now.getFullYear() };
   };
 
-  const def = entry ? parseDate(entry.date) : (defaultDate ? parseDate(defaultDate) : { mo: now.getMonth(), yr: now.getFullYear() });
+  const def = entry
+    ? parseDate(entry.date)
+    : defaultDate
+      ? parseDate(defaultDate)
+      : { mo: now.getMonth(), yr: now.getFullYear() };
 
   const [name, setName] = useState(entry?.name ?? '');
   const [category, setCategory] = useState(entry?.category ?? 'Credit Card');
@@ -141,9 +200,15 @@ function EntryModal({ entry, currency, exchangeRates, defaultDate, onClose, onSa
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
-    if (!name.trim()) { alert('Name is required'); return; }
+    if (!name.trim()) {
+      alert('Name is required');
+      return;
+    }
     const amountN = parseFloat(amount) || 0;
-    if (amountN <= 0) { alert('Amount must be greater than 0'); return; }
+    if (amountN <= 0) {
+      alert('Amount must be greater than 0');
+      return;
+    }
     setSaving(true);
     const body = {
       date: `${MO_SHORT[month]} ${year}`,
@@ -174,21 +239,35 @@ function EntryModal({ entry, currency, exchangeRates, defaultDate, onClose, onSa
       <div className="modal">
         <div className="modal-header">
           <div className="modal-title">{isEditing ? 'Edit' : 'Add'} Debt Entry</div>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose}>
+            ✕
+          </button>
         </div>
         <div className="modal-body">
           <div className="modal-section">
-            <div className="modal-section-label" style={{ color: 'var(--text2)' }}>Month</div>
+            <div className="modal-section-label" style={{ color: 'var(--text2)' }}>
+              Month
+            </div>
             <div className="field-row">
               <div className="field" style={{ flex: 2 }}>
                 <label>Month</label>
-                <select value={month} onChange={e => setMonth(Number(e.target.value))}>
-                  {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
+                <select value={month} onChange={(e) => setMonth(Number(e.target.value))}>
+                  {MONTHS.map((m, i) => (
+                    <option key={m} value={i}>
+                      {m}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="field" style={{ flex: 1 }}>
                 <label>Year</label>
-                <input type="number" value={year} onChange={e => setYear(Number(e.target.value))} min={2000} max={2100} />
+                <input
+                  type="number"
+                  value={year}
+                  onChange={(e) => setYear(Number(e.target.value))}
+                  min={2000}
+                  max={2100}
+                />
               </div>
             </div>
           </div>
@@ -196,12 +275,19 @@ function EntryModal({ entry, currency, exchangeRates, defaultDate, onClose, onSa
             <div className="field-row">
               <div className="field" style={{ flex: 2 }}>
                 <label>Name</label>
-                <input type="text" placeholder="e.g. Visa Card" value={name} onChange={e => setName(e.target.value)} />
+                <input
+                  type="text"
+                  placeholder="e.g. Visa Card"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
               </div>
               <div className="field" style={{ flex: 1 }}>
                 <label>Category</label>
-                <select value={category} onChange={e => setCategory(e.target.value)}>
-                  {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                <select value={category} onChange={(e) => setCategory(e.target.value)}>
+                  {CATEGORIES.map((c) => (
+                    <option key={c}>{c}</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -209,7 +295,7 @@ function EntryModal({ entry, currency, exchangeRates, defaultDate, onClose, onSa
               <div className="field">
                 <label>Currency</label>
                 <div style={{ display: 'flex', gap: 6 }}>
-                  {['RON', 'EUR', 'USD'].map(c => (
+                  {['RON', 'EUR', 'USD'].map((c) => (
                     <button
                       key={c}
                       onClick={() => setEntryCurrency(c)}
@@ -235,23 +321,45 @@ function EntryModal({ entry, currency, exchangeRates, defaultDate, onClose, onSa
             <div className="field-row">
               <div className="field">
                 <label>Amount</label>
-                <input type="number" placeholder="0" value={amount} onChange={e => setAmount(e.target.value)} />
+                <input
+                  type="number"
+                  placeholder="0"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                />
                 {entryCurrency !== currency && amount && (
                   <div style={{ fontSize: 12, color: 'var(--text2)', marginTop: 4 }}>
-                    ≈ {convertCurrency(parseFloat(amount) || 0, entryCurrency, currency, exchangeRates.usdToRon, exchangeRates.eurToRon).toLocaleString(undefined, { maximumFractionDigits: 0 })} {currency}
+                    ≈{' '}
+                    {convertCurrency(
+                      parseFloat(amount) || 0,
+                      entryCurrency,
+                      currency,
+                      exchangeRates.usdToRon,
+                      exchangeRates.eurToRon
+                    ).toLocaleString(undefined, { maximumFractionDigits: 0 })}{' '}
+                    {currency}
                   </div>
                 )}
               </div>
               <div className="field">
                 <label>Note (optional)</label>
-                <input type="text" placeholder="" value={note} onChange={e => setNote(e.target.value)} />
+                <input
+                  type="text"
+                  placeholder=""
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                />
               </div>
             </div>
           </div>
         </div>
         <div className="modal-footer">
-          <button className="btn-ghost" onClick={onClose} disabled={saving}>Cancel</button>
-          <button className="btn-primary" onClick={handleSave} disabled={saving}>{saving ? 'Saving…' : isEditing ? 'Update Entry' : 'Add Entry'}</button>
+          <button className="btn-ghost" onClick={onClose} disabled={saving}>
+            Cancel
+          </button>
+          <button className="btn-primary" onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving…' : isEditing ? 'Update Entry' : 'Add Entry'}
+          </button>
         </div>
       </div>
     </div>
@@ -260,13 +368,19 @@ function EntryModal({ entry, currency, exchangeRates, defaultDate, onClose, onSa
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
-type ModalState = false | { type: 'create'; defaultDate?: string } | { type: 'edit'; entry: DebtEntry };
+type ModalState =
+  | false
+  | { type: 'create'; defaultDate?: string }
+  | { type: 'edit'; entry: DebtEntry };
 
 export function Debts() {
   const [entries, setEntries] = useState<DebtEntry[]>([]);
   const [history, setHistory] = useState<DebtHistoryPoint[]>([]);
   const [currency, setCurrency] = useState('RON');
-  const [exchangeRates, setExchangeRates] = useState<ExchangeRates>({ usdToRon: 4.35, eurToRon: 5.09 });
+  const [exchangeRates, setExchangeRates] = useState<ExchangeRates>({
+    usdToRon: 4.35,
+    eurToRon: 5.09,
+  });
   const [chartType, setChartType] = useState<'line' | 'bar'>('line');
   const [histGrouping, setHistGrouping] = useState<'month' | 'year'>('month');
   const [modal, setModal] = useState<ModalState>(false);
@@ -278,7 +392,10 @@ export function Debts() {
 
   useEffect(() => {
     refresh();
-    api.settings.getDebtsCurrency().then(s => setCurrency(s.value)).catch(console.error);
+    api.settings
+      .getDebtsCurrency()
+      .then((s) => setCurrency(s.value))
+      .catch(console.error);
     api.settings.getExchangeRates().then(setExchangeRates).catch(console.error);
   }, []);
 
@@ -303,13 +420,23 @@ export function Debts() {
   const computedHistory = useMemo(() => {
     const byDate: Record<string, number> = {};
     for (const e of entries) {
-      byDate[e.date] = (byDate[e.date] ?? 0) + convertCurrency(e.amount, e.currency, currency, exchangeRates.usdToRon, exchangeRates.eurToRon);
+      byDate[e.date] =
+        (byDate[e.date] ?? 0) +
+        convertCurrency(
+          e.amount,
+          e.currency,
+          currency,
+          exchangeRates.usdToRon,
+          exchangeRates.eurToRon
+        );
     }
-    return history.map(h => ({ date: h.date, totalDebt: byDate[h.date] ?? h.totalDebt }));
+    return history.map((h) => ({ date: h.date, totalDebt: byDate[h.date] ?? h.totalDebt }));
   }, [entries, history, currency, exchangeRates]);
 
-  const latestTotal = computedHistory.length > 0 ? computedHistory[computedHistory.length - 1].totalDebt : 0;
-  const latestDate = computedHistory.length > 0 ? computedHistory[computedHistory.length - 1].date : '—';
+  const latestTotal =
+    computedHistory.length > 0 ? computedHistory[computedHistory.length - 1].totalDebt : 0;
+  const latestDate =
+    computedHistory.length > 0 ? computedHistory[computedHistory.length - 1].date : '—';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -327,9 +454,13 @@ export function Debts() {
       <div className="page-header">
         <div>
           <div className="page-title">Debts</div>
-          <div className="page-sub">Track what you owe · {dates.length} month{dates.length !== 1 ? 's' : ''} tracked</div>
+          <div className="page-sub">
+            Track what you owe · {dates.length} month{dates.length !== 1 ? 's' : ''} tracked
+          </div>
         </div>
-        <button className="add-btn" onClick={() => setModal({ type: 'create' })}>+ Add Entry</button>
+        <button className="add-btn" onClick={() => setModal({ type: 'create' })}>
+          + Add Entry
+        </button>
       </div>
 
       {/* KPI */}
@@ -352,31 +483,45 @@ export function Debts() {
       </div>
 
       {/* History chart */}
-      {computedHistory.length > 0 && (() => {
-        const histLabels = computedHistory.map(p => p.date);
-        const histData = computedHistory.map(p => p.totalDebt);
-        const _grp = histGrouping === 'year'
-          ? groupByYear(histLabels, [histData], ['last'])
-          : null;
-        const chartLabels = _grp ? _grp.years : histLabels;
-        const chartData = (_grp ? _grp.grouped[0] : histData) as number[];
-        const trendData = polyTrend(chartData, 2);
+      {computedHistory.length > 0 &&
+        (() => {
+          const histLabels = computedHistory.map((p) => p.date);
+          const histData = computedHistory.map((p) => p.totalDebt);
+          const _grp =
+            histGrouping === 'year' ? groupByYear(histLabels, [histData], ['last']) : null;
+          const chartLabels = _grp ? _grp.years : histLabels;
+          const chartData = (_grp ? _grp.grouped[0] : histData) as number[];
+          const trendData = polyTrend(chartData, 2);
 
-        return (
-          <ChartCard
-            label="Total Debt · Historical"
-            value={fmtCompact(currency, latestTotal)}
-            extraControls={<YearToggle value={histGrouping} onChange={setHistGrouping} />}
-            typeToggle={{
-              value: chartType,
-              onChange: (v) => setChartType(v as 'line' | 'bar'),
-              options: [
-                { value: 'line', label: 'Line' },
-                { value: 'bar', label: 'Bar' },
-              ],
-            }}
-            modalContent={
-              chartType === 'line' ? (
+          return (
+            <ChartCard
+              label="Total Debt · Historical"
+              value={fmtCompact(currency, latestTotal)}
+              extraControls={<YearToggle value={histGrouping} onChange={setHistGrouping} />}
+              typeToggle={{
+                value: chartType,
+                onChange: (v) => setChartType(v as 'line' | 'bar'),
+                options: [
+                  { value: 'line', label: 'Line' },
+                  { value: 'bar', label: 'Bar' },
+                ],
+              }}
+              modalContent={
+                chartType === 'line' ? (
+                  <MultiLineChart
+                    labels={chartLabels}
+                    datasets={[
+                      { label: 'Total Debt', data: chartData, color: C.red },
+                      { label: 'Trend', data: trendData, color: C.yellow },
+                    ]}
+                    valueFormat="number"
+                  />
+                ) : (
+                  <DebtBarChart labels={chartLabels} data={chartData} trend={trendData} />
+                )
+              }
+            >
+              {chartType === 'line' ? (
                 <MultiLineChart
                   labels={chartLabels}
                   datasets={[
@@ -387,80 +532,132 @@ export function Debts() {
                 />
               ) : (
                 <DebtBarChart labels={chartLabels} data={chartData} trend={trendData} />
-              )
-            }
-          >
-            {chartType === 'line' ? (
-              <MultiLineChart
-                labels={chartLabels}
-                datasets={[
-                  { label: 'Total Debt', data: chartData, color: C.red },
-                  { label: 'Trend', data: trendData, color: C.yellow },
-                ]}
-                valueFormat="number"
-              />
-            ) : (
-              <DebtBarChart labels={chartLabels} data={chartData} trend={trendData} />
-            )}
-          </ChartCard>
-        );
-      })()}
+              )}
+            </ChartCard>
+          );
+        })()}
 
       {/* Monthly groups */}
       {dates.length === 0 ? (
-        <div style={{ color: 'var(--text3)', textAlign: 'center', padding: '60px 0', fontSize: 14 }}>
+        <div
+          style={{ color: 'var(--text3)', textAlign: 'center', padding: '60px 0', fontSize: 14 }}
+        >
           No entries yet. Import historical data in Settings or add an entry above.
         </div>
       ) : (
         <div className="data-table-wrap">
-        <div className="table-scroll" style={{ maxHeight: 520 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-          {dates.map(date => {
-            const group = grouped[date];
-            const total = group.reduce((s, e) => s + convertCurrency(e.amount, e.currency, currency, exchangeRates.usdToRon, exchangeRates.eurToRon), 0);
-            return (
-              <div key={date}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', background: 'var(--surface2)', borderBottom: '1px solid var(--border)', borderTop: '1px solid var(--border)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{date}</span>
-                    <span style={{ fontSize: 12, color: 'var(--text3)' }}>{group.length} entr{group.length !== 1 ? 'ies' : 'y'}</span>
+          <div className="table-scroll" style={{ maxHeight: 520 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+              {dates.map((date) => {
+                const group = grouped[date];
+                const total = group.reduce(
+                  (s, e) =>
+                    s +
+                    convertCurrency(
+                      e.amount,
+                      e.currency,
+                      currency,
+                      exchangeRates.usdToRon,
+                      exchangeRates.eurToRon
+                    ),
+                  0
+                );
+                return (
+                  <div key={date}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '10px 16px',
+                        background: 'var(--surface2)',
+                        borderBottom: '1px solid var(--border)',
+                        borderTop: '1px solid var(--border)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
+                          {date}
+                        </span>
+                        <span style={{ fontSize: 12, color: 'var(--text3)' }}>
+                          {group.length} entr{group.length !== 1 ? 'ies' : 'y'}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--red)' }}>
+                          {fmtCompact(currency, total)}
+                        </span>
+                        <button
+                          style={{
+                            ...btnStyle,
+                            fontSize: 12,
+                            color: 'var(--text2)',
+                            border: '1px solid var(--border)',
+                            padding: '3px 8px',
+                          }}
+                          onClick={() => setModal({ type: 'create', defaultDate: date })}
+                        >
+                          + Add
+                        </button>
+                      </div>
+                    </div>
+                    <table className="data-table" style={{ margin: 0 }}>
+                      <tbody>
+                        {group.map((e) => (
+                          <tr key={e.id}>
+                            <td style={{ fontWeight: 500 }}>{e.name}</td>
+                            <td style={{ color: 'var(--text2)', fontSize: 12 }}>{e.category}</td>
+                            <td className="neg" style={{ fontWeight: 500, textAlign: 'right' }}>
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'flex-end',
+                                  gap: 2,
+                                }}
+                              >
+                                <span>{fmtCompact(e.currency || currency, e.amount)}</span>
+                                {e.currency && e.currency !== currency && (
+                                  <span style={{ fontSize: 11, color: 'var(--text3)' }}>
+                                    ≈{' '}
+                                    {fmtCompact(
+                                      currency,
+                                      convertCurrency(
+                                        e.amount,
+                                        e.currency,
+                                        currency,
+                                        exchangeRates.usdToRon,
+                                        exchangeRates.eurToRon
+                                      )
+                                    )}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td style={{ color: 'var(--text3)', fontSize: 12 }}>{e.note || '—'}</td>
+                            <td>
+                              <button
+                                style={{ ...btnStyle, color: 'var(--text2)' }}
+                                onClick={() => handleEdit(e)}
+                              >
+                                ✎
+                              </button>
+                              <button
+                                style={{ ...btnStyle, color: 'var(--red)' }}
+                                onClick={() => handleDelete(e.id)}
+                              >
+                                ✕
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--red)' }}>{fmtCompact(currency, total)}</span>
-                    <button style={{ ...btnStyle, fontSize: 12, color: 'var(--text2)', border: '1px solid var(--border)', padding: '3px 8px' }}
-                      onClick={() => setModal({ type: 'create', defaultDate: date })}>+ Add</button>
-                  </div>
-                </div>
-                <table className="data-table" style={{ margin: 0 }}>
-                  <tbody>
-                    {group.map(e => (
-                      <tr key={e.id}>
-                        <td style={{ fontWeight: 500 }}>{e.name}</td>
-                        <td style={{ color: 'var(--text2)', fontSize: 12 }}>{e.category}</td>
-                        <td className="neg" style={{ fontWeight: 500, textAlign: 'right' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
-                            <span>{fmtCompact(e.currency || currency, e.amount)}</span>
-                            {e.currency && e.currency !== currency && (
-                              <span style={{ fontSize: 11, color: 'var(--text3)' }}>
-                                ≈ {fmtCompact(currency, convertCurrency(e.amount, e.currency, currency, exchangeRates.usdToRon, exchangeRates.eurToRon))}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td style={{ color: 'var(--text3)', fontSize: 12 }}>{e.note || '—'}</td>
-                        <td>
-                          <button style={{ ...btnStyle, color: 'var(--text2)' }} onClick={() => handleEdit(e)}>✎</button>
-                          <button style={{ ...btnStyle, color: 'var(--red)' }} onClick={() => handleDelete(e.id)}>✕</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            );
-          })}
-        </div>
-        </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
     </div>

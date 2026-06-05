@@ -16,10 +16,33 @@ import { chartDefaults } from '../lib/chartDefaults';
 import type { TooltipItem } from 'chart.js';
 
 const MO_ORDER: Record<string, number> = {
-  Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5,
-  Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11,
+  Jan: 0,
+  Feb: 1,
+  Mar: 2,
+  Apr: 3,
+  May: 4,
+  Jun: 5,
+  Jul: 6,
+  Aug: 7,
+  Sep: 8,
+  Oct: 9,
+  Nov: 10,
+  Dec: 11,
 };
-const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTH_NAMES = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
 
 interface StocksProps {
   showModal: () => void;
@@ -29,11 +52,22 @@ interface StocksProps {
 }
 
 const btnStyle: React.CSSProperties = {
-  background: 'none', border: 'none', cursor: 'pointer',
-  fontSize: 13, padding: '2px 5px', borderRadius: 4, lineHeight: 1,
+  background: 'none',
+  border: 'none',
+  cursor: 'pointer',
+  fontSize: 13,
+  padding: '2px 5px',
+  borderRadius: 4,
+  lineHeight: 1,
 };
 
-function ValueAndInvestedBarChart({ labels, value, invested, valueColor, investedColor }: {
+function ValueAndInvestedBarChart({
+  labels,
+  value,
+  invested,
+  valueColor,
+  investedColor,
+}: {
   labels: string[];
   value: number[];
   invested: number[];
@@ -68,7 +102,7 @@ function ValueAndInvestedBarChart({ labels, value, invested, valueColor, investe
       plugins: {
         ...chartDefaults.plugins,
         tooltip: {
-          ...(chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object,
+          ...((chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object),
           mode: 'index',
           intersect: false,
           callbacks: {
@@ -114,36 +148,51 @@ export function Stocks({ showModal, entries, onDelete, onRefresh }: StocksProps)
 
   const data = useMemo(() => {
     const sorted = [...entries]
-      .filter(e => e.stocksInvested > 0 || e.stocksReturn > 0)
-      .sort((a, b) => a.yr !== b.yr ? a.yr - b.yr : MO_ORDER[a.mo] - MO_ORDER[b.mo]);
+      .filter((e) => e.stocksInvested > 0 || e.stocksReturn > 0)
+      .sort((a, b) => (a.yr !== b.yr ? a.yr - b.yr : MO_ORDER[a.mo] - MO_ORDER[b.mo]));
 
-    const months        = sorted.map(e => e.month);
-    const stocksInvested = sorted.map(e => e.stocksInvested);
-    const stocksReturn   = sorted.map(e => e.stocksReturn);
-    const stocksGain     = sorted.map(e => e.stocksReturn - e.stocksInvested);
-    const stocksRoi: (number | null)[] = sorted.map(e =>
+    const months = sorted.map((e) => e.month);
+    const stocksInvested = sorted.map((e) => e.stocksInvested);
+    const stocksReturn = sorted.map((e) => e.stocksReturn);
+    const stocksGain = sorted.map((e) => e.stocksReturn - e.stocksInvested);
+    const stocksRoi: (number | null)[] = sorted.map((e) =>
       e.stocksInvested > 0
-        ? Math.round((e.stocksReturn - e.stocksInvested) / e.stocksInvested * 1000) / 10
+        ? Math.round(((e.stocksReturn - e.stocksInvested) / e.stocksInvested) * 1000) / 10
         : null
     );
 
-    const N    = sorted.length;
+    const N = sorted.length;
     const last = N - 1;
-    const current = N > 0
-      ? { stocksValue: stocksReturn[last], stocksInvested: stocksInvested[last],
-          stocksGain: stocksGain[last], stocksRoi: stocksRoi[last] ?? 0 }
-      : { stocksValue: 0, stocksInvested: 0, stocksGain: 0, stocksRoi: 0 };
+    const current =
+      N > 0
+        ? {
+            stocksValue: stocksReturn[last],
+            stocksInvested: stocksInvested[last],
+            stocksGain: stocksGain[last],
+            stocksRoi: stocksRoi[last] ?? 0,
+          }
+        : { stocksValue: 0, stocksInvested: 0, stocksGain: 0, stocksRoi: 0 };
 
     // Calculate monthly invested (difference from previous month)
     const monthlyInvested = stocksInvested.map((v, i) =>
-      i === 0 ? v : Math.max(0, Math.round(v - stocksInvested[i - 1])));
+      i === 0 ? v : Math.max(0, Math.round(v - stocksInvested[i - 1]))
+    );
 
-    return { months, stocksInvested, stocksReturn, stocksGain, stocksRoi, monthlyInvested, N, current };
+    return {
+      months,
+      stocksInvested,
+      stocksReturn,
+      stocksGain,
+      stocksRoi,
+      monthlyInvested,
+      N,
+      current,
+    };
   }, [entries]);
 
   const { start } = sliceRange(range, data.N);
   const labels = data.months.slice(start);
-  const ann    = buildAnnotations(labels, showEvents);
+  const ann = buildAnnotations(labels, showEvents);
 
   // Get current and previous month for quick entry
   const now = new Date();
@@ -165,9 +214,13 @@ export function Stocks({ showModal, entries, onDelete, onRefresh }: StocksProps)
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         <div className="page-header">
           <div className="page-title">Stocks</div>
-          <button className="add-btn" onClick={showModal}>+ Add Entry</button>
+          <button className="add-btn" onClick={showModal}>
+            + Add Entry
+          </button>
         </div>
-        <div style={{ color: 'var(--text3)', textAlign: 'center', padding: '60px 0', fontSize: 14 }}>
+        <div
+          style={{ color: 'var(--text3)', textAlign: 'center', padding: '60px 0', fontSize: 14 }}
+        >
           No stocks data yet. Add an entry or import a CSV in Settings.
         </div>
       </div>
@@ -175,11 +228,11 @@ export function Stocks({ showModal, entries, onDelete, onRefresh }: StocksProps)
   }
 
   const firstMonth = data.months[0];
-  const lastMonth  = data.months[data.N - 1];
+  const lastMonth = data.months[data.N - 1];
 
   const handleQuickEntryOpen = () => {
     // Find if an entry exists for current month, otherwise undefined (create new)
-    const currentEntry = entries.find(e => e.yr === currentYear && e.mo === currentMonth);
+    const currentEntry = entries.find((e) => e.yr === currentYear && e.mo === currentMonth);
     setQuickEditEntry(currentEntry);
     setQuickEntryOpen(true);
   };
@@ -195,8 +248,15 @@ export function Stocks({ showModal, entries, onDelete, onRefresh }: StocksProps)
           entry={quickEditEntry}
           type="stocks"
           restrictMonths={allowedMonths}
-          onClose={() => { setQuickEntryOpen(false); setQuickEditEntry(undefined); }}
-          onSave={() => { setQuickEntryOpen(false); setQuickEditEntry(undefined); onRefresh?.(); }}
+          onClose={() => {
+            setQuickEntryOpen(false);
+            setQuickEditEntry(undefined);
+          }}
+          onSave={() => {
+            setQuickEntryOpen(false);
+            setQuickEditEntry(undefined);
+            onRefresh?.();
+          }}
         />
       )}
       {tableEditEntry && (
@@ -204,14 +264,29 @@ export function Stocks({ showModal, entries, onDelete, onRefresh }: StocksProps)
           entry={tableEditEntry}
           type="stocks"
           onClose={() => setTableEditEntry(undefined)}
-          onSave={() => { setTableEditEntry(undefined); onRefresh?.(); }}
+          onSave={() => {
+            setTableEditEntry(undefined);
+            onRefresh?.();
+          }}
         />
       )}
       <div className="page-header">
-        <div className="page-title">Stocks <span className="page-sub" style={{ fontWeight: 400 }}>{firstMonth} – {lastMonth}</span></div>
+        <div className="page-title">
+          Stocks{' '}
+          <span className="page-sub" style={{ fontWeight: 400 }}>
+            {firstMonth} – {lastMonth}
+          </span>
+        </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <button className="add-btn" onClick={showModal}>+ Add Entry</button>
-          <TimeRange value={range} onChange={setRange} showEvents={showEvents} onToggleEvents={() => setShowEvents(v => !v)} />
+          <button className="add-btn" onClick={showModal}>
+            + Add Entry
+          </button>
+          <TimeRange
+            value={range}
+            onChange={setRange}
+            showEvents={showEvents}
+            onToggleEvents={() => setShowEvents((v) => !v)}
+          />
         </div>
       </div>
 
@@ -228,7 +303,9 @@ export function Stocks({ showModal, entries, onDelete, onRefresh }: StocksProps)
         </div>
         <div className="kpi-card">
           <div className="kpi-label">Total Gain</div>
-          <div className={`kpi-value ${clsROI(data.current.stocksGain)}`}>{fmtSign$(data.current.stocksGain)}</div>
+          <div className={`kpi-value ${clsROI(data.current.stocksGain)}`}>
+            {fmtSign$(data.current.stocksGain)}
+          </div>
           <div className="kpi-change neu">Unrealized</div>
         </div>
         <div className="kpi-card">
@@ -252,32 +329,49 @@ export function Stocks({ showModal, entries, onDelete, onRefresh }: StocksProps)
               { value: 'bar', label: 'Bar' },
             ],
           }}
-          modalContent={returnVsInvestedType === 'area' ? (
-            <AreaChart labels={labels} annotations={ann} datasets={[
-              { label: 'Value',    data: data.stocksReturn.slice(start).map(v => v || 0), color: C.blue },
-              { label: 'Invested', data: data.stocksInvested.slice(start),                color: C.red },
-            ]} />
-          ) : (
-            <div style={{ overflowX: 'auto', paddingBottom: 8 }}>
-              <ValueAndInvestedBarChart
+          modalContent={
+            returnVsInvestedType === 'area' ? (
+              <AreaChart
                 labels={labels}
-                value={data.stocksReturn.slice(start).map(v => v || 0)}
-                invested={data.stocksInvested.slice(start)}
-                valueColor={C.blue}
-                investedColor={C.red}
+                annotations={ann}
+                datasets={[
+                  {
+                    label: 'Value',
+                    data: data.stocksReturn.slice(start).map((v) => v || 0),
+                    color: C.blue,
+                  },
+                  { label: 'Invested', data: data.stocksInvested.slice(start), color: C.red },
+                ]}
               />
-            </div>
-          )}
+            ) : (
+              <div style={{ overflowX: 'auto', paddingBottom: 8 }}>
+                <ValueAndInvestedBarChart
+                  labels={labels}
+                  value={data.stocksReturn.slice(start).map((v) => v || 0)}
+                  invested={data.stocksInvested.slice(start)}
+                  valueColor={C.blue}
+                  investedColor={C.red}
+                />
+              </div>
+            )
+          }
         >
           {returnVsInvestedType === 'area' ? (
-            <AreaChart labels={labels} datasets={[
-              { label: 'Value',    data: data.stocksReturn.slice(start).map(v => v || 0), color: C.blue },
-              { label: 'Invested', data: data.stocksInvested.slice(start),                color: C.red },
-            ]} />
+            <AreaChart
+              labels={labels}
+              datasets={[
+                {
+                  label: 'Value',
+                  data: data.stocksReturn.slice(start).map((v) => v || 0),
+                  color: C.blue,
+                },
+                { label: 'Invested', data: data.stocksInvested.slice(start), color: C.red },
+              ]}
+            />
           ) : (
             <ValueAndInvestedBarChart
               labels={labels}
-              value={data.stocksReturn.slice(start).map(v => v || 0)}
+              value={data.stocksReturn.slice(start).map((v) => v || 0)}
               invested={data.stocksInvested.slice(start)}
               valueColor={C.blue}
               investedColor={C.red}
@@ -290,9 +384,23 @@ export function Stocks({ showModal, entries, onDelete, onRefresh }: StocksProps)
           value={fmtPct(data.current.stocksRoi)}
           change="Monthly ROI"
           changePositive={data.current.stocksRoi >= 0}
-          modalContent={<LineChart labels={labels} data={data.stocksRoi.slice(start).map(v => v ?? null)} color={C.blue} yLabel="ROI %" isCurrency={false} />}
+          modalContent={
+            <LineChart
+              labels={labels}
+              data={data.stocksRoi.slice(start).map((v) => v ?? null)}
+              color={C.blue}
+              yLabel="ROI %"
+              isCurrency={false}
+            />
+          }
         >
-          <LineChart labels={labels} data={data.stocksRoi.slice(start).map(v => v ?? null)} color={C.blue} yLabel="ROI %" isCurrency={false} />
+          <LineChart
+            labels={labels}
+            data={data.stocksRoi.slice(start).map((v) => v ?? null)}
+            color={C.blue}
+            yLabel="ROI %"
+            isCurrency={false}
+          />
         </ChartCard>
 
         <ChartCard
@@ -308,14 +416,29 @@ export function Stocks({ showModal, entries, onDelete, onRefresh }: StocksProps)
               { value: 'bar', label: 'Bar' },
             ],
           }}
-          modalContent={<GainFlexChart labels={labels} data={data.stocksGain.slice(start).map(v => v || 0)} color={C.green} chartType={gainChartType} />}
+          modalContent={
+            <GainFlexChart
+              labels={labels}
+              data={data.stocksGain.slice(start).map((v) => v || 0)}
+              color={C.green}
+              chartType={gainChartType}
+            />
+          }
         >
-          <GainFlexChart labels={labels} data={data.stocksGain.slice(start).map(v => v || 0)} color={C.green} chartType={gainChartType} />
+          <GainFlexChart
+            labels={labels}
+            data={data.stocksGain.slice(start).map((v) => v || 0)}
+            color={C.green}
+            chartType={gainChartType}
+          />
         </ChartCard>
 
         <ChartCard
           label="Monthly Invested"
-          value={fmt$(monthlyInvestedSlice.reduce((a, b) => a + b, 0), true)}
+          value={fmt$(
+            monthlyInvestedSlice.reduce((a, b) => a + b, 0),
+            true
+          )}
           change={`Avg: ${fmt$(avgMonthlyInvested, true)} / Current: ${fmt$(currentMonthInvested, true)}`}
           changePositive={currentMonthInvested >= avgMonthlyInvested}
           typeToggle={{
@@ -326,39 +449,72 @@ export function Stocks({ showModal, entries, onDelete, onRefresh }: StocksProps)
               { value: 'line', label: 'Line' },
             ],
           }}
-          modalContent={<InvestedChart labels={labels} data={monthlyInvestedSlice} color={C.blue} chartType={monthlyInvestedType} />}
+          modalContent={
+            <InvestedChart
+              labels={labels}
+              data={monthlyInvestedSlice}
+              color={C.blue}
+              chartType={monthlyInvestedType}
+            />
+          }
         >
-          <InvestedChart labels={labels} data={monthlyInvestedSlice} color={C.blue} chartType={monthlyInvestedType} />
+          <InvestedChart
+            labels={labels}
+            data={monthlyInvestedSlice}
+            color={C.blue}
+            chartType={monthlyInvestedType}
+          />
         </ChartCard>
       </div>
 
       <div>
-        <div className="section-row" style={{ marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div
+          className="section-row"
+          style={{
+            marginBottom: 10,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
           <div className="section-title">Monthly Breakdown</div>
-          <button className="add-btn" onClick={handleQuickEntryOpen} style={{ fontSize: 12, padding: '5px 12px' }}>+ Add</button>
+          <button
+            className="add-btn"
+            onClick={handleQuickEntryOpen}
+            style={{ fontSize: 12, padding: '5px 12px' }}
+          >
+            + Add
+          </button>
         </div>
         <div className="data-table-wrap">
           <div className="table-scroll">
             <table className="data-table">
               <thead>
-                <tr><th>Month</th><th>Return</th><th>Invested</th><th>Gain</th><th>ROI %</th><th></th></tr>
+                <tr>
+                  <th>Month</th>
+                  <th>Return</th>
+                  <th>Invested</th>
+                  <th>Gain</th>
+                  <th>ROI %</th>
+                  <th></th>
+                </tr>
               </thead>
               <tbody>
                 {data.months
                   .map((m, idx) => ({ m, idx }))
                   .sort((a, b) => {
-                    const entryA = entries.find(e => e.month === a.m);
-                    const entryB = entries.find(e => e.month === b.m);
+                    const entryA = entries.find((e) => e.month === a.m);
+                    const entryB = entries.find((e) => e.month === b.m);
                     if (!entryA || !entryB) return 0;
                     if (entryA.yr !== entryB.yr) return entryB.yr - entryA.yr;
                     return (MO_ORDER[entryB.mo] || 0) - (MO_ORDER[entryA.mo] || 0);
                   })
                   .map(({ m, idx }) => {
-                    const entry = entries.find(e => e.month === m);
+                    const entry = entries.find((e) => e.month === m);
                     const invested = data.stocksInvested[idx];
-                    const ret      = data.stocksReturn[idx];
-                    const gain     = ret - invested;
-                    const roi      = invested > 0 ? Math.round(gain / invested * 1000) / 10 : null;
+                    const ret = data.stocksReturn[idx];
+                    const gain = ret - invested;
+                    const roi = invested > 0 ? Math.round((gain / invested) * 1000) / 10 : null;
                     return (
                       <tr key={m}>
                         <td>{m}</td>
@@ -369,8 +525,20 @@ export function Stocks({ showModal, entries, onDelete, onRefresh }: StocksProps)
                         <td>
                           {entry && (
                             <div style={{ display: 'flex', gap: 2 }}>
-                              <button onClick={() => handleTableEdit(entry)} style={{ ...btnStyle, color: 'var(--text3)' }} title="Edit">✎</button>
-                              <button onClick={() => onDelete(entry.id)} style={{ ...btnStyle, color: 'var(--text3)' }} title="Delete">✕</button>
+                              <button
+                                onClick={() => handleTableEdit(entry)}
+                                style={{ ...btnStyle, color: 'var(--text3)' }}
+                                title="Edit"
+                              >
+                                ✎
+                              </button>
+                              <button
+                                onClick={() => onDelete(entry.id)}
+                                style={{ ...btnStyle, color: 'var(--text3)' }}
+                                title="Delete"
+                              >
+                                ✕
+                              </button>
                             </div>
                           )}
                         </td>

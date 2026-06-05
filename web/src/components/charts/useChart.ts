@@ -17,7 +17,7 @@ export function useChart(config: ChartConfiguration) {
         chartRef.current = null;
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(config)]);
 
   return ref;

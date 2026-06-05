@@ -12,17 +12,19 @@ export function CumSavingsChart({ labels, data }: CumSavingsChartProps) {
     type: 'line',
     data: {
       labels,
-      datasets: [{
-        label: 'Cumulative Savings',
-        data,
-        borderColor: C.green,
-        backgroundColor: C.green + '18',
-        fill: true,
-        borderWidth: 2.5,
-        pointRadius: 0,
-        pointHoverRadius: 4,
-        tension: 0.4,
-      }],
+      datasets: [
+        {
+          label: 'Cumulative Savings',
+          data,
+          borderColor: C.green,
+          backgroundColor: C.green + '18',
+          fill: true,
+          borderWidth: 2.5,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          tension: 0.4,
+        },
+      ],
     },
     options: {
       ...chartDefaults,
@@ -30,7 +32,7 @@ export function CumSavingsChart({ labels, data }: CumSavingsChartProps) {
       plugins: {
         ...chartDefaults.plugins,
         tooltip: {
-          ...(chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object,
+          ...((chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object),
           callbacks: {
             label: (ctx: TooltipItem<'line'>) =>
               ` Saved: ${Math.round(ctx.parsed.y ?? 0).toLocaleString()} lei`,
@@ -42,7 +44,7 @@ export function CumSavingsChart({ labels, data }: CumSavingsChartProps) {
         y: {
           ...chartDefaults.scales?.['y'],
           ticks: {
-            ...(chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object,
+            ...((chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object),
             callback: (v: number | string) => (Number(v) / 1000).toFixed(0) + 'k',
           },
         },

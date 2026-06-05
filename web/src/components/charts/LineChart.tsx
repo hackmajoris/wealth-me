@@ -13,23 +13,34 @@ interface LineChartProps {
   formatValue?: (v: number) => string;
 }
 
-export function LineChart({ labels, data, color, fill, yLabel, mini, isCurrency = true, formatValue }: LineChartProps) {
+export function LineChart({
+  labels,
+  data,
+  color,
+  fill,
+  yLabel,
+  mini,
+  isCurrency = true,
+  formatValue,
+}: LineChartProps) {
   const colorA = color + '22';
   const ref = useChart({
     type: 'line',
     data: {
       labels,
-      datasets: [{
-        data,
-        borderColor: color,
-        backgroundColor: fill ? colorA : 'transparent',
-        fill: fill ?? false,
-        borderWidth: 2,
-        pointRadius: 0,
-        pointHoverRadius: 4,
-        pointHoverBackgroundColor: color,
-        tension: 0.4,
-      }],
+      datasets: [
+        {
+          data,
+          borderColor: color,
+          backgroundColor: fill ? colorA : 'transparent',
+          fill: fill ?? false,
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          pointHoverBackgroundColor: color,
+          tension: 0.4,
+        },
+      ],
     },
     options: {
       ...chartDefaults,
@@ -37,7 +48,7 @@ export function LineChart({ labels, data, color, fill, yLabel, mini, isCurrency 
       plugins: {
         ...chartDefaults.plugins,
         tooltip: {
-          ...(chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object,
+          ...((chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object),
           callbacks: {
             label: (ctx: TooltipItem<'line'>) => {
               const val = ctx.parsed.y ?? 0;
@@ -56,7 +67,7 @@ export function LineChart({ labels, data, color, fill, yLabel, mini, isCurrency 
           ...chartDefaults.scales?.['x'],
           display: !mini,
           ticks: {
-            ...(chartDefaults.scales?.['x'] as Record<string, unknown>)?.['ticks'] as object,
+            ...((chartDefaults.scales?.['x'] as Record<string, unknown>)?.['ticks'] as object),
             maxTicksLimit: mini ? 0 : 100,
             maxRotation: mini ? 0 : 44,
             minRotation: mini ? 0 : 44,
@@ -66,7 +77,7 @@ export function LineChart({ labels, data, color, fill, yLabel, mini, isCurrency 
           ...chartDefaults.scales?.['y'],
           display: !mini,
           ticks: {
-            ...(chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object,
+            ...((chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object),
             maxTicksLimit: mini ? 0 : 5,
             callback: (v: number | string) => {
               const n = Number(v);

@@ -11,7 +11,9 @@ interface Matrix {
 
 function createMatrix(rows: number, cols: number): Matrix {
   return {
-    data: Array(rows).fill(null).map(() => Array(cols).fill(0)),
+    data: Array(rows)
+      .fill(null)
+      .map(() => Array(cols).fill(0)),
     rows,
     cols,
   };
@@ -113,7 +115,7 @@ export function polyfit(xData: number[], yData: number[], degree: number): numbe
   const AtAinv = matrixInverse(AtA);
   const coeff = matrixMultiply(AtAinv, Aty);
 
-  return coeff.data.map(row => row[0]);
+  return coeff.data.map((row) => row[0]);
 }
 
 /**

@@ -44,16 +44,20 @@ export function SavingsRateChart({ labels, rates, targets }: SavingsRateChartPro
       plugins: {
         ...chartDefaults.plugins,
         legend: {
-          display: true, position: 'top',
+          display: true,
+          position: 'top',
           labels: {
             color: 'rgba(238,238,248,0.55)',
             font: { size: 11, family: 'Outfit' },
-            boxWidth: 20, pointStyle: 'line', usePointStyle: true,
+            boxWidth: 20,
+            pointStyle: 'line',
+            usePointStyle: true,
           },
         },
         tooltip: {
-          ...(chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object,
-          mode: 'index', intersect: false,
+          ...((chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object),
+          mode: 'index',
+          intersect: false,
           callbacks: {
             label: (ctx: TooltipItem<'line'>) =>
               ` ${ctx.dataset.label ?? ''}: ${(ctx.parsed.y ?? 0).toFixed(1)}%`,
@@ -66,7 +70,7 @@ export function SavingsRateChart({ labels, rates, targets }: SavingsRateChartPro
           ...chartDefaults.scales?.['y'],
           min: 0,
           ticks: {
-            ...(chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object,
+            ...((chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object),
             callback: (v: number | string) => Number(v) + '%',
           },
         },

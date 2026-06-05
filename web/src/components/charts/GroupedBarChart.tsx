@@ -22,7 +22,13 @@ function linearRegression(data: number[]): number[] {
   return data.map((_, i) => Math.max(0, Math.round(slope * i + intercept)));
 }
 
-export function GroupedBarChart({ labels, dataset1, dataset2, medianLine, showTrend }: GroupedBarChartProps) {
+export function GroupedBarChart({
+  labels,
+  dataset1,
+  dataset2,
+  medianLine,
+  showTrend,
+}: GroupedBarChartProps) {
   const totals = dataset1.data.map((v, i) => v + (dataset2.data[i] ?? 0));
   const trendData = linearRegression(totals);
 
@@ -86,19 +92,22 @@ export function GroupedBarChart({ labels, dataset1, dataset2, medianLine, showTr
       ...chartDefaults,
       plugins: {
         ...chartDefaults.plugins,
-        legend: extraDatasets.length > 0 ? {
-          display: true,
-          position: 'top' as const,
-          labels: {
-            color: 'rgba(238,238,248,0.55)',
-            font: { size: 10, family: 'Outfit' },
-            boxWidth: 20,
-            pointStyle: 'line' as const,
-            usePointStyle: true,
-          },
-        } : { display: false },
+        legend:
+          extraDatasets.length > 0
+            ? {
+                display: true,
+                position: 'top' as const,
+                labels: {
+                  color: 'rgba(238,238,248,0.55)',
+                  font: { size: 10, family: 'Outfit' },
+                  boxWidth: 20,
+                  pointStyle: 'line' as const,
+                  usePointStyle: true,
+                },
+              }
+            : { display: false },
         tooltip: {
-          ...(chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object,
+          ...((chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object),
           mode: 'index',
           intersect: false,
           callbacks: {
@@ -111,7 +120,7 @@ export function GroupedBarChart({ labels, dataset1, dataset2, medianLine, showTr
         x: {
           ...chartDefaults.scales?.['x'],
           ticks: {
-            ...(chartDefaults.scales?.['x'] as Record<string, unknown>)?.['ticks'] as object,
+            ...((chartDefaults.scales?.['x'] as Record<string, unknown>)?.['ticks'] as object),
             maxRotation: 44,
             minRotation: 44,
             maxTicksLimit: 100,
@@ -120,7 +129,7 @@ export function GroupedBarChart({ labels, dataset1, dataset2, medianLine, showTr
         y: {
           ...chartDefaults.scales?.['y'],
           ticks: {
-            ...(chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object,
+            ...((chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object),
             callback: (v: number | string) => {
               const n = Number(v);
               return n >= 1000 ? (n / 1000).toFixed(0) + 'k' : n.toString();

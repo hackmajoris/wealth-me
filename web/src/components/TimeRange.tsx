@@ -11,7 +11,7 @@ export function TimeRange({ value, onChange, showEvents, onToggleEvents }: TimeR
   return (
     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
       <div className="time-range">
-        {RANGES.map(r => (
+        {RANGES.map((r) => (
           <button
             key={r}
             className={`tr-btn ${value === r ? 'active' : ''}`}
@@ -22,11 +22,9 @@ export function TimeRange({ value, onChange, showEvents, onToggleEvents }: TimeR
         ))}
       </div>
       {onToggleEvents && (
-        <button
-          className={`events-btn ${showEvents ? 'active' : ''}`}
-          onClick={onToggleEvents}
-        >
-          <span className="events-dot" />Events
+        <button className={`events-btn ${showEvents ? 'active' : ''}`} onClick={onToggleEvents}>
+          <span className="events-dot" />
+          Events
         </button>
       )}
     </div>

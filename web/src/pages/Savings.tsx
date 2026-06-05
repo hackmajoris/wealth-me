@@ -11,15 +11,30 @@ import { getCurrencyFormatter } from '../lib/formatters';
 import { loadSavingsEntries, type SavingsEntry } from '../lib/storage';
 import { groupByYear } from '../lib/groupByYear';
 import { YearToggle } from '../components/YearToggle';
-1
+1;
 const btnStyle: React.CSSProperties = {
-  background: 'none', border: 'none', cursor: 'pointer',
-  fontSize: 13, padding: '2px 5px', borderRadius: 4, lineHeight: 1,
+  background: 'none',
+  border: 'none',
+  cursor: 'pointer',
+  fontSize: 13,
+  padding: '2px 5px',
+  borderRadius: 4,
+  lineHeight: 1,
 };
 
 const MO_ORDER: Record<string, number> = {
-  Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
-  Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11,
+  Jan: 0,
+  Feb: 1,
+  Mar: 2,
+  Apr: 3,
+  May: 4,
+  Jun: 5,
+  Jul: 6,
+  Aug: 7,
+  Sep: 8,
+  Oct: 9,
+  Nov: 10,
+  Dec: 11,
 };
 
 const getMonthLabel = (entry: SavingsEntry): string => {
@@ -33,7 +48,12 @@ interface SavingsProps {
   savingsRefreshKey?: number;
 }
 
-export function Savings({ showModal: _showModal, onEdit: _onEdit, onDelete: _onDelete, savingsRefreshKey = 0 }: SavingsProps) {
+export function Savings({
+  showModal: _showModal,
+  onEdit: _onEdit,
+  onDelete: _onDelete,
+  savingsRefreshKey = 0,
+}: SavingsProps) {
   const [savingsModal, setSavingsModal] = useState<SavingsEntry | null | false>(false);
   const [savingsEntries, setSavingsEntries] = useState<SavingsEntry[]>(() => loadSavingsEntries());
   const [savingsTarget, setSavingsTarget] = useState<number>(30);
@@ -54,14 +74,16 @@ export function Savings({ showModal: _showModal, onEdit: _onEdit, onDelete: _onD
 
   useEffect(() => {
     api.savings.list().then(setSavingsEntries).catch(console.error);
-    api.settings.getSavingsTarget()
-      .then(setting => {
+    api.settings
+      .getSavingsTarget()
+      .then((setting) => {
         setSavingsTarget(setting.value);
         setTargetInput(setting.value.toString());
       })
       .catch(console.error);
-    api.settings.getCurrency()
-      .then(setting => {
+    api.settings
+      .getCurrency()
+      .then((setting) => {
         setCurrency(setting.value);
       })
       .catch(console.error);
@@ -99,21 +121,31 @@ export function Savings({ showModal: _showModal, onEdit: _onEdit, onDelete: _onD
   };
 
   const handleDeleteMonth = (entryId: number) => {
-    api.savings.remove(entryId)
+    api.savings
+      .remove(entryId)
       .then(() => {
         api.savings.list().then(setSavingsEntries).catch(console.error);
       })
-      .catch(err => {
+      .catch((err) => {
         console.error('Delete failed:', err);
       });
   };
 
   // Calculate aggregated stats from entries
-  const sorted = [...savingsEntries].sort((a, b) => b.yr !== a.yr ? b.yr - a.yr : (MO_ORDER[b.mo] || 0) - (MO_ORDER[a.mo] || 0));
-  const sortedChronological = [...savingsEntries].sort((a, b) => a.yr !== b.yr ? a.yr - b.yr : (MO_ORDER[a.mo] || 0) - (MO_ORDER[b.mo] || 0));
+  const sorted = [...savingsEntries].sort((a, b) =>
+    b.yr !== a.yr ? b.yr - a.yr : (MO_ORDER[b.mo] || 0) - (MO_ORDER[a.mo] || 0)
+  );
+  const sortedChronological = [...savingsEntries].sort((a, b) =>
+    a.yr !== b.yr ? a.yr - b.yr : (MO_ORDER[a.mo] || 0) - (MO_ORDER[b.mo] || 0)
+  );
   const current = sorted[0] || { netIncome: 0, totalExpenses: 0, savings: 0, savingRate: 0 };
   const totalSavings = savingsEntries.reduce((sum, e) => sum + e.savings, 0);
-  const avgRate = savingsEntries.length > 0 ? Math.round((savingsEntries.reduce((sum, e) => sum + e.savingRate, 0) / savingsEntries.length) * 10) / 10 : 0;
+  const avgRate =
+    savingsEntries.length > 0
+      ? Math.round(
+          (savingsEntries.reduce((sum, e) => sum + e.savingRate, 0) / savingsEntries.length) * 10
+        ) / 10
+      : 0;
   const vsTarget = Math.round((current.savingRate - savingsTarget) * 10) / 10;
   const fmt = getCurrencyFormatter(currency);
 
@@ -143,7 +175,9 @@ export function Savings({ showModal: _showModal, onEdit: _onEdit, onDelete: _onD
           <div className="kpi-grid">
             <div className="kpi-card">
               <div className="kpi-label">Saving Rate (Current)</div>
-              <div className={`kpi-value ${vsTarget >= 0 ? 'pos' : 'neg'}`}>{current.savingRate.toFixed(1)}%</div>
+              <div className={`kpi-value ${vsTarget >= 0 ? 'pos' : 'neg'}`}>
+                {current.savingRate.toFixed(1)}%
+              </div>
               <div className={`kpi-change ${vsTarget >= 0 ? 'pos' : 'neg'}`}>
                 {vsTarget >= 0 ? '▲' : '▼'} {Math.abs(vsTarget)}% vs {savingsTarget}% target
               </div>
@@ -156,7 +190,12 @@ export function Savings({ showModal: _showModal, onEdit: _onEdit, onDelete: _onD
             <div className="kpi-card">
               <div className="kpi-label">Current Expenses</div>
               <div className="kpi-value neg">{fmt(current.totalExpenses)}</div>
-              <div className="kpi-change neu">{current.netIncome > 0 ? Math.round(current.totalExpenses / current.netIncome * 100) : 0}% of income</div>
+              <div className="kpi-change neu">
+                {current.netIncome > 0
+                  ? Math.round((current.totalExpenses / current.netIncome) * 100)
+                  : 0}
+                % of income
+              </div>
             </div>
             <div className="kpi-card">
               <div className="kpi-label">Total Saved</div>
@@ -167,20 +206,23 @@ export function Savings({ showModal: _showModal, onEdit: _onEdit, onDelete: _onD
 
           {/* Income History — full width */}
           {(() => {
-            const moLabels = sortedChronological.map(e => getMonthLabel(e));
-            const moIncome = sortedChronological.map(e => e.netIncome);
-            const _grp = incomeHistGrouping === 'year'
-              ? groupByYear(moLabels, [moIncome], ['sum'])
-              : null;
+            const moLabels = sortedChronological.map((e) => getMonthLabel(e));
+            const moIncome = sortedChronological.map((e) => e.netIncome);
+            const _grp =
+              incomeHistGrouping === 'year' ? groupByYear(moLabels, [moIncome], ['sum']) : null;
             const ihLabels = _grp ? _grp.years : moLabels;
             const ihIncome = (_grp ? _grp.grouped[0] : moIncome) as number[];
             return (
               <ChartCard
-                label={incomeHistGrouping === 'year' ? 'Annual Income History' : 'Monthly Income History'}
+                label={
+                  incomeHistGrouping === 'year' ? 'Annual Income History' : 'Monthly Income History'
+                }
                 value={fmt(current.netIncome)}
                 change="With polynomial trend"
                 changePositive={null}
-                extraControls={<YearToggle value={incomeHistGrouping} onChange={setIncomeHistGrouping} />}
+                extraControls={
+                  <YearToggle value={incomeHistGrouping} onChange={setIncomeHistGrouping} />
+                }
                 typeToggle={{
                   value: incomeHistoryChartType,
                   onChange: (v) => setIncomeHistoryChartType(v as 'line' | 'bar'),
@@ -190,10 +232,20 @@ export function Savings({ showModal: _showModal, onEdit: _onEdit, onDelete: _onD
                   ],
                 }}
                 modalContent={
-                  <IncomeHistoryFlexChart labels={ihLabels} income={ihIncome} chartType={incomeHistoryChartType} formatValue={fmt} />
+                  <IncomeHistoryFlexChart
+                    labels={ihLabels}
+                    income={ihIncome}
+                    chartType={incomeHistoryChartType}
+                    formatValue={fmt}
+                  />
                 }
               >
-                <IncomeHistoryFlexChart labels={ihLabels} income={ihIncome} chartType={incomeHistoryChartType} formatValue={fmt} />
+                <IncomeHistoryFlexChart
+                  labels={ihLabels}
+                  income={ihIncome}
+                  chartType={incomeHistoryChartType}
+                  formatValue={fmt}
+                />
               </ChartCard>
             );
           })()}
@@ -202,12 +254,13 @@ export function Savings({ showModal: _showModal, onEdit: _onEdit, onDelete: _onD
           <div className="chart-grid">
             {/* Saving Rate Trend */}
             {(() => {
-              const moLabels = sortedChronological.map(e => getMonthLabel(e));
-              const moRates = sortedChronological.map(e => e.savingRate);
+              const moLabels = sortedChronological.map((e) => getMonthLabel(e));
+              const moRates = sortedChronological.map((e) => e.savingRate);
               const moTargets = sortedChronological.map(() => savingsTarget);
-              const _grp = savingRateGrouping === 'year'
-                ? groupByYear(moLabels, [moRates, moTargets], ['avg', 'last'])
-                : null;
+              const _grp =
+                savingRateGrouping === 'year'
+                  ? groupByYear(moLabels, [moRates, moTargets], ['avg', 'last'])
+                  : null;
               const srLabels = _grp ? _grp.years : moLabels;
               const srRates = (_grp ? _grp.grouped[0] : moRates) as number[];
               const srTargets = (_grp ? _grp.grouped[1] : moTargets) as number[];
@@ -215,29 +268,49 @@ export function Savings({ showModal: _showModal, onEdit: _onEdit, onDelete: _onD
                 <ChartCard
                   label="Saving Rate Trend"
                   value={current.savingRate.toFixed(1) + '%'}
-                  change={vsTarget >= 0 ? `+${vsTarget}% above target` : `${vsTarget}% below target`}
+                  change={
+                    vsTarget >= 0 ? `+${vsTarget}% above target` : `${vsTarget}% below target`
+                  }
                   changePositive={vsTarget >= 0}
-                  extraControls={<YearToggle value={savingRateGrouping} onChange={setSavingRateGrouping} />}
+                  extraControls={
+                    <YearToggle value={savingRateGrouping} onChange={setSavingRateGrouping} />
+                  }
                   typeToggle={{
                     value: savingRateChartType,
                     onChange: (v) => setSavingRateChartType(v as 'line' | 'bar'),
-                    options: [{ value: 'line', label: 'Line' }, { value: 'bar', label: 'Bar' }],
+                    options: [
+                      { value: 'line', label: 'Line' },
+                      { value: 'bar', label: 'Bar' },
+                    ],
                   }}
-                  modalContent={<SavingsRateFlexChart labels={srLabels} rates={srRates} targets={srTargets} chartType={savingRateChartType} />}
+                  modalContent={
+                    <SavingsRateFlexChart
+                      labels={srLabels}
+                      rates={srRates}
+                      targets={srTargets}
+                      chartType={savingRateChartType}
+                    />
+                  }
                 >
-                  <SavingsRateFlexChart labels={srLabels} rates={srRates} targets={srTargets} chartType={savingRateChartType} />
+                  <SavingsRateFlexChart
+                    labels={srLabels}
+                    rates={srRates}
+                    targets={srTargets}
+                    chartType={savingRateChartType}
+                  />
                 </ChartCard>
               );
             })()}
 
             {/* Income vs Expenses */}
             {(() => {
-              const moLabels = sortedChronological.map(e => getMonthLabel(e));
-              const moIncome = sortedChronological.map(e => e.netIncome);
-              const moExp = sortedChronological.map(e => e.totalExpenses);
-              const _grp = incomeExpGrouping === 'year'
-                ? groupByYear(moLabels, [moIncome, moExp], ['sum', 'sum'])
-                : null;
+              const moLabels = sortedChronological.map((e) => getMonthLabel(e));
+              const moIncome = sortedChronological.map((e) => e.netIncome);
+              const moExp = sortedChronological.map((e) => e.totalExpenses);
+              const _grp =
+                incomeExpGrouping === 'year'
+                  ? groupByYear(moLabels, [moIncome, moExp], ['sum', 'sum'])
+                  : null;
               const ieLabels = _grp ? _grp.years : moLabels;
               const ieIncome = (_grp ? _grp.grouped[0] : moIncome) as number[];
               const ieExp = (_grp ? _grp.grouped[1] : moExp) as number[];
@@ -247,29 +320,45 @@ export function Savings({ showModal: _showModal, onEdit: _onEdit, onDelete: _onD
                   value={fmt(current.netIncome)}
                   change={fmt(current.savings) + ' saved'}
                   changePositive={current.savings > 0}
-                  extraControls={<YearToggle value={incomeExpGrouping} onChange={setIncomeExpGrouping} />}
+                  extraControls={
+                    <YearToggle value={incomeExpGrouping} onChange={setIncomeExpGrouping} />
+                  }
                   typeToggle={{
                     value: incomeExpChartType,
                     onChange: (v) => setIncomeExpChartType(v as 'line' | 'bar'),
-                    options: [{ value: 'line', label: 'Line' }, { value: 'bar', label: 'Bar' }],
+                    options: [
+                      { value: 'line', label: 'Line' },
+                      { value: 'bar', label: 'Bar' },
+                    ],
                   }}
-                  modalContent={<IncomeExpFlexChart labels={ieLabels} income={ieIncome} expenses={ieExp} chartType={incomeExpChartType} />}
+                  modalContent={
+                    <IncomeExpFlexChart
+                      labels={ieLabels}
+                      income={ieIncome}
+                      expenses={ieExp}
+                      chartType={incomeExpChartType}
+                    />
+                  }
                 >
-                  <IncomeExpFlexChart labels={ieLabels} income={ieIncome} expenses={ieExp} chartType={incomeExpChartType} />
+                  <IncomeExpFlexChart
+                    labels={ieLabels}
+                    income={ieIncome}
+                    expenses={ieExp}
+                    chartType={incomeExpChartType}
+                  />
                 </ChartCard>
               );
             })()}
 
             {/* Cumulative Savings */}
             {(() => {
-              const moLabels = sortedChronological.map(e => getMonthLabel(e));
+              const moLabels = sortedChronological.map((e) => getMonthLabel(e));
               const cumData = sortedChronological.reduce<number[]>((acc, e) => {
                 acc.push((acc[acc.length - 1] || 0) + e.savings);
                 return acc;
               }, []);
-              const _grp = cumSavingsGrouping === 'year'
-                ? groupByYear(moLabels, [cumData], ['last'])
-                : null;
+              const _grp =
+                cumSavingsGrouping === 'year' ? groupByYear(moLabels, [cumData], ['last']) : null;
               const csLabels = _grp ? _grp.years : moLabels;
               const csData = (_grp ? _grp.grouped[0] : cumData) as number[];
               return (
@@ -278,49 +367,78 @@ export function Savings({ showModal: _showModal, onEdit: _onEdit, onDelete: _onD
                   value={fmt(totalSavings)}
                   change="Total saved"
                   changePositive={true}
-                  extraControls={<YearToggle value={cumSavingsGrouping} onChange={setCumSavingsGrouping} />}
+                  extraControls={
+                    <YearToggle value={cumSavingsGrouping} onChange={setCumSavingsGrouping} />
+                  }
                   typeToggle={{
                     value: cumSavingsChartType,
                     onChange: (v) => setCumSavingsChartType(v as 'line' | 'bar'),
-                    options: [{ value: 'line', label: 'Line' }, { value: 'bar', label: 'Bar' }],
+                    options: [
+                      { value: 'line', label: 'Line' },
+                      { value: 'bar', label: 'Bar' },
+                    ],
                   }}
-                  modalContent={<CumSavingsFlexChart labels={csLabels} data={csData} chartType={cumSavingsChartType} />}
+                  modalContent={
+                    <CumSavingsFlexChart
+                      labels={csLabels}
+                      data={csData}
+                      chartType={cumSavingsChartType}
+                    />
+                  }
                 >
-                  <CumSavingsFlexChart labels={csLabels} data={csData} chartType={cumSavingsChartType} />
+                  <CumSavingsFlexChart
+                    labels={csLabels}
+                    data={csData}
+                    chartType={cumSavingsChartType}
+                  />
                 </ChartCard>
               );
             })()}
 
             {/* Average Rate */}
             {(() => {
-              const monthlyStats = sortedChronological.map(e => ({
-                year: e.yr, months: 1,
-                totalInc: e.netIncome, totalExp: e.totalExpenses, totalSav: e.savings,
-                avgRate: e.savingRate, target: savingsTarget, vsTarget: e.savingRate - savingsTarget,
-                monthlyAvgInc: e.netIncome, monthlyAvgSav: e.savings, mo: e.mo,
+              const monthlyStats = sortedChronological.map((e) => ({
+                year: e.yr,
+                months: 1,
+                totalInc: e.netIncome,
+                totalExp: e.totalExpenses,
+                totalSav: e.savings,
+                avgRate: e.savingRate,
+                target: savingsTarget,
+                vsTarget: e.savingRate - savingsTarget,
+                monthlyAvgInc: e.netIncome,
+                monthlyAvgSav: e.savings,
+                mo: e.mo,
               }));
-              const yearlyStats = avgRateGrouping === 'year'
-                ? Array.from(
-                    sortedChronological.reduce((map, e) => {
-                      if (!map.has(e.yr)) map.set(e.yr, []);
-                      map.get(e.yr)!.push(e);
-                      return map;
-                    }, new Map<number, SavingsEntry[]>())
-                  )
-                  .sort((a, b) => a[0] - b[0])
-                  .map(([yr, entries]) => {
-                    const avgRate = entries.reduce((s, e) => s + e.savingRate, 0) / entries.length;
-                    return {
-                      year: yr, months: entries.length,
-                      totalInc: entries.reduce((s, e) => s + e.netIncome, 0),
-                      totalExp: entries.reduce((s, e) => s + e.totalExpenses, 0),
-                      totalSav: entries.reduce((s, e) => s + e.savings, 0),
-                      avgRate, target: savingsTarget, vsTarget: avgRate - savingsTarget,
-                      monthlyAvgInc: entries.reduce((s, e) => s + e.netIncome, 0) / entries.length,
-                      monthlyAvgSav: entries.reduce((s, e) => s + e.savings, 0) / entries.length,
-                    };
-                  })
-                : null;
+              const yearlyStats =
+                avgRateGrouping === 'year'
+                  ? Array.from(
+                      sortedChronological.reduce((map, e) => {
+                        if (!map.has(e.yr)) map.set(e.yr, []);
+                        map.get(e.yr)!.push(e);
+                        return map;
+                      }, new Map<number, SavingsEntry[]>())
+                    )
+                      .sort((a, b) => a[0] - b[0])
+                      .map(([yr, entries]) => {
+                        const avgRate =
+                          entries.reduce((s, e) => s + e.savingRate, 0) / entries.length;
+                        return {
+                          year: yr,
+                          months: entries.length,
+                          totalInc: entries.reduce((s, e) => s + e.netIncome, 0),
+                          totalExp: entries.reduce((s, e) => s + e.totalExpenses, 0),
+                          totalSav: entries.reduce((s, e) => s + e.savings, 0),
+                          avgRate,
+                          target: savingsTarget,
+                          vsTarget: avgRate - savingsTarget,
+                          monthlyAvgInc:
+                            entries.reduce((s, e) => s + e.netIncome, 0) / entries.length,
+                          monthlyAvgSav:
+                            entries.reduce((s, e) => s + e.savings, 0) / entries.length,
+                        };
+                      })
+                  : null;
               const arStats = yearlyStats ?? monthlyStats;
               return (
                 <ChartCard
@@ -328,13 +446,20 @@ export function Savings({ showModal: _showModal, onEdit: _onEdit, onDelete: _onD
                   value={avgRate.toFixed(1) + '%'}
                   change="Across all entries"
                   changePositive={null}
-                  extraControls={<YearToggle value={avgRateGrouping} onChange={setAvgRateGrouping} />}
+                  extraControls={
+                    <YearToggle value={avgRateGrouping} onChange={setAvgRateGrouping} />
+                  }
                   typeToggle={{
                     value: annualSavingsChartType,
                     onChange: (v) => setAnnualSavingsChartType(v as 'bar' | 'line'),
-                    options: [{ value: 'line', label: 'Line' }, { value: 'bar', label: 'Bar' }],
+                    options: [
+                      { value: 'line', label: 'Line' },
+                      { value: 'bar', label: 'Bar' },
+                    ],
                   }}
-                  modalContent={<AnnualSavingsFlexChart stats={arStats} chartType={annualSavingsChartType} />}
+                  modalContent={
+                    <AnnualSavingsFlexChart stats={arStats} chartType={annualSavingsChartType} />
+                  }
                 >
                   <AnnualSavingsFlexChart stats={arStats} chartType={annualSavingsChartType} />
                 </ChartCard>
@@ -346,11 +471,28 @@ export function Savings({ showModal: _showModal, onEdit: _onEdit, onDelete: _onD
 
       {/* Monthly table */}
       <div>
-        <div className="section-row" style={{ marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-          <div className="section-title">Monthly Breakdown {savingsEntries.length > 0 && <span className="entries-badge">{savingsEntries.length}</span>}</div>
+        <div
+          className="section-row"
+          style={{
+            marginBottom: 10,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-end',
+          }}
+        >
+          <div className="section-title">
+            Monthly Breakdown{' '}
+            {savingsEntries.length > 0 && (
+              <span className="entries-badge">{savingsEntries.length}</span>
+            )}
+          </div>
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}>
             <div>
-              <label style={{ display: 'block', fontSize: 12, color: 'var(--text3)', marginBottom: 4 }}>Savings Target (%)</label>
+              <label
+                style={{ display: 'block', fontSize: 12, color: 'var(--text3)', marginBottom: 4 }}
+              >
+                Savings Target (%)
+              </label>
               <input
                 type="number"
                 value={targetInput}
@@ -385,7 +527,7 @@ export function Savings({ showModal: _showModal, onEdit: _onEdit, onDelete: _onD
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <label style={{ fontSize: 12, color: 'var(--text3)' }}>Currency</label>
               <div style={{ display: 'flex', gap: 4 }}>
-                {['EUR', 'USD', 'RON'].map(c => (
+                {['EUR', 'USD', 'RON'].map((c) => (
                   <button
                     key={c}
                     onClick={() => handleSaveCurrency(c)}
@@ -408,11 +550,24 @@ export function Savings({ showModal: _showModal, onEdit: _onEdit, onDelete: _onD
                 ))}
               </div>
             </div>
-            <button className="add-btn" onClick={() => setSavingsModal(null)} style={{ fontSize: 12, padding: '5px 12px' }}>+ Add</button>
+            <button
+              className="add-btn"
+              onClick={() => setSavingsModal(null)}
+              style={{ fontSize: 12, padding: '5px 12px' }}
+            >
+              + Add
+            </button>
           </div>
         </div>
         {savingsEntries.length === 0 ? (
-          <div style={{ color: 'var(--text3)', textAlign: 'center', padding: '40px 20px', fontSize: 14 }}>
+          <div
+            style={{
+              color: 'var(--text3)',
+              textAlign: 'center',
+              padding: '40px 20px',
+              fontSize: 14,
+            }}
+          >
             No entries yet. Import a CSV in Settings or add entries manually.
           </div>
         ) : (
@@ -420,22 +575,45 @@ export function Savings({ showModal: _showModal, onEdit: _onEdit, onDelete: _onD
             <div className="table-scroll">
               <table className="data-table">
                 <thead>
-                  <tr><th>Month</th><th>Net Income</th><th>Expenses</th><th>Saved</th><th>Rate %</th><th></th></tr>
+                  <tr>
+                    <th>Month</th>
+                    <th>Net Income</th>
+                    <th>Expenses</th>
+                    <th>Saved</th>
+                    <th>Rate %</th>
+                    <th></th>
+                  </tr>
                 </thead>
                 <tbody>
                   {savingsEntries
-                    .sort((a, b) => b.yr !== a.yr ? b.yr - a.yr : (MO_ORDER[b.mo] || 0) - (MO_ORDER[a.mo] || 0))
-                    .map(entry => (
+                    .sort((a, b) =>
+                      b.yr !== a.yr ? b.yr - a.yr : (MO_ORDER[b.mo] || 0) - (MO_ORDER[a.mo] || 0)
+                    )
+                    .map((entry) => (
                       <tr key={entry.id}>
                         <td>{entry.monthFull}</td>
                         <td>{fmt(entry.netIncome)}</td>
                         <td className="neg">{fmt(entry.totalExpenses)}</td>
                         <td className="pos">{fmt(entry.savings)}</td>
-                        <td className={entry.savingRate >= savingsTarget ? 'pos' : 'neg'}>{entry.savingRate.toFixed(1)}%</td>
+                        <td className={entry.savingRate >= savingsTarget ? 'pos' : 'neg'}>
+                          {entry.savingRate.toFixed(1)}%
+                        </td>
                         <td>
                           <div style={{ display: 'flex', gap: 2 }}>
-                            <button onClick={() => setSavingsModal(entry)} style={{ ...btnStyle, color: 'var(--text3)' }} title="Edit">✎</button>
-                            <button onClick={() => handleDeleteMonth(entry.id)} style={{ ...btnStyle, color: 'var(--text3)' }} title="Delete">✕</button>
+                            <button
+                              onClick={() => setSavingsModal(entry)}
+                              style={{ ...btnStyle, color: 'var(--text3)' }}
+                              title="Edit"
+                            >
+                              ✎
+                            </button>
+                            <button
+                              onClick={() => handleDeleteMonth(entry.id)}
+                              style={{ ...btnStyle, color: 'var(--text3)' }}
+                              title="Delete"
+                            >
+                              ✕
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -446,7 +624,6 @@ export function Savings({ showModal: _showModal, onEdit: _onEdit, onDelete: _onD
           </div>
         )}
       </div>
-
     </div>
   );
 }

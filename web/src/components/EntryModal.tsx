@@ -3,7 +3,20 @@ import { api } from '../lib/api';
 import { fmtSign$, fmtPct } from '../lib/formatters';
 import type { Entry } from '../lib/storage';
 
-const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTH_NAMES = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
 const YEARS = Array.from({ length: 8 }, (_, i) => 2019 + i);
 
 interface EntryModalProps {
@@ -14,31 +27,39 @@ interface EntryModalProps {
   restrictMonths?: { month: string; year: number }[];
 }
 
-export function EntryModal({ entry, onClose, onSave, type = 'both', restrictMonths }: EntryModalProps) {
-  const [mo, setMo]   = useState(entry?.mo   ?? 'Apr');
-  const [yr, setYr]   = useState(String(entry?.yr ?? 2026));
+export function EntryModal({
+  entry,
+  onClose,
+  onSave,
+  type = 'both',
+  restrictMonths,
+}: EntryModalProps) {
+  const [mo, setMo] = useState(entry?.mo ?? 'Apr');
+  const [yr, setYr] = useState(String(entry?.yr ?? 2026));
   const [cInv, setCInv] = useState(entry ? String(entry.cryptoInvested) : '');
-  const [cRet, setCRet] = useState(entry ? String(entry.cryptoReturn)   : '');
+  const [cRet, setCRet] = useState(entry ? String(entry.cryptoReturn) : '');
   const [sInv, setSInv] = useState(entry ? String(entry.stocksInvested) : '');
-  const [sRet, setSRet] = useState(entry ? String(entry.stocksReturn)   : '');
+  const [sRet, setSRet] = useState(entry ? String(entry.stocksReturn) : '');
   const [note, setNote] = useState(entry?.note ?? '');
 
   // Determine available years when months are restricted
-  const yearOptions = restrictMonths && restrictMonths.length > 0
-    ? [...new Set(restrictMonths.map(m => m.year))]
-    : YEARS;
+  const yearOptions =
+    restrictMonths && restrictMonths.length > 0
+      ? [...new Set(restrictMonths.map((m) => m.year))]
+      : YEARS;
 
   const cGain = (parseFloat(cRet) || 0) - (parseFloat(cInv) || 0);
   const sGain = (parseFloat(sRet) || 0) - (parseFloat(sInv) || 0);
-  const cRoi = (parseFloat(cInv) || 0) > 0 ? cGain / parseFloat(cInv) * 100 : null;
-  const sRoi = (parseFloat(sInv) || 0) > 0 ? sGain / parseFloat(sInv) * 100 : null;
+  const cRoi = (parseFloat(cInv) || 0) > 0 ? (cGain / parseFloat(cInv)) * 100 : null;
+  const sRoi = (parseFloat(sInv) || 0) > 0 ? (sGain / parseFloat(sInv)) * 100 : null;
 
   const handleSave = () => {
     // When editing a specific type, preserve the other asset class data
     const body: any = {
-      month:          `${mo} ${yr.slice(2)}`,
-      monthFull:      `${mo} ${yr}`,
-      yr:             parseInt(yr), mo,
+      month: `${mo} ${yr.slice(2)}`,
+      monthFull: `${mo} ${yr}`,
+      yr: parseInt(yr),
+      mo,
       note,
     };
 
@@ -62,21 +83,28 @@ export function EntryModal({ entry, onClose, onSave, type = 'both', restrictMont
       body.stocksReturn = parseFloat(sRet) || 0;
     }
 
-    const op = entry
-      ? api.entries.update(entry.id, body)
-      : api.entries.create(body);
-    op.then(() => { onSave(); onClose(); }).catch(console.error);
+    const op = entry ? api.entries.update(entry.id, body) : api.entries.create(body);
+    op.then(() => {
+      onSave();
+      onClose();
+    }).catch(console.error);
   };
 
   return (
-    <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal">
         <div className="modal-header">
           <div className="modal-title">
-          {entry ? 'Edit Entry' : 'Log Monthly Entry'}
-          {type !== 'both' && <span style={{ fontSize: 12, fontWeight: 400, marginLeft: 8, color: 'var(--text3)' }}>({type === 'crypto' ? 'Crypto' : 'Stocks'})</span>}
-        </div>
-          <button className="modal-close" onClick={onClose}>✕</button>
+            {entry ? 'Edit Entry' : 'Log Monthly Entry'}
+            {type !== 'both' && (
+              <span style={{ fontSize: 12, fontWeight: 400, marginLeft: 8, color: 'var(--text3)' }}>
+                ({type === 'crypto' ? 'Crypto' : 'Stocks'})
+              </span>
+            )}
+          </div>
+          <button className="modal-close" onClick={onClose}>
+            ✕
+          </button>
         </div>
         <div className="modal-body">
           {entry ? (
@@ -92,20 +120,18 @@ export function EntryModal({ entry, onClose, onSave, type = 'both', restrictMont
               <div className="field-row">
                 <div className="field">
                   <label>Month</label>
-                  <select value={mo} onChange={e => setMo(e.target.value)}>
+                  <select value={mo} onChange={(e) => setMo(e.target.value)}>
                     {restrictMonths && restrictMonths.length > 0
-                      ? restrictMonths.map(m => <option key={m.month}>{m.month}</option>)
-                      : MONTH_NAMES.map(m => <option key={m}>{m}</option>)
-                    }
+                      ? restrictMonths.map((m) => <option key={m.month}>{m.month}</option>)
+                      : MONTH_NAMES.map((m) => <option key={m}>{m}</option>)}
                   </select>
                 </div>
                 <div className="field">
                   <label>Year</label>
-                  <select value={yr} onChange={e => setYr(e.target.value)}>
+                  <select value={yr} onChange={(e) => setYr(e.target.value)}>
                     {restrictMonths && restrictMonths.length > 0
-                      ? yearOptions.map(y => <option key={y}>{y}</option>)
-                      : YEARS.map(y => <option key={y}>{y}</option>)
-                    }
+                      ? yearOptions.map((y) => <option key={y}>{y}</option>)
+                      : YEARS.map((y) => <option key={y}>{y}</option>)}
                   </select>
                 </div>
               </div>
@@ -114,21 +140,35 @@ export function EntryModal({ entry, onClose, onSave, type = 'both', restrictMont
 
           {(type === 'crypto' || type === 'both') && (
             <div className="modal-section">
-              <div className="modal-section-label" style={{ color: 'var(--purple)' }}>◎ Crypto</div>
+              <div className="modal-section-label" style={{ color: 'var(--purple)' }}>
+                ◎ Crypto
+              </div>
               <div className="field-row">
                 <div className="field">
                   <label>Cumulative Invested ($)</label>
-                  <input type="number" placeholder="0" value={cInv} onChange={e => setCInv(e.target.value)} />
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={cInv}
+                    onChange={(e) => setCInv(e.target.value)}
+                  />
                 </div>
                 <div className="field">
                   <label>Current Value ($)</label>
-                  <input type="number" placeholder="0" value={cRet} onChange={e => setCRet(e.target.value)} />
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={cRet}
+                    onChange={(e) => setCRet(e.target.value)}
+                  />
                 </div>
               </div>
               <div className="calc-row">
                 <div className="calc-item">
                   <div className="calc-label">Gain / Loss</div>
-                  <div className={`calc-value ${cGain >= 0 ? 'pos' : 'neg'}`}>{fmtSign$(cGain)}</div>
+                  <div className={`calc-value ${cGain >= 0 ? 'pos' : 'neg'}`}>
+                    {fmtSign$(cGain)}
+                  </div>
                 </div>
                 <div className="calc-item">
                   <div className="calc-label">ROI %</div>
@@ -142,21 +182,35 @@ export function EntryModal({ entry, onClose, onSave, type = 'both', restrictMont
 
           {(type === 'stocks' || type === 'both') && (
             <div className="modal-section">
-              <div className="modal-section-label" style={{ color: 'var(--blue)' }}>↗ Stocks</div>
+              <div className="modal-section-label" style={{ color: 'var(--blue)' }}>
+                ↗ Stocks
+              </div>
               <div className="field-row">
                 <div className="field">
                   <label>Cumulative Invested ($)</label>
-                  <input type="number" placeholder="0" value={sInv} onChange={e => setSInv(e.target.value)} />
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={sInv}
+                    onChange={(e) => setSInv(e.target.value)}
+                  />
                 </div>
                 <div className="field">
                   <label>Current Value ($)</label>
-                  <input type="number" placeholder="0" value={sRet} onChange={e => setSRet(e.target.value)} />
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={sRet}
+                    onChange={(e) => setSRet(e.target.value)}
+                  />
                 </div>
               </div>
               <div className="calc-row">
                 <div className="calc-item">
                   <div className="calc-label">Gain / Loss</div>
-                  <div className={`calc-value ${sGain >= 0 ? 'pos' : 'neg'}`}>{fmtSign$(sGain)}</div>
+                  <div className={`calc-value ${sGain >= 0 ? 'pos' : 'neg'}`}>
+                    {fmtSign$(sGain)}
+                  </div>
                 </div>
                 <div className="calc-item">
                   <div className="calc-label">ROI %</div>
@@ -174,13 +228,17 @@ export function EntryModal({ entry, onClose, onSave, type = 'both', restrictMont
               type="text"
               placeholder="e.g. Bought MSFT, added to BTC position…"
               value={note}
-              onChange={e => setNote(e.target.value)}
+              onChange={(e) => setNote(e.target.value)}
             />
           </div>
         </div>
         <div className="modal-footer">
-          <button className="btn-ghost" onClick={onClose}>Cancel</button>
-          <button className="btn-primary" onClick={handleSave}>{entry ? 'Save Changes' : 'Save Entry'}</button>
+          <button className="btn-ghost" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="btn-primary" onClick={handleSave}>
+            {entry ? 'Save Changes' : 'Save Entry'}
+          </button>
         </div>
       </div>
     </div>

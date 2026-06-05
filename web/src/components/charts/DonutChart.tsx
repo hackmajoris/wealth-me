@@ -12,13 +12,15 @@ export function DonutChart({ values, colors }: DonutChartProps) {
     type: 'doughnut',
     data: {
       labels: ['Crypto', 'Stocks'],
-      datasets: [{
-        data: values,
-        backgroundColor: colors,
-        borderColor: '#12121f',
-        borderWidth: 3,
-        hoverOffset: 6,
-      }],
+      datasets: [
+        {
+          data: values,
+          backgroundColor: colors,
+          borderColor: '#12121f',
+          borderWidth: 3,
+          hoverOffset: 6,
+        },
+      ],
     },
     options: {
       cutout: '72%',
@@ -27,7 +29,7 @@ export function DonutChart({ values, colors }: DonutChartProps) {
       plugins: {
         legend: { display: false },
         tooltip: {
-          ...(chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object,
+          ...((chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object),
           callbacks: {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             label: (ctx: any) => `${ctx.label}: ${ctx.parsed.toFixed(1)}%`,
@@ -38,12 +40,5 @@ export function DonutChart({ values, colors }: DonutChartProps) {
     },
   };
   const ref = useChart(config);
-  return (
-    <canvas
-      ref={ref}
-      className="donut-canvas"
-      width={110}
-      height={110}
-    />
-  );
+  return <canvas ref={ref} className="donut-canvas" width={110} height={110} />;
 }

@@ -3,7 +3,7 @@ export type AggStrategy = 'sum' | 'last' | 'avg';
 export function groupByYear(
   labels: string[],
   series: (number | null)[][],
-  strategies: AggStrategy[],
+  strategies: AggStrategy[]
 ): { years: string[]; grouped: (number | null)[][] } {
   const yearOrder: string[] = [];
   const yearIndices = new Map<string, number[]>();
@@ -20,14 +20,17 @@ export function groupByYear(
 
   const grouped = series.map((s, si) => {
     const strategy = strategies[si] ?? 'last';
-    return yearOrder.map(year => {
+    return yearOrder.map((year) => {
       const indices = yearIndices.get(year)!;
-      const vals = indices.map(i => s[i]).filter((v): v is number => v !== null);
+      const vals = indices.map((i) => s[i]).filter((v): v is number => v !== null);
       if (vals.length === 0) return null;
       switch (strategy) {
-        case 'sum': return vals.reduce((a, b) => a + b, 0);
-        case 'avg': return Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 100) / 100;
-        case 'last': return vals[vals.length - 1];
+        case 'sum':
+          return vals.reduce((a, b) => a + b, 0);
+        case 'avg':
+          return Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 100) / 100;
+        case 'last':
+          return vals[vals.length - 1];
       }
     });
   });

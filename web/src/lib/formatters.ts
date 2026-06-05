@@ -64,10 +64,13 @@ export function fmtCompact(currency: string, v: number | null): string {
   if (v === null || v === undefined) return '—';
   if (Math.abs(v) >= 1000) {
     switch (currency) {
-      case 'EUR': return '€' + (v / 1000).toFixed(1) + 'k';
-      case 'USD': return '$' + (v / 1000).toFixed(1) + 'k';
+      case 'EUR':
+        return '€' + (v / 1000).toFixed(1) + 'k';
+      case 'USD':
+        return '$' + (v / 1000).toFixed(1) + 'k';
       case 'RON':
-      default: return (v / 1000).toFixed(1) + 'k lei';
+      default:
+        return (v / 1000).toFixed(1) + 'k lei';
     }
   }
   return getCurrencyFormatter(currency)(v);

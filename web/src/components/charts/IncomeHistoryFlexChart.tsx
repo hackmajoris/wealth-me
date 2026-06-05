@@ -11,11 +11,21 @@ interface IncomeHistoryFlexChartProps {
   formatValue?: (v: number) => string;
 }
 
-export function IncomeHistoryFlexChart({ labels, income, chartType, formatValue }: IncomeHistoryFlexChartProps) {
+export function IncomeHistoryFlexChart({
+  labels,
+  income,
+  chartType,
+  formatValue,
+}: IncomeHistoryFlexChartProps) {
   const fmt = formatValue ?? ((v: number) => v.toLocaleString());
-  const trendLine = income.length > 1
-    ? generateTrendLine(Array.from({ length: income.length }, (_, i) => i), income, 2)
-    : income;
+  const trendLine =
+    income.length > 1
+      ? generateTrendLine(
+          Array.from({ length: income.length }, (_, i) => i),
+          income,
+          2
+        )
+      : income;
 
   if (chartType === 'line') {
     return (
@@ -77,7 +87,7 @@ export function IncomeHistoryFlexChart({ labels, income, chartType, formatValue 
           },
         },
         tooltip: {
-          ...(chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object,
+          ...((chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object),
           mode: 'index',
           intersect: false,
           callbacks: {
@@ -101,7 +111,7 @@ export function IncomeHistoryFlexChart({ labels, income, chartType, formatValue 
         y: {
           ...chartDefaults.scales?.['y'],
           ticks: {
-            ...(chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object,
+            ...((chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object),
             callback: (v: number | string) => fmt(Number(v)),
           },
         },

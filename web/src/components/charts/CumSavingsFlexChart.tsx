@@ -13,18 +13,20 @@ export function CumSavingsFlexChart({ labels, data, chartType }: CumSavingsFlexC
     type: chartType,
     data: {
       labels,
-      datasets: [{
-        label: 'Cumulative Savings',
-        data,
-        borderColor: C.green,
-        backgroundColor: chartType === 'line' ? C.green + '18' : C.green + 'aa',
-        fill: chartType === 'line',
-        borderWidth: chartType === 'line' ? 2.5 : 1,
-        pointRadius: 0,
-        pointHoverRadius: chartType === 'line' ? 4 : 0,
-        tension: chartType === 'line' ? 0.4 : 0,
-        borderRadius: chartType === 'bar' ? 4 : undefined,
-      }],
+      datasets: [
+        {
+          label: 'Cumulative Savings',
+          data,
+          borderColor: C.green,
+          backgroundColor: chartType === 'line' ? C.green + '18' : C.green + 'aa',
+          fill: chartType === 'line',
+          borderWidth: chartType === 'line' ? 2.5 : 1,
+          pointRadius: 0,
+          pointHoverRadius: chartType === 'line' ? 4 : 0,
+          tension: chartType === 'line' ? 0.4 : 0,
+          borderRadius: chartType === 'bar' ? 4 : undefined,
+        },
+      ],
     },
     options: {
       ...chartDefaults,
@@ -32,7 +34,7 @@ export function CumSavingsFlexChart({ labels, data, chartType }: CumSavingsFlexC
       plugins: {
         ...chartDefaults.plugins,
         tooltip: {
-          ...(chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object,
+          ...((chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object),
           callbacks: {
             label: (ctx: TooltipItem<any>) =>
               ` Saved: ${Math.round(ctx.parsed.y ?? 0).toLocaleString()} lei`,
@@ -54,7 +56,7 @@ export function CumSavingsFlexChart({ labels, data, chartType }: CumSavingsFlexC
         y: {
           ...chartDefaults.scales?.['y'],
           ticks: {
-            ...(chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object,
+            ...((chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object),
             callback: (v: number | string) => (Number(v) / 1000).toFixed(0) + 'k',
           },
         },

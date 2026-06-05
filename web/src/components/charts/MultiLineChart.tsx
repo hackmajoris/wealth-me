@@ -16,25 +16,35 @@ interface MultiLineChartProps {
   valueFormat?: 'percent' | 'number';
 }
 
-export function MultiLineChart({ labels, datasets, annotations, valueFormat = 'percent' }: MultiLineChartProps) {
+export function MultiLineChart({
+  labels,
+  datasets,
+  annotations,
+  valueFormat = 'percent',
+}: MultiLineChartProps) {
   const plugins = {
     ...chartDefaults.plugins,
     legend: {
-      display: true, position: 'top' as const,
+      display: true,
+      position: 'top' as const,
       labels: {
         color: 'rgba(238,238,248,0.55)',
         font: { size: 11, family: 'Outfit' },
-        boxWidth: 20, pointStyle: 'line' as const, usePointStyle: true,
+        boxWidth: 20,
+        pointStyle: 'line' as const,
+        usePointStyle: true,
       },
     },
     tooltip: {
-      ...(chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object,
-      mode: 'index' as const, intersect: false,
+      ...((chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object),
+      mode: 'index' as const,
+      intersect: false,
       callbacks: {
         label: (ctx: TooltipItem<'line'>) => {
           const value = ctx.parsed.y;
           if (value === null) return `${ctx.dataset.label}: —`;
-          if (valueFormat === 'number') return `${ctx.dataset.label}: $${Math.round(value).toLocaleString()}`;
+          if (valueFormat === 'number')
+            return `${ctx.dataset.label}: $${Math.round(value).toLocaleString()}`;
           return `${ctx.dataset.label}: ${value.toFixed(1)}%`;
         },
       },
@@ -45,7 +55,7 @@ export function MultiLineChart({ labels, datasets, annotations, valueFormat = 'p
     type: 'line',
     data: {
       labels,
-      datasets: datasets.map(d => ({
+      datasets: datasets.map((d) => ({
         label: d.label,
         data: d.data,
         borderColor: d.color,
@@ -78,10 +88,11 @@ export function MultiLineChart({ labels, datasets, annotations, valueFormat = 'p
         y: {
           ...chartDefaults.scales?.['y'],
           ticks: {
-            ...(chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object,
+            ...((chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object),
             callback: (v: number | string) => {
               const n = Number(v);
-              if (valueFormat === 'number') return '$' + (n >= 1000 ? (n / 1000).toFixed(0) + 'k' : n.toString());
+              if (valueFormat === 'number')
+                return '$' + (n >= 1000 ? (n / 1000).toFixed(0) + 'k' : n.toString());
               return n + '%';
             },
           },

@@ -28,7 +28,7 @@ Chart.register(
   Legend,
   LineController,
   BarController,
-  DoughnutController,
+  DoughnutController
 );
 
 export interface KeyEvent {
@@ -41,15 +41,66 @@ export interface KeyEvent {
 }
 
 export const KEY_EVENTS: KeyEvent[] = [
-  { id: 'covid',  month: 'Mar 2020', label: 'COVID Crash',  color: '#f87171', icon: '↓', desc: 'Markets -35% in weeks' },
-  { id: 'btcath', month: 'Nov 2021', label: 'BTC ATH',      color: '#fbbf24', icon: '★', desc: 'BTC peaks at ~$69k' },
-  { id: 'ftx',    month: 'Nov 2022', label: 'FTX Collapse', color: '#f87171', icon: '↓', desc: 'FTX files for bankruptcy' },
-  { id: 'etf',    month: 'Jan 2024', label: 'Spot ETF',     color: '#34d399', icon: '↑', desc: 'Bitcoin spot ETF approved' },
-  { id: 'btc100k',month: 'Dec 2024', label: 'BTC $100k',    color: '#a78bfa', icon: '★', desc: 'BTC hits $100k milestone' },
+  {
+    id: 'covid',
+    month: 'Mar 2020',
+    label: 'COVID Crash',
+    color: '#f87171',
+    icon: '↓',
+    desc: 'Markets -35% in weeks',
+  },
+  {
+    id: 'btcath',
+    month: 'Nov 2021',
+    label: 'BTC ATH',
+    color: '#fbbf24',
+    icon: '★',
+    desc: 'BTC peaks at ~$69k',
+  },
+  {
+    id: 'ftx',
+    month: 'Nov 2022',
+    label: 'FTX Collapse',
+    color: '#f87171',
+    icon: '↓',
+    desc: 'FTX files for bankruptcy',
+  },
+  {
+    id: 'etf',
+    month: 'Jan 2024',
+    label: 'Spot ETF',
+    color: '#34d399',
+    icon: '↑',
+    desc: 'Bitcoin spot ETF approved',
+  },
+  {
+    id: 'btc100k',
+    month: 'Dec 2024',
+    label: 'BTC $100k',
+    color: '#a78bfa',
+    icon: '★',
+    desc: 'BTC hits $100k milestone',
+  },
+  {
+    id: 'btcath2',
+    month: 'Oct 2025',
+    label: 'BTC ATH',
+    color: '#fbbf24',
+    icon: '★',
+    desc: 'BTC peaks at ~$126k',
+  },
+  {
+    id: 'btccrash',
+    month: 'Jun 2026',
+    label: 'BTC Crash',
+    color: '#fbbf24',
+    icon: '★',
+    desc: 'BTC crash ~$59',
+  },
 ];
 
 export function buildAnnotations(labels: string[], showEvents: boolean): KeyEvent[] {
-  return showEvents ? KEY_EVENTS.filter(ev => labels.includes(ev.month)) : [];
+  return showEvents ? KEY_EVENTS.filter((ev) => labels.includes(ev.month)) : [];
 }
 
 // Custom annotation plugin (no external dep)
@@ -62,7 +113,7 @@ const wealthAnnotationsPlugin: Plugin = {
     const x = scales['x'];
     const y = scales['y'];
     if (!x || !y) return;
-    events.forEach(ev => {
+    events.forEach((ev) => {
       const labels = chart.data.labels as string[] | undefined;
       const idx = labels ? labels.indexOf(ev.month) : -1;
       if (idx === -1) return;
@@ -83,8 +134,11 @@ const wealthAnnotationsPlugin: Plugin = {
         const pad = 4;
         const lx = Math.min(xPos + 4, chart.width - tw - 12);
         const ly = y.top + 6;
-        const rw = tw + pad * 2, rh = 16, r = 3;
-        const rx = lx - pad, ry = ly - pad;
+        const rw = tw + pad * 2,
+          rh = 16,
+          r = 3;
+        const rx = lx - pad,
+          ry = ly - pad;
         ctx.fillStyle = ev.color + '22';
         ctx.beginPath();
         ctx.moveTo(rx + r, ry);
@@ -101,22 +155,24 @@ const wealthAnnotationsPlugin: Plugin = {
         ctx.fillStyle = ev.color;
         ctx.fillText(label, lx, ly + 8);
         ctx.restore();
-      } catch { /* skip */ }
+      } catch {
+        /* skip */
+      }
     });
-  }
+  },
 };
 
 Chart.register(wealthAnnotationsPlugin);
 
 export const C = {
-  green:   '#34d399',
-  red:     '#f87171',
-  blue:    '#60a5fa',
-  purple:  '#a78bfa',
-  orange:  '#fb923c',
-  yellow:  '#fbbf24',
-  greenA:  'rgba(52,211,153,0.15)',
-  blueA:   'rgba(96,165,250,0.15)',
+  green: '#34d399',
+  red: '#f87171',
+  blue: '#60a5fa',
+  purple: '#a78bfa',
+  orange: '#fb923c',
+  yellow: '#fbbf24',
+  greenA: 'rgba(52,211,153,0.15)',
+  blueA: 'rgba(96,165,250,0.15)',
   purpleA: 'rgba(167,139,250,0.15)',
 };
 
@@ -148,7 +204,11 @@ export const chartDefaults: ChartOptions = {
     },
     y: {
       grid: { color: 'rgba(255,255,255,0.04)' },
-      ticks: { color: 'rgba(238,238,248,0.35)', font: { size: 10, family: 'JetBrains Mono' }, maxTicksLimit: 5 },
+      ticks: {
+        color: 'rgba(238,238,248,0.35)',
+        font: { size: 10, family: 'JetBrains Mono' },
+        maxTicksLimit: 5,
+      },
       border: { display: false },
     },
   },

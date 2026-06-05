@@ -10,12 +10,16 @@ export function YearToggle({ value, onChange }: YearToggleProps) {
         className={`chart-type-btn ${value === 'month' ? 'active' : ''}`}
         onClick={() => onChange('month')}
         title="Monthly view"
-      >M</button>
+      >
+        M
+      </button>
       <button
         className={`chart-type-btn ${value === 'year' ? 'active' : ''}`}
         onClick={() => onChange('year')}
         title="Yearly view"
-      >Y</button>
+      >
+        Y
+      </button>
     </div>
   );
 }
