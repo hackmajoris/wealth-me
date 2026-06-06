@@ -1,5 +1,5 @@
 import { useChart } from './useChart';
-import { chartDefaults } from '../../lib/chartDefaults';
+import { getChartDefaults, getChartColors } from '../../lib/chartDefaults';
 import type { ChartConfiguration } from 'chart.js';
 
 interface DonutChartProps {
@@ -16,7 +16,7 @@ export function DonutChart({ values, colors }: DonutChartProps) {
         {
           data: values,
           backgroundColor: colors,
-          borderColor: '#12121f',
+          borderColor: getChartColors().donutBorder,
           borderWidth: 3,
           hoverOffset: 6,
         },
@@ -29,7 +29,7 @@ export function DonutChart({ values, colors }: DonutChartProps) {
       plugins: {
         legend: { display: false },
         tooltip: {
-          ...((chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object),
+          ...((getChartDefaults().plugins as Record<string, unknown>)['tooltip'] as object),
           callbacks: {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             label: (ctx: any) => `${ctx.label}: ${ctx.parsed.toFixed(1)}%`,

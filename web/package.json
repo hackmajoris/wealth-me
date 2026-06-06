@@ -10,6 +10,7 @@
     "format:check": "prettier --check src/"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.101.0",
     "chart.js": "^4.5.1",
     "react": "^18.0.0",
     "react-dom": "^18.0.0"

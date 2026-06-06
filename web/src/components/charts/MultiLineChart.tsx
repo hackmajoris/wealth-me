@@ -1,5 +1,5 @@
 import { useChart } from './useChart';
-import { chartDefaults, type KeyEvent } from '../../lib/chartDefaults';
+import { getChartDefaults, getChartColors, type KeyEvent } from '../../lib/chartDefaults';
 import type { TooltipItem } from 'chart.js';
 
 interface Dataset {
@@ -23,12 +23,12 @@ export function MultiLineChart({
   valueFormat = 'percent',
 }: MultiLineChartProps) {
   const plugins = {
-    ...chartDefaults.plugins,
+    ...getChartDefaults().plugins,
     legend: {
       display: true,
       position: 'top' as const,
       labels: {
-        color: 'rgba(238,238,248,0.55)',
+        color: getChartColors().legendColor,
         font: { size: 11, family: 'Outfit' },
         boxWidth: 20,
         pointStyle: 'line' as const,
@@ -36,7 +36,7 @@ export function MultiLineChart({
       },
     },
     tooltip: {
-      ...((chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object),
+      ...((getChartDefaults().plugins as Record<string, unknown>)['tooltip'] as object),
       mode: 'index' as const,
       intersect: false,
       callbacks: {
@@ -70,14 +70,14 @@ export function MultiLineChart({
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     options: {
-      ...chartDefaults,
+      ...getChartDefaults(),
       interaction: { mode: 'index', intersect: false },
       plugins: { ...plugins, wealthAnnotations: { events: annotations ?? [] } } as typeof plugins,
       scales: {
         x: {
-          ...chartDefaults.scales?.['x'],
+          ...getChartDefaults().scales?.['x'],
           ticks: {
-            ...(chartDefaults.scales?.['x'] as any)?.['ticks'],
+            ...(getChartDefaults().scales?.['x'] as any)?.['ticks'],
             maxRotation: 45,
             minRotation: 45,
             maxTicksLimit: 999,
@@ -86,9 +86,9 @@ export function MultiLineChart({
           } as any,
         },
         y: {
-          ...chartDefaults.scales?.['y'],
+          ...getChartDefaults().scales?.['y'],
           ticks: {
-            ...((chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object),
+            ...((getChartDefaults().scales?.['y'] as Record<string, unknown>)?.['ticks'] as object),
             callback: (v: number | string) => {
               const n = Number(v);
               if (valueFormat === 'number')

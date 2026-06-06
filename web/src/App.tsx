@@ -54,10 +54,21 @@ const TAB_IDS: TabId[] = [
 
 export function App() {
   const [tab, setTab] = useState<TabId>('dashboard');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [editEntry, setEditEntry] = useState<Entry | undefined>(undefined);
   const [modalOpen, setModalOpen] = useState(false);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [savingsRefreshTrigger, setSavingsRefreshTrigger] = useState(0);
+  const [theme, setTheme] = useState<string>(() => {
+    const t = localStorage.getItem('theme') ?? 'dark';
+    document.documentElement.dataset['theme'] = t;
+    return t;
+  });
+
+  useEffect(() => {
+    document.documentElement.dataset['theme'] = theme;
+    localStorage.setItem('theme', theme);
+  }, [theme]);
 
   const refreshEntries = useCallback(() => {
     api.entries.list().then(setEntries).catch(console.error);
@@ -131,9 +142,16 @@ export function App() {
             onRefresh={refreshEntries}
             onSavingsRefresh={refreshSavingsEntries}
             onClear={refreshEntries}
+            theme={theme}
+            onThemeChange={setTheme}
           />
         );
     }
+  };
+
+  const selectTab = (id: TabId) => {
+    setTab(id);
+    setMobileNavOpen(false);
   };
 
   return (
@@ -142,8 +160,13 @@ export function App() {
         <EntryModal entry={editEntry} onClose={() => setModalOpen(false)} onSave={refreshEntries} />
       )}
 
+      {/* Sidebar backdrop (mobile) */}
+      {mobileNavOpen && (
+        <div className="sidebar-backdrop" onClick={() => setMobileNavOpen(false)} />
+      )}
+
       {/* Sidebar */}
-      <nav className="sidebar">
+      <nav className={`sidebar${mobileNavOpen ? ' open' : ''}`}>
         <div className="sidebar-logo">
           <div className="logo-icon">W</div>
           Wealth Me
@@ -152,7 +175,7 @@ export function App() {
           <button
             key={id}
             className={`nav-item ${tab === id ? 'active' : ''}`}
-            onClick={() => setTab(id)}
+            onClick={() => selectTab(id)}
           >
             <span className="nav-icon">{navIcons[id]}</span>
             {navLabels[id]}
@@ -164,24 +187,19 @@ export function App() {
         </div>
       </nav>
 
+      {/* Mobile header */}
+      <div className="mobile-header">
+        <button className="hamburger" onClick={() => setMobileNavOpen((o) => !o)}>
+          ☰
+        </button>
+        <div className="mobile-header-logo">
+          <div className="logo-icon">W</div>
+          Wealth Me
+        </div>
+      </div>
+
       {/* Content */}
       <main className="main">{renderTab()}</main>
-
-      {/* Bottom nav (mobile) */}
-      <nav className="bottom-nav">
-        <div className="bottom-nav-inner">
-          {TAB_IDS.map((id) => (
-            <button
-              key={id}
-              className={`bottom-nav-item ${tab === id ? 'active' : ''}`}
-              onClick={() => setTab(id)}
-            >
-              <span className="nav-icon">{navIcons[id]}</span>
-              {navLabels[id]}
-            </button>
-          ))}
-        </div>
-      </nav>
     </div>
   );
 }

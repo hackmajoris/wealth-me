@@ -1,6 +1,14 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { api } from '../lib/api';
 import type { DebtHistoryPoint, DebtEntry, ExchangeRates } from '../lib/api';
+import {
+  useDebtHistory,
+  useDebtEntries,
+  useDebtsCurrency,
+  useExchangeRates,
+  QK,
+} from '../lib/queries';
+import { useQueryClient } from '@tanstack/react-query';
 import { fmtCompact, convertCurrency } from '../lib/formatters';
 import { polyTrend } from '../lib/trendUtils';
 import { MultiLineChart } from '../components/charts/MultiLineChart';
@@ -8,7 +16,7 @@ import { useChart } from '../components/charts/useChart';
 import { ChartCard } from '../components/ChartCard';
 import { YearToggle } from '../components/YearToggle';
 import { groupByYear } from '../lib/groupByYear';
-import { C, chartDefaults } from '../lib/chartDefaults';
+import { C, getChartDefaults, getChartColors } from '../lib/chartDefaults';
 import type { TooltipItem } from 'chart.js';
 
 const CATEGORIES = [
@@ -103,15 +111,15 @@ function DebtBarChart({
       ],
     },
     options: {
-      ...chartDefaults,
+      ...getChartDefaults(),
       interaction: { mode: 'index' as const, intersect: false },
       plugins: {
-        ...chartDefaults.plugins,
+        ...getChartDefaults().plugins,
         legend: {
           display: true,
           position: 'top' as const,
           labels: {
-            color: 'rgba(238,238,248,0.55)',
+            color: getChartColors().legendColor,
             font: { size: 11, family: 'Outfit' },
             boxWidth: 20,
             pointStyle: 'line' as const,
@@ -119,7 +127,7 @@ function DebtBarChart({
           },
         },
         tooltip: {
-          ...((chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object),
+          ...((getChartDefaults().plugins as Record<string, unknown>)['tooltip'] as object),
           mode: 'index' as const,
           intersect: false,
           callbacks: {
@@ -132,18 +140,18 @@ function DebtBarChart({
       },
       scales: {
         x: {
-          ...chartDefaults.scales?.['x'],
+          ...getChartDefaults().scales?.['x'],
           ticks: {
-            ...((chartDefaults.scales?.['x'] as Record<string, unknown>)?.['ticks'] as object),
+            ...((getChartDefaults().scales?.['x'] as Record<string, unknown>)?.['ticks'] as object),
             maxRotation: 44,
             minRotation: 44,
             maxTicksLimit: 100,
           },
         },
         y: {
-          ...chartDefaults.scales?.['y'],
+          ...getChartDefaults().scales?.['y'],
           ticks: {
-            ...((chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object),
+            ...((getChartDefaults().scales?.['y'] as Record<string, unknown>)?.['ticks'] as object),
             callback: (v: number | string) => {
               const n = Number(v);
               return '$' + (n >= 1000 ? (n / 1000).toFixed(0) + 'k' : n);
@@ -374,30 +382,24 @@ type ModalState =
   | { type: 'edit'; entry: DebtEntry };
 
 export function Debts() {
-  const [entries, setEntries] = useState<DebtEntry[]>([]);
-  const [history, setHistory] = useState<DebtHistoryPoint[]>([]);
-  const [currency, setCurrency] = useState('RON');
-  const [exchangeRates, setExchangeRates] = useState<ExchangeRates>({
-    usdToRon: 4.35,
-    eurToRon: 5.09,
-  });
+  const qc = useQueryClient();
+  const { data: entriesData } = useDebtEntries();
+  const { data: historyData } = useDebtHistory();
+  const { data: currencyData } = useDebtsCurrency();
+  const { data: exchangeRatesData } = useExchangeRates();
+
+  const entries: DebtEntry[] = entriesData ?? [];
+  const history: DebtHistoryPoint[] = historyData ?? [];
+  const currency = currencyData?.value ?? 'RON';
+  const exchangeRates: ExchangeRates = exchangeRatesData ?? { usdToRon: 4.35, eurToRon: 5.09 };
   const [chartType, setChartType] = useState<'line' | 'bar'>('line');
   const [histGrouping, setHistGrouping] = useState<'month' | 'year'>('month');
   const [modal, setModal] = useState<ModalState>(false);
 
   const refresh = () => {
-    api.debtEntries.list().then(setEntries).catch(console.error);
-    api.debts.history().then(setHistory).catch(console.error);
+    qc.invalidateQueries({ queryKey: QK.debtEntries });
+    qc.invalidateQueries({ queryKey: QK.debtHistory });
   };
-
-  useEffect(() => {
-    refresh();
-    api.settings
-      .getDebtsCurrency()
-      .then((s) => setCurrency(s.value))
-      .catch(console.error);
-    api.settings.getExchangeRates().then(setExchangeRates).catch(console.error);
-  }, []);
 
   const handleDelete = async (id: number) => {
     if (!confirm('Delete this entry?')) return;

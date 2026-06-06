@@ -67,9 +67,18 @@ interface SettingsProps {
   onRefresh: () => void;
   onSavingsRefresh: () => void;
   onClear: () => void;
+  theme: string;
+  onThemeChange: (t: string) => void;
 }
 
-export function Settings({ entries, onRefresh, onSavingsRefresh, onClear }: SettingsProps) {
+export function Settings({
+  entries,
+  onRefresh,
+  onSavingsRefresh,
+  onClear,
+  theme,
+  onThemeChange,
+}: SettingsProps) {
   const [dragOver, setDragOver] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -281,6 +290,35 @@ export function Settings({ entries, onRefresh, onSavingsRefresh, onClear }: Sett
           <div className="page-sub">Data management &amp; preferences</div>
         </div>
       </div>
+
+      <SettingSection title="Appearance">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Theme</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {(['dark', 'light'] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => onThemeChange(t)}
+                style={{
+                  padding: '8px 20px',
+                  backgroundColor: theme === t ? 'var(--purple)' : 'var(--surface2)',
+                  color: theme === t ? '#fff' : 'var(--text)',
+                  border: `1px solid ${theme === t ? 'var(--purple)' : 'var(--border)'}`,
+                  borderRadius: 6,
+                  fontSize: 13,
+                  fontWeight: theme === t ? 600 : 400,
+                  cursor: 'pointer',
+                  transition: 'all .15s',
+                  fontFamily: 'Outfit, sans-serif',
+                  textTransform: 'capitalize',
+                }}
+              >
+                {t === 'dark' ? '◑ Dark' : '◐ Light'}
+              </button>
+            ))}
+          </div>
+        </div>
+      </SettingSection>
 
       <SettingSection title="Savings">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

@@ -1,5 +1,5 @@
 import { useChart } from './useChart';
-import { chartDefaults, C } from '../../lib/chartDefaults';
+import { getChartDefaults, getChartColors, C } from '../../lib/chartDefaults';
 import type { TooltipItem } from 'chart.js';
 
 interface SavingsRateChartProps {
@@ -39,15 +39,15 @@ export function SavingsRateChart({ labels, rates, targets }: SavingsRateChartPro
       ],
     },
     options: {
-      ...chartDefaults,
+      ...getChartDefaults(),
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        ...chartDefaults.plugins,
+        ...getChartDefaults().plugins,
         legend: {
           display: true,
           position: 'top',
           labels: {
-            color: 'rgba(238,238,248,0.55)',
+            color: getChartColors().legendColor,
             font: { size: 11, family: 'Outfit' },
             boxWidth: 20,
             pointStyle: 'line',
@@ -55,7 +55,7 @@ export function SavingsRateChart({ labels, rates, targets }: SavingsRateChartPro
           },
         },
         tooltip: {
-          ...((chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object),
+          ...((getChartDefaults().plugins as Record<string, unknown>)['tooltip'] as object),
           mode: 'index',
           intersect: false,
           callbacks: {
@@ -65,12 +65,12 @@ export function SavingsRateChart({ labels, rates, targets }: SavingsRateChartPro
         },
       },
       scales: {
-        x: { ...chartDefaults.scales?.['x'] },
+        x: { ...getChartDefaults().scales?.['x'] },
         y: {
-          ...chartDefaults.scales?.['y'],
+          ...getChartDefaults().scales?.['y'],
           min: 0,
           ticks: {
-            ...((chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object),
+            ...((getChartDefaults().scales?.['y'] as Record<string, unknown>)?.['ticks'] as object),
             callback: (v: number | string) => Number(v) + '%',
           },
         },

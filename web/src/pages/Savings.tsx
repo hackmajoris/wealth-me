@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { SavingsEntryModal } from '../components/SavingsEntryModal';
 import { ChartCard } from '../components/ChartCard';
 import { SavingsRateFlexChart } from '../components/charts/SavingsRateFlexChart';
@@ -8,7 +8,9 @@ import { AnnualSavingsFlexChart } from '../components/charts/AnnualSavingsFlexCh
 import { IncomeHistoryFlexChart } from '../components/charts/IncomeHistoryFlexChart';
 import { api } from '../lib/api';
 import { getCurrencyFormatter } from '../lib/formatters';
-import { loadSavingsEntries, type SavingsEntry } from '../lib/storage';
+import { type SavingsEntry } from '../lib/storage';
+import { useSavingsList, useSavingsTarget, useCurrency, QK } from '../lib/queries';
+import { useQueryClient } from '@tanstack/react-query';
 import { groupByYear } from '../lib/groupByYear';
 import { YearToggle } from '../components/YearToggle';
 1;
@@ -52,14 +54,20 @@ export function Savings({
   showModal: _showModal,
   onEdit: _onEdit,
   onDelete: _onDelete,
-  savingsRefreshKey = 0,
+  savingsRefreshKey: _savingsRefreshKey = 0,
 }: SavingsProps) {
+  const qc = useQueryClient();
+  const { data: savingsEntriesData } = useSavingsList();
+  const { data: savingsTargetData } = useSavingsTarget();
+  const { data: currencyData } = useCurrency();
+
+  const savingsEntries: SavingsEntry[] = savingsEntriesData ?? [];
+  const savingsTarget = savingsTargetData?.value ?? 30;
+  const currency = currencyData?.value ?? 'RON';
+
   const [savingsModal, setSavingsModal] = useState<SavingsEntry | null | false>(false);
-  const [savingsEntries, setSavingsEntries] = useState<SavingsEntry[]>(() => loadSavingsEntries());
-  const [savingsTarget, setSavingsTarget] = useState<number>(30);
-  const [targetInput, setTargetInput] = useState<string>('30');
+  const [targetInput, setTargetInput] = useState<string>(() => String(savingsTarget));
   const [isSaving, setIsSaving] = useState(false);
-  const [currency, setCurrency] = useState<string>('RON');
   const [isSavingCurrency, setIsSavingCurrency] = useState(false);
   const [savingRateChartType, setSavingRateChartType] = useState<'line' | 'bar'>('line');
   const [incomeExpChartType, setIncomeExpChartType] = useState<'line' | 'bar'>('line');
@@ -72,23 +80,6 @@ export function Savings({
   const [cumSavingsGrouping, setCumSavingsGrouping] = useState<'month' | 'year'>('month');
   const [avgRateGrouping, setAvgRateGrouping] = useState<'month' | 'year'>('month');
 
-  useEffect(() => {
-    api.savings.list().then(setSavingsEntries).catch(console.error);
-    api.settings
-      .getSavingsTarget()
-      .then((setting) => {
-        setSavingsTarget(setting.value);
-        setTargetInput(setting.value.toString());
-      })
-      .catch(console.error);
-    api.settings
-      .getCurrency()
-      .then((setting) => {
-        setCurrency(setting.value);
-      })
-      .catch(console.error);
-  }, [savingsRefreshKey]);
-
   const handleSaveTarget = async () => {
     const value = parseFloat(targetInput);
     if (isNaN(value)) {
@@ -97,8 +88,8 @@ export function Savings({
     }
     setIsSaving(true);
     try {
-      const result = await api.settings.setSavingsTarget(value);
-      setSavingsTarget(result.value);
+      await api.settings.setSavingsTarget(value);
+      qc.invalidateQueries({ queryKey: QK.savingsTarget });
     } catch (err) {
       console.error('Failed to save target:', err);
     } finally {
@@ -107,14 +98,12 @@ export function Savings({
   };
 
   const handleSaveCurrency = async (newCurrency: string) => {
-    setCurrency(newCurrency);
     setIsSavingCurrency(true);
     try {
       await api.settings.setCurrency(newCurrency);
+      qc.invalidateQueries({ queryKey: QK.currency });
     } catch (err) {
       console.error('Failed to save currency:', err);
-      // Revert on error
-      setCurrency(currency);
     } finally {
       setIsSavingCurrency(false);
     }
@@ -123,12 +112,8 @@ export function Savings({
   const handleDeleteMonth = (entryId: number) => {
     api.savings
       .remove(entryId)
-      .then(() => {
-        api.savings.list().then(setSavingsEntries).catch(console.error);
-      })
-      .catch((err) => {
-        console.error('Delete failed:', err);
-      });
+      .then(() => qc.invalidateQueries({ queryKey: QK.savingsList }))
+      .catch((err) => console.error('Delete failed:', err));
   };
 
   // Calculate aggregated stats from entries
@@ -155,9 +140,7 @@ export function Savings({
         <SavingsEntryModal
           entry={savingsModal || undefined}
           onClose={() => setSavingsModal(false)}
-          onSave={() => {
-            api.savings.list().then(setSavingsEntries).catch(console.error);
-          }}
+          onSave={() => qc.invalidateQueries({ queryKey: QK.savingsList })}
           globalTarget={savingsTarget}
         />
       )}

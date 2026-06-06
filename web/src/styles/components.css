@@ -44,7 +44,7 @@
   animation: fadeIn 0.18s ease;
 }
 .chart-modal {
-  background: #111111;
+  background: var(--surface-modal);
   border: 1px solid var(--border2);
   border-radius: 20px;
   width: 88vw;
@@ -413,7 +413,7 @@
   }
 }
 .modal {
-  background: #111111;
+  background: var(--surface-modal);
   border: 1px solid var(--border2);
   border-radius: 20px;
   width: 520px;
@@ -517,7 +517,7 @@
   border-color: var(--purple);
 }
 .field select option {
-  background: #141414;
+  background: var(--surface2);
 }
 .calc-row {
   display: flex;

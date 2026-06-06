@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { api, type StockData, type CryptoData, type BenchmarkData } from '../lib/api';
+import { useState, useMemo } from 'react';
+import { useStocks, useCrypto, useBenchmarks } from '../lib/queries';
 import { ChartCard } from '../components/ChartCard';
 import { TimeRange } from '../components/TimeRange';
 import { AreaChart } from '../components/charts/AreaChart';
@@ -131,11 +131,13 @@ function heatColor(val: number | null, type: string): string {
 export function Performance({ showModal }: PerformanceProps) {
   const [range, setRange] = useState<Range>('ALL');
   const [showEvents, setShowEvents] = useState(true);
-  const [stockData, setStockData] = useState<StockData | null>(null);
-  const [cryptoData, setCryptoData] = useState<CryptoData | null>(null);
-  const [benchmarkData, setBenchmarkData] = useState<BenchmarkData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: stockData, isLoading: stocksLoading, error: stocksError } = useStocks();
+  const { data: cryptoData, isLoading: cryptoLoading, error: cryptoError } = useCrypto();
+  const { data: benchmarkData, isLoading: benchLoading } = useBenchmarks();
+
+  const loading = stocksLoading || cryptoLoading || benchLoading;
+  const error = stocksError?.message ?? cryptoError?.message ?? null;
+
   const [portfolioValueType, setPortfolioValueType] = useState<'area' | 'bar'>('area');
   const [roiBenchmarkType, setRoiBenchmarkType] = useState<'line' | 'bar'>('line');
   const [cryptoVsStocksType, setCryptoVsStocksType] = useState<'line' | 'bar'>('line');
@@ -153,30 +155,7 @@ export function Performance({ showModal }: PerformanceProps) {
     null
   );
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true);
-        const [stocks, crypto, benchmarks] = await Promise.all([
-          api.stocks.get(),
-          api.crypto.get(),
-          api.benchmarks.get(),
-        ]);
-        setStockData(stocks);
-        setCryptoData(crypto);
-        setBenchmarkData(benchmarks);
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load data');
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, []);
-
-  // Use real data if available, otherwise fall back to mock data
-  const stocks = stockData || {
+  const stocks = stockData ?? {
     months: [],
     invested: [],
     return: [],
@@ -186,7 +165,7 @@ export function Performance({ showModal }: PerformanceProps) {
     currentValue: 0,
     totalRoi: null,
   };
-  const crypto = cryptoData || {
+  const crypto = cryptoData ?? {
     months: [],
     invested: [],
     return: [],
@@ -951,7 +930,7 @@ export function Performance({ showModal }: PerformanceProps) {
                           gap: 4,
                           cursor: 'pointer',
                           fontSize: 11,
-                          color: 'rgba(238,238,248,0.55)',
+                          color: 'var(--text2)',
                           userSelect: 'none',
                         }}
                       >
@@ -1132,12 +1111,12 @@ export function Performance({ showModal }: PerformanceProps) {
                             left: 0,
                             right: 0,
                             marginBottom: 8,
-                            background: '#1a1a2e',
-                            border: '1px solid rgba(255,255,255,0.1)',
+                            background: 'var(--surface-modal)',
+                            border: '1px solid var(--border2)',
                             borderRadius: 6,
                             padding: '8px 10px',
                             fontSize: 10,
-                            color: 'rgba(238,238,248,0.8)',
+                            color: 'var(--text)',
                             whiteSpace: 'normal',
                             zIndex: 10,
                             boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
@@ -1167,12 +1146,12 @@ export function Performance({ showModal }: PerformanceProps) {
                               left: 0,
                               right: 0,
                               marginBottom: 8,
-                              background: '#1a1a2e',
-                              border: '1px solid rgba(255,255,255,0.1)',
+                              background: 'var(--surface-modal)',
+                              border: '1px solid var(--border2)',
                               borderRadius: 6,
                               padding: '8px 10px',
                               fontSize: 10,
-                              color: 'rgba(238,238,248,0.8)',
+                              color: 'var(--text)',
                               whiteSpace: 'normal',
                               zIndex: 10,
                               boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
@@ -1198,12 +1177,12 @@ export function Performance({ showModal }: PerformanceProps) {
                             left: 0,
                             right: 0,
                             marginBottom: 8,
-                            background: '#1a1a2e',
-                            border: '1px solid rgba(255,255,255,0.1)',
+                            background: 'var(--surface-modal)',
+                            border: '1px solid var(--border2)',
                             borderRadius: 6,
                             padding: '8px 10px',
                             fontSize: 10,
-                            color: 'rgba(238,238,248,0.8)',
+                            color: 'var(--text)',
                             whiteSpace: 'normal',
                             zIndex: 10,
                             boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
@@ -1316,7 +1295,7 @@ export function Performance({ showModal }: PerformanceProps) {
                               <div
                                 style={{
                                   fontSize: 9,
-                                  color: 'rgba(238,238,248,0.4)',
+                                  color: 'var(--text3)',
                                   fontWeight: 400,
                                   marginTop: 1,
                                 }}
@@ -1409,12 +1388,12 @@ export function Performance({ showModal }: PerformanceProps) {
             position: 'fixed',
             left: tooltipData.x,
             top: tooltipData.y,
-            background: '#1a1a2e',
-            border: '1px solid rgba(255,255,255,0.1)',
+            background: 'var(--surface-modal)',
+            border: '1px solid var(--border2)',
             borderRadius: 6,
             padding: '8px 12px',
             fontSize: 11,
-            color: 'rgba(238,238,248,0.9)',
+            color: 'var(--text)',
             zIndex: 1000,
             boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
             whiteSpace: 'nowrap',

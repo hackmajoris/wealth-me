@@ -1,5 +1,5 @@
 import { useChart } from './useChart';
-import { chartDefaults } from '../../lib/chartDefaults';
+import { getChartDefaults } from '../../lib/chartDefaults';
 import type { TooltipItem } from 'chart.js';
 
 interface LineChartProps {
@@ -43,12 +43,12 @@ export function LineChart({
       ],
     },
     options: {
-      ...chartDefaults,
+      ...getChartDefaults(),
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        ...chartDefaults.plugins,
+        ...getChartDefaults().plugins,
         tooltip: {
-          ...((chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object),
+          ...((getChartDefaults().plugins as Record<string, unknown>)['tooltip'] as object),
           callbacks: {
             label: (ctx: TooltipItem<'line'>) => {
               const val = ctx.parsed.y ?? 0;
@@ -64,20 +64,20 @@ export function LineChart({
       },
       scales: {
         x: {
-          ...chartDefaults.scales?.['x'],
+          ...getChartDefaults().scales?.['x'],
           display: !mini,
           ticks: {
-            ...((chartDefaults.scales?.['x'] as Record<string, unknown>)?.['ticks'] as object),
+            ...((getChartDefaults().scales?.['x'] as Record<string, unknown>)?.['ticks'] as object),
             maxTicksLimit: mini ? 0 : 100,
             maxRotation: mini ? 0 : 44,
             minRotation: mini ? 0 : 44,
           },
         },
         y: {
-          ...chartDefaults.scales?.['y'],
+          ...getChartDefaults().scales?.['y'],
           display: !mini,
           ticks: {
-            ...((chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object),
+            ...((getChartDefaults().scales?.['y'] as Record<string, unknown>)?.['ticks'] as object),
             maxTicksLimit: mini ? 0 : 5,
             callback: (v: number | string) => {
               const n = Number(v);

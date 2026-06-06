@@ -1,12 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { api } from '../lib/api';
 import type { AssetEntry, AssetHistoryPoint } from '../lib/api';
+import { useAssetHistory, useAssetEntries, useAssetsCurrency } from '../lib/queries';
+import { useQueryClient } from '@tanstack/react-query';
+import { QK } from '../lib/queries';
 import { fmtCompact } from '../lib/formatters';
 import { polyTrend } from '../lib/trendUtils';
 import { MultiLineChart } from '../components/charts/MultiLineChart';
 import { useChart } from '../components/charts/useChart';
 import { ChartCard } from '../components/ChartCard';
-import { C, chartDefaults } from '../lib/chartDefaults';
+import { C, getChartDefaults, getChartColors } from '../lib/chartDefaults';
 import type { TooltipItem } from 'chart.js';
 
 const CATEGORIES = ['Real Estate', 'Vehicle', 'Cash / Savings', 'Investment', 'Personal', 'Other'];
@@ -92,15 +95,15 @@ function AssetBarChart({
       ],
     },
     options: {
-      ...chartDefaults,
+      ...getChartDefaults(),
       interaction: { mode: 'index' as const, intersect: false },
       plugins: {
-        ...chartDefaults.plugins,
+        ...getChartDefaults().plugins,
         legend: {
           display: true,
           position: 'top' as const,
           labels: {
-            color: 'rgba(238,238,248,0.55)',
+            color: getChartColors().legendColor,
             font: { size: 11, family: 'Outfit' },
             boxWidth: 20,
             pointStyle: 'line' as const,
@@ -108,7 +111,7 @@ function AssetBarChart({
           },
         },
         tooltip: {
-          ...((chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object),
+          ...((getChartDefaults().plugins as Record<string, unknown>)['tooltip'] as object),
           mode: 'index' as const,
           intersect: false,
           callbacks: {
@@ -121,18 +124,18 @@ function AssetBarChart({
       },
       scales: {
         x: {
-          ...chartDefaults.scales?.['x'],
+          ...getChartDefaults().scales?.['x'],
           ticks: {
-            ...((chartDefaults.scales?.['x'] as Record<string, unknown>)?.['ticks'] as object),
+            ...((getChartDefaults().scales?.['x'] as Record<string, unknown>)?.['ticks'] as object),
             maxRotation: 44,
             minRotation: 44,
             maxTicksLimit: 100,
           },
         },
         y: {
-          ...chartDefaults.scales?.['y'],
+          ...getChartDefaults().scales?.['y'],
           ticks: {
-            ...((chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object),
+            ...((getChartDefaults().scales?.['y'] as Record<string, unknown>)?.['ticks'] as object),
             callback: (v: number | string) => {
               const n = Number(v);
               return n >= 1000 ? (n / 1000).toFixed(0) + 'k' : n;
@@ -313,24 +316,22 @@ type ModalState =
   | { type: 'edit'; entry: AssetEntry };
 
 export function Assets() {
-  const [entries, setEntries] = useState<AssetEntry[]>([]);
-  const [history, setHistory] = useState<AssetHistoryPoint[]>([]);
-  const [currency, setCurrency] = useState('RON');
+  const qc = useQueryClient();
+  const { data: entriesData } = useAssetEntries();
+  const { data: historyData } = useAssetHistory();
+  const { data: currencyData } = useAssetsCurrency();
+
+  const entries: AssetEntry[] = entriesData ?? [];
+  const history: AssetHistoryPoint[] = historyData ?? [];
+  const currency = currencyData?.value ?? 'RON';
+
   const [modal, setModal] = useState<ModalState>(false);
   const [chartType, setChartType] = useState<'line' | 'bar'>('line');
 
   const refresh = () => {
-    api.assetEntries.list().then(setEntries).catch(console.error);
-    api.assets.history().then(setHistory).catch(console.error);
+    qc.invalidateQueries({ queryKey: QK.assetEntries });
+    qc.invalidateQueries({ queryKey: QK.assetHistory });
   };
-
-  useEffect(() => {
-    refresh();
-    api.settings
-      .getAssetsCurrency()
-      .then((s) => setCurrency(s.value))
-      .catch(console.error);
-  }, []);
 
   const handleDelete = async (id: number) => {
     if (!confirm('Delete this entry?')) return;

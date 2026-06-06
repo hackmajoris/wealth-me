@@ -1,5 +1,5 @@
 import { useChart } from './useChart';
-import { chartDefaults, C } from '../../lib/chartDefaults';
+import { getChartDefaults, C } from '../../lib/chartDefaults';
 import type { TooltipItem } from 'chart.js';
 
 interface CumSavingsChartProps {
@@ -27,12 +27,12 @@ export function CumSavingsChart({ labels, data }: CumSavingsChartProps) {
       ],
     },
     options: {
-      ...chartDefaults,
+      ...getChartDefaults(),
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        ...chartDefaults.plugins,
+        ...getChartDefaults().plugins,
         tooltip: {
-          ...((chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object),
+          ...((getChartDefaults().plugins as Record<string, unknown>)['tooltip'] as object),
           callbacks: {
             label: (ctx: TooltipItem<'line'>) =>
               ` Saved: ${Math.round(ctx.parsed.y ?? 0).toLocaleString()} lei`,
@@ -40,11 +40,11 @@ export function CumSavingsChart({ labels, data }: CumSavingsChartProps) {
         },
       },
       scales: {
-        x: { ...chartDefaults.scales?.['x'] },
+        x: { ...getChartDefaults().scales?.['x'] },
         y: {
-          ...chartDefaults.scales?.['y'],
+          ...getChartDefaults().scales?.['y'],
           ticks: {
-            ...((chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object),
+            ...((getChartDefaults().scales?.['y'] as Record<string, unknown>)?.['ticks'] as object),
             callback: (v: number | string) => (Number(v) / 1000).toFixed(0) + 'k',
           },
         },

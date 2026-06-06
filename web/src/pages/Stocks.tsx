@@ -9,10 +9,9 @@ import { GainFlexChart } from '../components/charts/GainFlexChart';
 import { InvestedChart } from '../components/charts/InvestedChart';
 import { fmt$, fmtSign$, fmtPct, clsROI } from '../lib/formatters';
 import { sliceRange, type Range } from '../lib/ranges';
-import { buildAnnotations, C } from '../lib/chartDefaults';
+import { buildAnnotations, C, getChartDefaults } from '../lib/chartDefaults';
 import { calcAverage } from '../lib/trendUtils';
 import { useChart } from '../components/charts/useChart';
-import { chartDefaults } from '../lib/chartDefaults';
 import type { TooltipItem } from 'chart.js';
 
 const MO_ORDER: Record<string, number> = {
@@ -98,11 +97,11 @@ function ValueAndInvestedBarChart({
       ],
     },
     options: {
-      ...chartDefaults,
+      ...getChartDefaults(),
       plugins: {
-        ...chartDefaults.plugins,
+        ...getChartDefaults().plugins,
         tooltip: {
-          ...((chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object),
+          ...((getChartDefaults().plugins as Record<string, unknown>)['tooltip'] as object),
           mode: 'index',
           intersect: false,
           callbacks: {
@@ -113,17 +112,18 @@ function ValueAndInvestedBarChart({
       },
       scales: {
         x: {
-          ...chartDefaults.scales?.['x'],
+          ...getChartDefaults().scales?.['x'],
           ticks: {
-            ...(chartDefaults.scales?.['x'] as any)?.['ticks'],
+            ...(getChartDefaults().scales?.['x'] as any)?.['ticks'],
             maxRotation: 44,
             minRotation: 44,
+            maxTicksLimit: 100,
           } as any,
         },
         y: {
-          ...chartDefaults.scales?.['y'],
+          ...getChartDefaults().scales?.['y'],
           ticks: {
-            ...(chartDefaults.scales?.['y'] as any)?.['ticks'],
+            ...(getChartDefaults().scales?.['y'] as any)?.['ticks'],
             callback: (v: number | string) => {
               const n = Number(v);
               return '$' + (n >= 1000 ? (n / 1000).toFixed(0) + 'k' : n);

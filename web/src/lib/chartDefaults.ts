@@ -166,6 +166,24 @@ const wealthAnnotationsPlugin: Plugin = {
 
 Chart.register(wealthAnnotationsPlugin);
 
+function isLight() {
+  return document.documentElement.dataset['theme'] === 'light';
+}
+
+export function getChartColors() {
+  const light = isLight();
+  return {
+    legendColor: light ? 'rgba(15,15,18,0.55)' : 'rgba(238,238,248,0.55)',
+    tickColor: light ? 'rgba(15,15,18,0.65)' : 'rgba(238,238,248,0.35)',
+    gridColor: light ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.04)',
+    tooltipBg: light ? '#ffffff' : '#1a1a2e',
+    tooltipTitle: light ? '#0f0f12' : '#eeeef8',
+    tooltipBody: light ? 'rgba(15,15,18,0.7)' : 'rgba(238,238,248,0.7)',
+    tooltipBorder: light ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)',
+    donutBorder: light ? '#f4f4f6' : '#12121f',
+  };
+}
+
 export const C = {
   green: '#34d399',
   red: '#f87171',
@@ -178,43 +196,48 @@ export const C = {
   purpleA: 'rgba(167,139,250,0.15)',
 };
 
-export const chartDefaults: ChartOptions = {
-  plugins: {
-    legend: { display: false },
-    tooltip: {
-      backgroundColor: '#1a1a2e',
-      titleColor: '#eeeef8',
-      bodyColor: 'rgba(238,238,248,0.7)',
-      borderColor: 'rgba(255,255,255,0.1)',
-      borderWidth: 1,
-      padding: 10,
-      cornerRadius: 8,
-      displayColors: false,
-    },
-  },
-  scales: {
-    x: {
-      grid: { color: 'rgba(255,255,255,0.04)' },
-      ticks: {
-        color: 'rgba(238,238,248,0.35)',
-        font: { size: 10, family: 'Outfit' },
-        maxTicksLimit: 100,
-        maxRotation: 45,
-        minRotation: 45,
+export function getChartDefaults(): ChartOptions {
+  const cc = getChartColors();
+  return {
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: cc.tooltipBg,
+        titleColor: cc.tooltipTitle,
+        bodyColor: cc.tooltipBody,
+        borderColor: cc.tooltipBorder,
+        borderWidth: 1,
+        padding: 10,
+        cornerRadius: 8,
+        displayColors: false,
       },
-      border: { display: false },
     },
-    y: {
-      grid: { color: 'rgba(255,255,255,0.04)' },
-      ticks: {
-        color: 'rgba(238,238,248,0.35)',
-        font: { size: 10, family: 'JetBrains Mono' },
-        maxTicksLimit: 5,
+    scales: {
+      x: {
+        grid: { color: cc.gridColor },
+        ticks: {
+          color: cc.tickColor,
+          font: { size: 10, family: 'Outfit' },
+          maxTicksLimit: 100,
+          maxRotation: 45,
+          minRotation: 45,
+        },
+        border: { display: false },
       },
-      border: { display: false },
+      y: {
+        grid: { color: cc.gridColor },
+        ticks: {
+          color: cc.tickColor,
+          font: { size: 10, family: 'JetBrains Mono' },
+          maxTicksLimit: 5,
+        },
+        border: { display: false },
+      },
     },
-  },
-  animation: { duration: 350 },
-  maintainAspectRatio: false,
-  responsive: true,
-};
+    animation: { duration: 350 },
+    maintainAspectRatio: false,
+    responsive: true,
+  };
+}
+
+export const chartDefaults: ChartOptions = getChartDefaults();

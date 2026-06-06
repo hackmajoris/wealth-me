@@ -1,5 +1,5 @@
 import type { TooltipItem } from 'chart.js';
-import { chartDefaults, C } from '../../lib/chartDefaults';
+import { getChartDefaults, getChartColors, C } from '../../lib/chartDefaults';
 import { polyTrend, calcAverage } from '../../lib/trendUtils';
 import { useChart } from './useChart';
 import { MultiLineChart } from './MultiLineChart';
@@ -93,15 +93,15 @@ function MixedBarChart({
       ],
     },
     options: {
-      ...chartDefaults,
+      ...getChartDefaults(),
       interaction: { mode: 'index' as const, intersect: false },
       plugins: {
-        ...chartDefaults.plugins,
+        ...getChartDefaults().plugins,
         legend: {
           display: true,
           position: 'top' as const,
           labels: {
-            color: 'rgba(238,238,248,0.55)',
+            color: getChartColors().legendColor,
             font: { size: 11, family: 'Outfit' },
             boxWidth: 20,
             pointStyle: 'line' as const,
@@ -109,7 +109,7 @@ function MixedBarChart({
           },
         },
         tooltip: {
-          ...((chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object),
+          ...((getChartDefaults().plugins as Record<string, unknown>)['tooltip'] as object),
           mode: 'index' as const,
           intersect: false,
           callbacks: {
@@ -122,18 +122,18 @@ function MixedBarChart({
       },
       scales: {
         x: {
-          ...chartDefaults.scales?.['x'],
+          ...getChartDefaults().scales?.['x'],
           ticks: {
-            ...((chartDefaults.scales?.['x'] as Record<string, unknown>)?.['ticks'] as object),
+            ...((getChartDefaults().scales?.['x'] as Record<string, unknown>)?.['ticks'] as object),
             maxRotation: 44,
             minRotation: 44,
             maxTicksLimit: 100,
           },
         },
         y: {
-          ...chartDefaults.scales?.['y'],
+          ...getChartDefaults().scales?.['y'],
           ticks: {
-            ...((chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object),
+            ...((getChartDefaults().scales?.['y'] as Record<string, unknown>)?.['ticks'] as object),
             callback: (v: number | string) => {
               const n = Number(v);
               return '$' + (n >= 1000 ? (n / 1000).toFixed(0) + 'k' : n);

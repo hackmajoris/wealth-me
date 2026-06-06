@@ -1,5 +1,5 @@
 import { useChart } from './useChart';
-import { chartDefaults } from '../../lib/chartDefaults';
+import { getChartDefaults } from '../../lib/chartDefaults';
 import type { TooltipItem } from 'chart.js';
 
 interface BarChartProps {
@@ -25,11 +25,11 @@ export function BarChart({ labels, data, color, tooltipLabel = 'Invested' }: Bar
       ],
     },
     options: {
-      ...chartDefaults,
+      ...getChartDefaults(),
       plugins: {
-        ...chartDefaults.plugins,
+        ...getChartDefaults().plugins,
         tooltip: {
-          ...((chartDefaults.plugins as Record<string, unknown>)['tooltip'] as object),
+          ...((getChartDefaults().plugins as Record<string, unknown>)['tooltip'] as object),
           callbacks: {
             label: (ctx: TooltipItem<'bar'>) =>
               `${tooltipLabel}: $${Math.round(ctx.parsed.y ?? 0).toLocaleString()}`,
@@ -38,18 +38,18 @@ export function BarChart({ labels, data, color, tooltipLabel = 'Invested' }: Bar
       },
       scales: {
         x: {
-          ...chartDefaults.scales?.['x'],
+          ...getChartDefaults().scales?.['x'],
           ticks: {
-            ...((chartDefaults.scales?.['x'] as Record<string, unknown>)?.['ticks'] as object),
+            ...((getChartDefaults().scales?.['x'] as Record<string, unknown>)?.['ticks'] as object),
             maxRotation: 44,
             minRotation: 44,
             maxTicksLimit: 100,
           },
         },
         y: {
-          ...chartDefaults.scales?.['y'],
+          ...getChartDefaults().scales?.['y'],
           ticks: {
-            ...((chartDefaults.scales?.['y'] as Record<string, unknown>)?.['ticks'] as object),
+            ...((getChartDefaults().scales?.['y'] as Record<string, unknown>)?.['ticks'] as object),
             callback: (v: number | string) => {
               const n = Number(v);
               return '$' + (n >= 1000 ? (n / 1000).toFixed(0) + 'k' : n);

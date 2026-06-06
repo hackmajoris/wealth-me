@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { ChartCard } from '../components/ChartCard';
 import { TimeRange } from '../components/TimeRange';
 import { AreaChart } from '../components/charts/AreaChart';
@@ -22,15 +22,24 @@ import { type SavingsEntry } from '../lib/storage';
 import { groupByYear } from '../lib/groupByYear';
 import { YearToggle } from '../components/YearToggle';
 import {
-  api,
-  type StockData,
-  type CryptoData,
-  type BenchmarkData,
   type AssetHistoryPoint,
   type DebtHistoryPoint,
   type DebtEntry,
   type ExchangeRates,
 } from '../lib/api';
+import {
+  useStocks,
+  useCrypto,
+  useBenchmarks,
+  useSavingsList,
+  useSavingsTarget,
+  useCurrency,
+  useAssetHistory,
+  useDebtHistory,
+  useDebtEntries,
+  useExchangeRates,
+  useDebtsCurrency,
+} from '../lib/queries';
 
 const CHART_OPTS = [
   { value: 'bar', label: 'Bar' },
@@ -71,50 +80,26 @@ export function Dashboard() {
   const [savRateGrouping, setSavRateGrouping] = useState<'month' | 'year'>('month');
   const [incExpGrouping, setIncExpGrouping] = useState<'month' | 'year'>('month');
 
-  const [stockData, setStockData] = useState<StockData | null>(null);
-  const [cryptoData, setCryptoData] = useState<CryptoData | null>(null);
-  const [benchmarkData, setBenchmarkData] = useState<BenchmarkData | null>(null);
-  const [savingsEntries, setSavingsEntries] = useState<SavingsEntry[]>([]);
-  const [savingsTarget, setSavingsTarget] = useState(30);
-  const [currency, setCurrency] = useState('USD');
-  const [assetHistory, setAssetHistory] = useState<AssetHistoryPoint[]>([]);
-  const [rawDebtHistory, setRawDebtHistory] = useState<DebtHistoryPoint[]>([]);
-  const [debtEntries, setDebtEntries] = useState<DebtEntry[]>([]);
-  const [debtsCurrency, setDebtsCurrency] = useState('USD');
-  const [exchangeRates, setExchangeRates] = useState<ExchangeRates>({
-    usdToRon: 4.35,
-    eurToRon: 5.09,
-  });
+  const { data: stockData } = useStocks();
+  const { data: cryptoData } = useCrypto();
+  const { data: benchmarkData } = useBenchmarks();
+  const { data: savingsEntriesData } = useSavingsList();
+  const { data: savingsTargetData } = useSavingsTarget();
+  const { data: currencyData } = useCurrency();
+  const { data: assetHistoryData } = useAssetHistory();
+  const { data: rawDebtHistoryData } = useDebtHistory();
+  const { data: debtEntriesData } = useDebtEntries();
+  const { data: debtsCurrencyData } = useDebtsCurrency();
+  const { data: exchangeRatesData } = useExchangeRates();
 
-  useEffect(() => {
-    Promise.all([
-      api.stocks.get(),
-      api.crypto.get(),
-      api.savings.list(),
-      api.settings.getSavingsTarget(),
-      api.settings.getCurrency(),
-      api.assets.history(),
-      api.debts.history(),
-      api.debtEntries.list(),
-      api.settings.getDebtsCurrency(),
-      api.settings.getExchangeRates(),
-      api.benchmarks.get(),
-    ])
-      .then(([stocks, crypto, savs, target, curr, ah, dh, de, dc, er, bm]) => {
-        setStockData(stocks);
-        setCryptoData(crypto);
-        setBenchmarkData(bm);
-        setSavingsEntries(savs);
-        setSavingsTarget(target.value);
-        setCurrency(curr.value);
-        setAssetHistory(ah);
-        setRawDebtHistory(dh);
-        setDebtEntries(de);
-        setDebtsCurrency(dc.value);
-        setExchangeRates(er);
-      })
-      .catch(console.error);
-  }, []);
+  const savingsEntries: SavingsEntry[] = savingsEntriesData ?? [];
+  const savingsTarget = savingsTargetData?.value ?? 30;
+  const currency = currencyData?.value ?? 'USD';
+  const assetHistory: AssetHistoryPoint[] = assetHistoryData ?? [];
+  const rawDebtHistory: DebtHistoryPoint[] = rawDebtHistoryData ?? [];
+  const debtEntries: DebtEntry[] = debtEntriesData ?? [];
+  const debtsCurrency = debtsCurrencyData?.value ?? 'USD';
+  const exchangeRates: ExchangeRates = exchangeRatesData ?? { usdToRon: 4.35, eurToRon: 5.09 };
 
   const stocks = stockData ?? {
     months: [],
