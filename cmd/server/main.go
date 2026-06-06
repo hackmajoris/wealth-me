@@ -1,31 +1,27 @@
 package main
 
 import (
-	"context"
-	"database/sql"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
-	"path/filepath"
-	"strconv"
-	"strings"
-	"time"
 
-	"github.com/hackmajoris/go-finance/pkg/yahoo"
 	"github.com/hackmajoris/wealth-me/pkg/assets"
 	"github.com/hackmajoris/wealth-me/pkg/benchmarks"
+	"github.com/hackmajoris/wealth-me/pkg/config"
 	"github.com/hackmajoris/wealth-me/pkg/crypto"
+	"github.com/hackmajoris/wealth-me/pkg/database"
 	"github.com/hackmajoris/wealth-me/pkg/debts"
 	"github.com/hackmajoris/wealth-me/pkg/entries"
+	"github.com/hackmajoris/wealth-me/pkg/logger"
+	"github.com/hackmajoris/wealth-me/pkg/middleware"
+	"github.com/hackmajoris/wealth-me/pkg/month"
 	"github.com/hackmajoris/wealth-me/pkg/savings"
 	"github.com/hackmajoris/wealth-me/pkg/settings"
 	"github.com/hackmajoris/wealth-me/pkg/stocks"
 	"github.com/hackmajoris/wealth-me/pkg/upload"
 	"github.com/hackmajoris/wealth-me/pkg/web"
-	_ "github.com/mutecomm/go-sqlcipher/v4"
 )
 
 func main() {
@@ -35,54 +31,30 @@ func main() {
 	}
 }
 
-func run(args []string, out io.Writer) error {
-	// DB_PATH env var overrides default. Falls back to iCloud Drive on macOS.
-	dbPath := os.Getenv("DB_PATH")
-	if dbPath == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return fmt.Errorf("get home dir: %w", err)
-		}
-		dbDir := filepath.Join(home, "Library", "Mobile Documents", "com~apple~CloudDocs", "WealthMe")
-		if err := os.MkdirAll(dbDir, 0o755); err != nil {
-			return fmt.Errorf("create db dir: %w", err)
-		}
-		dbPath = filepath.Join(dbDir, "wealth.db")
-	} else {
-		if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
-			return fmt.Errorf("create db dir: %w", err)
-		}
-	}
+func run(_ []string, out io.Writer) error {
+	log := logger.New()
 
-	// DB_KEY enables SQLCipher AES-256 encryption. When set on an existing
-	// plaintext database it is migrated in-place on first startup.
-	dbKey := os.Getenv("DB_KEY")
-	if dbKey != "" {
-		if err := maybeEncryptExisting(dbPath, dbKey, out); err != nil {
-			return fmt.Errorf("encrypt existing db: %w", err)
-		}
-	}
-
-	db, err := sql.Open("sqlite3", buildDSN(dbPath, dbKey))
+	cfg, err := config.Load()
 	if err != nil {
-		return fmt.Errorf("open database: %w", err)
+		return err
+	}
+
+	db, err := database.Open(cfg.DBPath, cfg.DBKey, log)
+	if err != nil {
+		return err
 	}
 	defer func() { _ = db.Close() }()
 
-	if err := db.Ping(); err != nil {
-		return fmt.Errorf("ping database (wrong DB_KEY?): %w", err)
-	}
-
-	if err := migrate(db); err != nil {
+	if err := database.Migrate(db); err != nil {
 		return err
 	}
 
 	if err := fetchExchangeRates(db); err != nil {
-		_, _ = fmt.Fprintf(out, "warn: fetch exchange rates: %v\n", err)
+		log.Warn("fetch exchange rates", "err", err)
 	}
 
-	if err := initMonth(db); err != nil {
-		_, _ = fmt.Fprintf(out, "warn: init month: %v\n", err)
+	if err := month.Init(db); err != nil {
+		log.Warn("init month", "err", err)
 	}
 
 	// Wire services
@@ -101,10 +73,10 @@ func run(args []string, out io.Writer) error {
 	debtsStore := debts.New(db)
 	debtsHandler := debts.NewHandler(debtsStore)
 
-	uploadHandler := upload.NewHandler(entriesStore, savingsStore, assetsStore, debtsStore)
+	uploadHandler := upload.NewHandler(entriesStore, savingsStore, assetsStore, debtsStore, log)
 	stocksHandler := stocks.NewHandler(entriesStore)
 	cryptoHandler := crypto.NewHandler(entriesStore)
-	benchmarksHandler := benchmarks.NewHandler(db, entriesStore)
+	benchmarksHandler := benchmarks.NewHandler(db, entriesStore, log)
 
 	// Register routes (Go 1.22 method+pattern routing)
 	mux := http.NewServeMux()
@@ -141,7 +113,7 @@ func run(args []string, out io.Writer) error {
 	mux.HandleFunc("POST /api/upload/debt-history-csv", uploadHandler.HandleDebtHistoryCSV)
 
 	mux.HandleFunc("POST /api/init-month", func(w http.ResponseWriter, r *http.Request) {
-		if err := initMonth(db); err != nil {
+		if err := month.Init(db); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -179,318 +151,12 @@ func run(args []string, out io.Writer) error {
 
 	mux.Handle("/", web.Handler())
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
-	listener, err := net.Listen("tcp", ":"+port)
+	listener, err := net.Listen("tcp", ":"+cfg.Port)
 	if err != nil {
 		return fmt.Errorf("listen: %w", err)
 	}
 
-	_, _ = fmt.Fprintf(out, "Server running on http://localhost:%d\n", listener.Addr().(*net.TCPAddr).Port)
-	return http.Serve(listener, mux)
-}
-
-const moOrderSQL = `CASE mo
-	WHEN 'Jan' THEN 1 WHEN 'Feb' THEN 2 WHEN 'Mar' THEN 3 WHEN 'Apr' THEN 4
-	WHEN 'May' THEN 5 WHEN 'Jun' THEN 6 WHEN 'Jul' THEN 7 WHEN 'Aug' THEN 8
-	WHEN 'Sep' THEN 9 WHEN 'Oct' THEN 10 WHEN 'Nov' THEN 11 WHEN 'Dec' THEN 12
-	ELSE 0 END`
-
-const dateSortSQL = `CASE WHEN SUBSTR(date,5,1)='-'
-	THEN date
-	ELSE TRIM(SUBSTR(date,5))||'-'||CASE SUBSTR(date,1,3)
-		WHEN 'Jan' THEN '01' WHEN 'Feb' THEN '02' WHEN 'Mar' THEN '03'
-		WHEN 'Apr' THEN '04' WHEN 'May' THEN '05' WHEN 'Jun' THEN '06'
-		WHEN 'Jul' THEN '07' WHEN 'Aug' THEN '08' WHEN 'Sep' THEN '09'
-		WHEN 'Oct' THEN '10' WHEN 'Nov' THEN '11' WHEN 'Dec' THEN '12'
-		ELSE '00' END||'-01'
-END`
-
-var moNames = [12]string{"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}
-var moFullNames = [12]string{"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"}
-
-// initMonth ensures every category has an entry for the current month,
-// seeding it from the most recent prior month if one is missing.
-func initMonth(db *sql.DB) error {
-	now := time.Now()
-	yr := now.Year()
-	idx := int(now.Month()) - 1
-	mo := moNames[idx]
-	label := mo + " " + strconv.Itoa(yr)
-	labelFull := moFullNames[idx] + " " + strconv.Itoa(yr)
-
-	stmts := []string{
-		// entries (stocks + crypto): copy last row if current month absent
-		`INSERT OR IGNORE INTO entries
-			(month, month_full, yr, mo, crypto_invested, crypto_return, stocks_invested, stocks_return, note)
-		SELECT '` + label + `','` + labelFull + `',` + strconv.Itoa(yr) + `,'` + mo + `',
-			crypto_invested, crypto_return, stocks_invested, stocks_return, ''
-		FROM entries ORDER BY yr DESC, ` + moOrderSQL + ` DESC LIMIT 1`,
-
-		// savings: copy last row if current month absent
-		`INSERT OR IGNORE INTO savings
-			(month, month_full, yr, mo, net_income, total_expenses, savings, saving_rate, target, note)
-		SELECT '` + label + `','` + labelFull + `',` + strconv.Itoa(yr) + `,'` + mo + `',
-			net_income, total_expenses, savings, saving_rate, target, ''
-		FROM savings ORDER BY yr DESC, ` + moOrderSQL + ` DESC LIMIT 1`,
-
-		// asset_entries: copy all rows from latest month if current month absent
-		`INSERT OR IGNORE INTO asset_entries (date, name, category, amount, note)
-		SELECT '` + label + `', name, category, amount, note
-		FROM asset_entries
-		WHERE date = (
-			SELECT date FROM asset_entries ORDER BY ` + dateSortSQL + ` DESC LIMIT 1
-		)`,
-
-		// debt_entries: copy all rows from latest month if current month absent
-		`INSERT OR IGNORE INTO debt_entries (date, name, category, amount, currency, note)
-		SELECT '` + label + `', name, category, amount, currency, note
-		FROM debt_entries
-		WHERE date = (
-			SELECT date FROM debt_entries ORDER BY ` + dateSortSQL + ` DESC LIMIT 1
-		)`,
-	}
-
-	for _, stmt := range stmts {
-		if _, err := db.Exec(stmt); err != nil {
-			return fmt.Errorf("init month: %w", err)
-		}
-	}
-	return nil
-}
-
-// fetchExchangeRates fetches current exchange rates and stores them in the database.
-// Uses FetchFXRates (v8 endpoint, no crumb) so it works in Docker.
-func fetchExchangeRates(db *sql.DB) error {
-	client, err := yahoo.New()
-	if err != nil {
-		return fmt.Errorf("create yahoo client: %w", err)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	rates, err := client.FetchFXRates(ctx, []string{"EUR", "USD"}, "RON")
-	if err != nil {
-		return fmt.Errorf("fetch FX rates: %w", err)
-	}
-
-	eurRate, ok := rates["EUR"]
-	if !ok {
-		return fmt.Errorf("EUR rate missing from response")
-	}
-	usdRate, ok := rates["USD"]
-	if !ok {
-		return fmt.Errorf("USD rate missing from response")
-	}
-
-	if _, err := db.Exec(`
-		INSERT INTO settings (key, value) VALUES (?, ?)
-		ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-		"rate_eur_to_ron", eurRate); err != nil {
-		return fmt.Errorf("store EUR-RON rate: %w", err)
-	}
-
-	if _, err := db.Exec(`
-		INSERT INTO settings (key, value) VALUES (?, ?)
-		ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-		"rate_usd_to_ron", usdRate); err != nil {
-		return fmt.Errorf("store USD-RON rate: %w", err)
-	}
-
-	return nil
-}
-
-// migrate runs schema migrations. Each statement is idempotent.
-func migrate(db *sql.DB) error {
-	steps := []struct {
-		name string
-		sql  string
-	}{
-		{"entries", `CREATE TABLE IF NOT EXISTS entries (
-			id              INTEGER PRIMARY KEY AUTOINCREMENT,
-			month           TEXT    NOT NULL,
-			month_full      TEXT    NOT NULL,
-			yr              INTEGER NOT NULL,
-			mo              TEXT    NOT NULL,
-			crypto_invested REAL    NOT NULL DEFAULT 0,
-			crypto_return   REAL    NOT NULL DEFAULT 0,
-			stocks_invested REAL    NOT NULL DEFAULT 0,
-			stocks_return   REAL    NOT NULL DEFAULT 0,
-			note            TEXT    NOT NULL DEFAULT '',
-			created_at      TEXT    NOT NULL DEFAULT (datetime('now')),
-			UNIQUE(yr, mo)
-		)`},
-		{"savings", `CREATE TABLE IF NOT EXISTS savings (
-			id             INTEGER PRIMARY KEY AUTOINCREMENT,
-			month          TEXT    NOT NULL,
-			month_full     TEXT    NOT NULL,
-			yr             INTEGER NOT NULL,
-			mo             TEXT    NOT NULL,
-			net_income     REAL    NOT NULL DEFAULT 0,
-			total_expenses REAL    NOT NULL DEFAULT 0,
-			savings        REAL    NOT NULL DEFAULT 0,
-			saving_rate    REAL    NOT NULL DEFAULT 0,
-			target         REAL    NOT NULL DEFAULT 0,
-			note           TEXT    NOT NULL DEFAULT '',
-			updated_at     TEXT    NOT NULL DEFAULT (datetime('now')),
-			UNIQUE(yr, mo)
-		)`},
-		{"settings", `CREATE TABLE IF NOT EXISTS settings (
-			key          TEXT PRIMARY KEY,
-			value        REAL,
-			value_string TEXT
-		)`},
-		{"settings_add_value_string", `ALTER TABLE settings ADD COLUMN value_string TEXT`},
-		{"assets", `CREATE TABLE IF NOT EXISTS assets (
-			id             INTEGER PRIMARY KEY AUTOINCREMENT,
-			name           TEXT    NOT NULL,
-			category       TEXT    NOT NULL DEFAULT '',
-			value          REAL    NOT NULL DEFAULT 0,
-			purchase_price REAL    NOT NULL DEFAULT 0,
-			purchase_date  TEXT    NOT NULL DEFAULT '',
-			note           TEXT    NOT NULL DEFAULT '',
-			created_at     TEXT    NOT NULL DEFAULT (datetime('now')),
-			updated_at     TEXT    NOT NULL DEFAULT (datetime('now'))
-		)`},
-		{"asset_history", `CREATE TABLE IF NOT EXISTS asset_history (
-			date        TEXT PRIMARY KEY,
-			total_value REAL NOT NULL DEFAULT 0
-		)`},
-		{"debts", `CREATE TABLE IF NOT EXISTS debts (
-			id              INTEGER PRIMARY KEY AUTOINCREMENT,
-			name            TEXT    NOT NULL,
-			category        TEXT    NOT NULL DEFAULT '',
-			balance         REAL    NOT NULL DEFAULT 0,
-			credit_limit    REAL    NOT NULL DEFAULT 0,
-			interest_rate   REAL    NOT NULL DEFAULT 0,
-			minimum_payment REAL    NOT NULL DEFAULT 0,
-			note            TEXT    NOT NULL DEFAULT '',
-			created_at      TEXT    NOT NULL DEFAULT (datetime('now')),
-			updated_at      TEXT    NOT NULL DEFAULT (datetime('now'))
-		)`},
-		{"debt_entries", `CREATE TABLE IF NOT EXISTS debt_entries (
-			id         INTEGER PRIMARY KEY AUTOINCREMENT,
-			date       TEXT    NOT NULL,
-			name       TEXT    NOT NULL DEFAULT '',
-			category   TEXT    NOT NULL DEFAULT '',
-			amount     REAL    NOT NULL DEFAULT 0,
-			currency   TEXT    NOT NULL DEFAULT 'RON',
-			note       TEXT    NOT NULL DEFAULT '',
-			created_at TEXT    NOT NULL DEFAULT (datetime('now')),
-			UNIQUE(date, name)
-		)`},
-		{"debt_entries_add_currency", `ALTER TABLE debt_entries ADD COLUMN currency TEXT NOT NULL DEFAULT 'RON'`},
-		{"asset_entries", `CREATE TABLE IF NOT EXISTS asset_entries (
-			id         INTEGER PRIMARY KEY AUTOINCREMENT,
-			date       TEXT    NOT NULL,
-			name       TEXT    NOT NULL DEFAULT '',
-			category   TEXT    NOT NULL DEFAULT '',
-			amount     REAL    NOT NULL DEFAULT 0,
-			note       TEXT    NOT NULL DEFAULT '',
-			created_at TEXT    NOT NULL DEFAULT (datetime('now')),
-			UNIQUE(date, name)
-		)`},
-		{"benchmark_cache", `CREATE TABLE IF NOT EXISTS benchmark_cache (
-			symbol TEXT    NOT NULL,
-			year   INTEGER NOT NULL,
-			month  INTEGER NOT NULL,
-			close  REAL    NOT NULL DEFAULT 0,
-			PRIMARY KEY (symbol, year, month)
-		)`},
-	}
-	for _, s := range steps {
-		if _, err := db.Exec(s.sql); err != nil {
-			if strings.Contains(err.Error(), "duplicate column name") {
-				continue
-			}
-			return fmt.Errorf("migrate %s: %w", s.name, err)
-		}
-	}
-	return nil
-}
-
-// buildDSN returns a SQLite/SQLCipher DSN. Without a key it opens unencrypted.
-func buildDSN(dbPath, key string) string {
-	if key == "" {
-		return dbPath
-	}
-	return "file:" + url.PathEscape(dbPath) +
-		"?_pragma_key=" + url.QueryEscape(key) +
-		"&_pragma_cipher_page_size=4096"
-}
-
-func sqlLiteral(s string) string {
-	return strings.ReplaceAll(s, "'", "''")
-}
-
-// maybeEncryptExisting migrates a plaintext database to SQLCipher in-place.
-// It is a no-op when the file does not exist or is already encrypted.
-func maybeEncryptExisting(dbPath, key string, out io.Writer) error {
-	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
-		return nil
-	}
-
-	// Already encrypted with this key?
-	enc, err := sql.Open("sqlite3", buildDSN(dbPath, key))
-	if err != nil {
-		return err
-	}
-	pingErr := enc.Ping()
-	_ = enc.Close()
-	if pingErr == nil {
-		return nil
-	}
-
-	// Valid plaintext?
-	plain, err := sql.Open("sqlite3", dbPath)
-	if err != nil {
-		return err
-	}
-	if err := plain.Ping(); err != nil {
-		_ = plain.Close()
-		return fmt.Errorf("db is neither plaintext nor decryptable with the given DB_KEY: %w", err)
-	}
-
-	_, _ = fmt.Fprintln(out, "info: migrating database to encrypted format...")
-
-	encPath := dbPath + ".enc"
-	plain.SetMaxOpenConns(1)
-
-	ctx := context.Background()
-	conn, err := plain.Conn(ctx)
-	if err != nil {
-		_ = plain.Close()
-		return fmt.Errorf("acquire db connection: %w", err)
-	}
-
-	attachSQL := fmt.Sprintf(`ATTACH DATABASE '%s' AS enc KEY '%s'`, sqlLiteral(encPath), sqlLiteral(key))
-	_, err = conn.ExecContext(ctx, attachSQL)
-	if err == nil {
-		_, err = conn.ExecContext(ctx, `SELECT sqlcipher_export('enc')`)
-	}
-	if err == nil {
-		_, err = conn.ExecContext(ctx, `DETACH DATABASE enc`)
-	}
-	_ = conn.Close()
-	_ = plain.Close()
-
-	if err != nil {
-		_ = os.Remove(encPath)
-		return fmt.Errorf("export to encrypted db: %w", err)
-	}
-
-	if err = os.Rename(dbPath, dbPath+".bak"); err != nil {
-		_ = os.Remove(encPath)
-		return fmt.Errorf("backup original db: %w", err)
-	}
-	if err = os.Rename(encPath, dbPath); err != nil {
-		_ = os.Rename(dbPath+".bak", dbPath)
-		return fmt.Errorf("replace with encrypted db: %w", err)
-	}
-
-	_, _ = fmt.Fprintf(out, "info: migration done; original backed up at %s.bak\n", dbPath)
-	return nil
+	actualPort := listener.Addr().(*net.TCPAddr).Port
+	_, _ = fmt.Fprintf(out, "Server running on http://localhost:%d\n", actualPort)
+	return http.Serve(listener, middleware.RequestLogger(log, mux))
 }

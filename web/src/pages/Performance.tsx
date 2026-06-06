@@ -444,11 +444,10 @@ export function Performance({ showModal }: PerformanceProps) {
           ? Math.round((totalYtdGain / startOfYearPortfolioReturn) * 1000) / 10
           : 0;
 
-      // Get benchmark data
-      const benchmarkMonth = lastMonth.month;
-      const bIdx = benchmarkData ? benchmarkData.months.indexOf(benchmarkMonth) : -1;
-      const spxRoi = bIdx >= 0 ? (benchmarkData!.spxRoi[bIdx] ?? 0) : 0;
-      const nasdaqRoi = bIdx >= 0 ? (benchmarkData!.nasdaqRoi[bIdx] ?? 0) : 0;
+      // Get per-year benchmark returns from backend (Dec→Dec for complete years, Dec→latest for current).
+      const yb = benchmarkData?.yearlyBenchmarks?.[String(year)];
+      const spxRoi = yb?.spxReturn != null ? Math.round(yb.spxReturn * 10) / 10 : 0;
+      const nasdaqRoi = yb?.nasdaqReturn != null ? Math.round(yb.nasdaqReturn * 10) / 10 : 0;
 
       // Calculate metrics
       const monthCount = yearData.length;

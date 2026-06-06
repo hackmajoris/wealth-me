@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"sort"
 	"sync"
@@ -25,11 +26,12 @@ var moNames = [...]string{"", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "
 type Handler struct {
 	db    *sql.DB
 	store *entries.Store
+	log   *slog.Logger
 }
 
 // NewHandler creates a new benchmarks handler.
-func NewHandler(db *sql.DB, store *entries.Store) *Handler {
-	return &Handler{db: db, store: store}
+func NewHandler(db *sql.DB, store *entries.Store, log *slog.Logger) *Handler {
+	return &Handler{db: db, store: store, log: log}
 }
 
 type ym struct{ yr, mo int }
@@ -109,8 +111,30 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Also ensure December closes for year boundaries:
+	// Dec of each past year (for Dec→Dec annual returns) and Dec of (firstYear-1) as baseline.
+	firstYr := yms[0].yr
+	uniqueYears := map[int]bool{}
+	for _, k := range yms {
+		uniqueYears[k.yr] = true
+	}
+	decBoundaries := map[int]bool{firstYr - 1: true}
+	for yr := range uniqueYears {
+		if yr < curYr {
+			decBoundaries[yr] = true
+		}
+	}
+	for yr := range decBoundaries {
+		for _, sym := range symbols {
+			if _, ok := cached[cacheKey{sym, yr, 12}]; !ok {
+				missing = append(missing, fetchJob{sym, yr, 12})
+			}
+		}
+	}
+
 	// Fetch via FetchMonthlyBar (v8 endpoint, no crumb, works in Docker).
 	if len(missing) > 0 {
+		h.log.Debug("fetching benchmark data from yahoo", "missing", len(missing))
 		client, clientErr := yahoo.New()
 		if clientErr == nil {
 			ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
@@ -136,7 +160,11 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 
 			// Persist successful fetches; fall back to cached value on failure.
 			for res := range ch {
-				if res.err != nil || res.close == 0 {
+				if res.err != nil {
+					h.log.Warn("benchmark fetch failed", "symbol", res.job.sym, "yr", res.job.yr, "mo", res.job.mo, "err", res.err)
+					continue
+				}
+				if res.close == 0 {
 					continue
 				}
 				cached[cacheKey{res.job.sym, res.job.yr, res.job.mo}] = res.close
@@ -147,7 +175,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Build response: cumulative ROI from first month's close.
+	// Build monthly response: cumulative ROI from first month's close (used by line charts).
 	months := make([]string, len(yms))
 	spxRoi := make([]*float64, len(yms))
 	nasdaqRoi := make([]*float64, len(yms))
@@ -174,10 +202,50 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Build per-year benchmark returns: Dec(Y-1)→Dec(Y) for complete years,
+	// Dec(Y-1)→latest for current year.
+	yearlyBenchmarks := make(map[string]YearlyBenchmark, len(uniqueYears))
+	for yr := range uniqueYears {
+		prevDecSPX := cached[cacheKey{"^GSPC", yr - 1, 12}]
+		prevDecNasdaq := cached[cacheKey{"^IXIC", yr - 1, 12}]
+
+		var endSPX, endNasdaq float64
+		if yr < curYr {
+			endSPX = cached[cacheKey{"^GSPC", yr, 12}]
+			endNasdaq = cached[cacheKey{"^IXIC", yr, 12}]
+		} else {
+			// Current year: walk back from current month to find latest cached close.
+			for mo := curMo; mo >= 1; mo-- {
+				if c := cached[cacheKey{"^GSPC", yr, mo}]; c > 0 {
+					endSPX = c
+					break
+				}
+			}
+			for mo := curMo; mo >= 1; mo-- {
+				if c := cached[cacheKey{"^IXIC", yr, mo}]; c > 0 {
+					endNasdaq = c
+					break
+				}
+			}
+		}
+
+		yb := YearlyBenchmark{}
+		if endSPX > 0 && prevDecSPX > 0 {
+			v := (endSPX/prevDecSPX - 1) * 100
+			yb.SPXReturn = &v
+		}
+		if endNasdaq > 0 && prevDecNasdaq > 0 {
+			v := (endNasdaq/prevDecNasdaq - 1) * 100
+			yb.NasdaqReturn = &v
+		}
+		yearlyBenchmarks[fmt.Sprintf("%d", yr)] = yb
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(&BenchmarkData{ //nolint:errcheck
-		Months:    months,
-		SPXRoi:    spxRoi,
-		NasdaqRoi: nasdaqRoi,
+		Months:           months,
+		SPXRoi:           spxRoi,
+		NasdaqRoi:        nasdaqRoi,
+		YearlyBenchmarks: yearlyBenchmarks,
 	})
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -35,11 +36,12 @@ type Handler struct {
 	savings *savings.Store
 	assets  *assets.Store
 	debts   *debts.Store
+	log     *slog.Logger
 }
 
 // NewHandler creates a new Handler.
-func NewHandler(entriesStore *entries.Store, savingsStore *savings.Store, assetsStore *assets.Store, debtsStore *debts.Store) *Handler {
-	return &Handler{entries: entriesStore, savings: savingsStore, assets: assetsStore, debts: debtsStore}
+func NewHandler(entriesStore *entries.Store, savingsStore *savings.Store, assetsStore *assets.Store, debtsStore *debts.Store, log *slog.Logger) *Handler {
+	return &Handler{entries: entriesStore, savings: savingsStore, assets: assetsStore, debts: debtsStore, log: log}
 }
 
 // HandleCSVTemplate responds with a downloadable CSV template.
@@ -149,6 +151,7 @@ func (h *Handler) HandleCSV(w http.ResponseWriter, r *http.Request) {
 	if imported == nil {
 		imported = []entries.Entry{}
 	}
+	h.log.Info("csv imported", "type", "entries", "rows", len(imported))
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(imported) //nolint:errcheck
@@ -258,6 +261,7 @@ func (h *Handler) HandleSavingsCSV(w http.ResponseWriter, r *http.Request) {
 	if imported == nil {
 		imported = []savings.Entry{}
 	}
+	h.log.Info("csv imported", "type", "savings", "rows", len(imported))
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(imported) //nolint:errcheck
@@ -337,6 +341,7 @@ func (h *Handler) HandleAssetHistoryCSV(w http.ResponseWriter, r *http.Request) 
 		count++
 	}
 
+	h.log.Info("csv imported", "type", "asset-entries", "rows", count)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]int{"imported": count}) //nolint:errcheck
@@ -409,6 +414,7 @@ func (h *Handler) HandleDebtHistoryCSV(w http.ResponseWriter, r *http.Request) {
 		count++
 	}
 
+	h.log.Info("csv imported", "type", "debt-entries", "rows", count)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]int{"imported": count}) //nolint:errcheck
