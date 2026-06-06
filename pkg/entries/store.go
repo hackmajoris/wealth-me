@@ -54,7 +54,7 @@ func (s *Store) List() ([]Entry, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list entries: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var out []Entry
 	for rows.Next() {

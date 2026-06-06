@@ -27,7 +27,7 @@ func (h *spaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		r.URL.Path = "/"
 	} else {
-		f.Close()
+		_ = f.Close()
 	}
 	http.FileServer(h.fs).ServeHTTP(w, r)
 }

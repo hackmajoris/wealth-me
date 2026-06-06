@@ -113,7 +113,9 @@ const wealthAnnotationsPlugin: Plugin = {
     const x = scales['x'];
     const y = scales['y'];
     if (!x || !y) return;
-    events.forEach((ev) => {
+    const numSlots = 4;
+    const slotH = ((y.bottom - y.top) * 0.55) / numSlots;
+    events.forEach((ev, evIndex) => {
       const labels = chart.data.labels as string[] | undefined;
       const idx = labels ? labels.indexOf(ev.month) : -1;
       if (idx === -1) return;
@@ -133,7 +135,7 @@ const wealthAnnotationsPlugin: Plugin = {
         const tw = ctx.measureText(label).width;
         const pad = 4;
         const lx = Math.min(xPos + 4, chart.width - tw - 12);
-        const ly = y.top + 6;
+        const ly = y.top + 6 + (evIndex % numSlots) * slotH;
         const rw = tw + pad * 2,
           rh = 16,
           r = 3;

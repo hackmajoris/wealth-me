@@ -16,6 +16,7 @@ import (
 
 	"github.com/hackmajoris/go-finance/pkg/yahoo"
 	"github.com/hackmajoris/wealth-me/pkg/assets"
+	"github.com/hackmajoris/wealth-me/pkg/benchmarks"
 	"github.com/hackmajoris/wealth-me/pkg/crypto"
 	"github.com/hackmajoris/wealth-me/pkg/debts"
 	"github.com/hackmajoris/wealth-me/pkg/entries"
@@ -66,7 +67,7 @@ func run(args []string, out io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("open database: %w", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if err := db.Ping(); err != nil {
 		return fmt.Errorf("ping database (wrong DB_KEY?): %w", err)
@@ -77,11 +78,11 @@ func run(args []string, out io.Writer) error {
 	}
 
 	if err := fetchExchangeRates(db); err != nil {
-		fmt.Fprintf(out, "warn: fetch exchange rates: %v\n", err)
+		_, _ = fmt.Fprintf(out, "warn: fetch exchange rates: %v\n", err)
 	}
 
 	if err := initMonth(db); err != nil {
-		fmt.Fprintf(out, "warn: init month: %v\n", err)
+		_, _ = fmt.Fprintf(out, "warn: init month: %v\n", err)
 	}
 
 	// Wire services
@@ -103,6 +104,7 @@ func run(args []string, out io.Writer) error {
 	uploadHandler := upload.NewHandler(entriesStore, savingsStore, assetsStore, debtsStore)
 	stocksHandler := stocks.NewHandler(entriesStore)
 	cryptoHandler := crypto.NewHandler(entriesStore)
+	benchmarksHandler := benchmarks.NewHandler(db, entriesStore)
 
 	// Register routes (Go 1.22 method+pattern routing)
 	mux := http.NewServeMux()
@@ -148,6 +150,7 @@ func run(args []string, out io.Writer) error {
 
 	mux.HandleFunc("GET /api/stocks", stocksHandler.Get)
 	mux.HandleFunc("GET /api/crypto", cryptoHandler.Get)
+	mux.HandleFunc("GET /api/benchmarks", benchmarksHandler.Get)
 
 	mux.HandleFunc("GET /api/assets", assetsHandler.List)
 	mux.HandleFunc("POST /api/assets", assetsHandler.Create)
@@ -185,7 +188,7 @@ func run(args []string, out io.Writer) error {
 		return fmt.Errorf("listen: %w", err)
 	}
 
-	fmt.Fprintf(out, "Server running on http://localhost:%d\n", listener.Addr().(*net.TCPAddr).Port)
+	_, _ = fmt.Fprintf(out, "Server running on http://localhost:%d\n", listener.Addr().(*net.TCPAddr).Port)
 	return http.Serve(listener, mux)
 }
 
@@ -259,6 +262,7 @@ func initMonth(db *sql.DB) error {
 }
 
 // fetchExchangeRates fetches current exchange rates and stores them in the database.
+// Uses FetchFXRates (v8 endpoint, no crumb) so it works in Docker.
 func fetchExchangeRates(db *sql.DB) error {
 	client, err := yahoo.New()
 	if err != nil {
@@ -268,30 +272,31 @@ func fetchExchangeRates(db *sql.DB) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Fetch EUR to RON
-	eurRon, err := client.GetQuote(ctx, "EUR-RON")
+	rates, err := client.FetchFXRates(ctx, []string{"EUR", "USD"}, "RON")
 	if err != nil {
-		return fmt.Errorf("fetch EUR-RON: %w", err)
+		return fmt.Errorf("fetch FX rates: %w", err)
 	}
 
-	// Fetch USD to RON
-	usdRon, err := client.GetQuote(ctx, "USD-RON")
-	if err != nil {
-		return fmt.Errorf("fetch USD-RON: %w", err)
+	eurRate, ok := rates["EUR"]
+	if !ok {
+		return fmt.Errorf("EUR rate missing from response")
+	}
+	usdRate, ok := rates["USD"]
+	if !ok {
+		return fmt.Errorf("USD rate missing from response")
 	}
 
-	// Store rates in database
 	if _, err := db.Exec(`
 		INSERT INTO settings (key, value) VALUES (?, ?)
 		ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-		"rate_eur_to_ron", eurRon.Price); err != nil {
+		"rate_eur_to_ron", eurRate); err != nil {
 		return fmt.Errorf("store EUR-RON rate: %w", err)
 	}
 
 	if _, err := db.Exec(`
 		INSERT INTO settings (key, value) VALUES (?, ?)
 		ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-		"rate_usd_to_ron", usdRon.Price); err != nil {
+		"rate_usd_to_ron", usdRate); err != nil {
 		return fmt.Errorf("store USD-RON rate: %w", err)
 	}
 
@@ -388,6 +393,13 @@ func migrate(db *sql.DB) error {
 			created_at TEXT    NOT NULL DEFAULT (datetime('now')),
 			UNIQUE(date, name)
 		)`},
+		{"benchmark_cache", `CREATE TABLE IF NOT EXISTS benchmark_cache (
+			symbol TEXT    NOT NULL,
+			year   INTEGER NOT NULL,
+			month  INTEGER NOT NULL,
+			close  REAL    NOT NULL DEFAULT 0,
+			PRIMARY KEY (symbol, year, month)
+		)`},
 	}
 	for _, s := range steps {
 		if _, err := db.Exec(s.sql); err != nil {
@@ -427,7 +439,7 @@ func maybeEncryptExisting(dbPath, key string, out io.Writer) error {
 		return err
 	}
 	pingErr := enc.Ping()
-	enc.Close()
+	_ = enc.Close()
 	if pingErr == nil {
 		return nil
 	}
@@ -438,11 +450,11 @@ func maybeEncryptExisting(dbPath, key string, out io.Writer) error {
 		return err
 	}
 	if err := plain.Ping(); err != nil {
-		plain.Close()
+		_ = plain.Close()
 		return fmt.Errorf("db is neither plaintext nor decryptable with the given DB_KEY: %w", err)
 	}
 
-	fmt.Fprintln(out, "info: migrating database to encrypted format...")
+	_, _ = fmt.Fprintln(out, "info: migrating database to encrypted format...")
 
 	encPath := dbPath + ".enc"
 	plain.SetMaxOpenConns(1)
@@ -450,7 +462,7 @@ func maybeEncryptExisting(dbPath, key string, out io.Writer) error {
 	ctx := context.Background()
 	conn, err := plain.Conn(ctx)
 	if err != nil {
-		plain.Close()
+		_ = plain.Close()
 		return fmt.Errorf("acquire db connection: %w", err)
 	}
 
@@ -462,8 +474,8 @@ func maybeEncryptExisting(dbPath, key string, out io.Writer) error {
 	if err == nil {
 		_, err = conn.ExecContext(ctx, `DETACH DATABASE enc`)
 	}
-	conn.Close()
-	plain.Close()
+	_ = conn.Close()
+	_ = plain.Close()
 
 	if err != nil {
 		_ = os.Remove(encPath)
@@ -479,6 +491,6 @@ func maybeEncryptExisting(dbPath, key string, out io.Writer) error {
 		return fmt.Errorf("replace with encrypted db: %w", err)
 	}
 
-	fmt.Fprintf(out, "info: migration done; original backed up at %s.bak\n", dbPath)
+	_, _ = fmt.Fprintf(out, "info: migration done; original backed up at %s.bak\n", dbPath)
 	return nil
 }

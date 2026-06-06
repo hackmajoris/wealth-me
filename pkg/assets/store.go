@@ -49,7 +49,7 @@ func (s *Store) List() ([]Asset, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list assets: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var out []Asset
 	for rows.Next() {
@@ -151,7 +151,7 @@ func (s *Store) GetHistory() ([]HistoryPoint, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get asset history: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []HistoryPoint
 	for rows.Next() {
 		var p HistoryPoint
@@ -176,7 +176,7 @@ func (s *Store) ListEntries(date string) ([]AssetEntry, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list asset entries: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []AssetEntry
 	for rows.Next() {
 		var e AssetEntry

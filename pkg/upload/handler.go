@@ -65,7 +65,7 @@ func (h *Handler) HandleCSV(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "missing file field", http.StatusBadRequest)
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	records, err := csv.NewReader(file).ReadAll()
 	if err != nil {
@@ -178,7 +178,7 @@ func (h *Handler) HandleSavingsCSV(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "missing file field", http.StatusBadRequest)
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	records, err := csv.NewReader(file).ReadAll()
 	if err != nil {
@@ -286,7 +286,7 @@ func (h *Handler) HandleAssetHistoryCSV(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "missing file field", http.StatusBadRequest)
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	records, err := csv.NewReader(file).ReadAll()
 	if err != nil {
@@ -364,7 +364,7 @@ func (h *Handler) HandleDebtHistoryCSV(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "missing file field", http.StatusBadRequest)
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	records, err := csv.NewReader(file).ReadAll()
 	if err != nil {

@@ -151,6 +151,18 @@ const crypto = {
   get: () => get<CryptoData>('/api/crypto'),
 };
 
+// ── /api/benchmarks ──────────────────────────────────────────────────────────
+
+export interface BenchmarkData {
+  months: string[];
+  spxRoi: (number | null)[];
+  nasdaqRoi: (number | null)[];
+}
+
+const benchmarksApi = {
+  get: () => get<BenchmarkData>('/api/benchmarks'),
+};
+
 // ── /api/settings ────────────────────────────────────────────────────────────
 
 export interface SavingsTargetSetting {
@@ -286,4 +298,5 @@ export const api = {
   debtEntries,
   assetEntries,
   initMonth,
+  benchmarks: benchmarksApi,
 };

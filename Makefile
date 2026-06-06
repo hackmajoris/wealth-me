@@ -20,7 +20,7 @@ dev: build
 		--names "server,web" \
 		--prefix-colors "cyan.bold,green.bold" \
 		--kill-others-on-fail \
-		"DB_PATH=data/wealth.db $(BIN)" \
+		"DB_PATH=data/wealth.db DB_KEY=$$DB_KEY $(BIN)" \
 		"cd web && npm run dev"
 
 clean:
@@ -60,7 +60,7 @@ web-build:
 
 # ── Docker ────────────────────────────────────────────────────────────────────
 
-up:
+up: web-build
 	docker compose up -d --build
 
 down:

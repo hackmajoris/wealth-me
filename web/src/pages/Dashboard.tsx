@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from 'react';
-import { WealthData as D } from '../data/wealthData';
 import { ChartCard } from '../components/ChartCard';
 import { TimeRange } from '../components/TimeRange';
 import { AreaChart } from '../components/charts/AreaChart';
@@ -26,6 +25,7 @@ import {
   api,
   type StockData,
   type CryptoData,
+  type BenchmarkData,
   type AssetHistoryPoint,
   type DebtHistoryPoint,
   type DebtEntry,
@@ -73,6 +73,7 @@ export function Dashboard() {
 
   const [stockData, setStockData] = useState<StockData | null>(null);
   const [cryptoData, setCryptoData] = useState<CryptoData | null>(null);
+  const [benchmarkData, setBenchmarkData] = useState<BenchmarkData | null>(null);
   const [savingsEntries, setSavingsEntries] = useState<SavingsEntry[]>([]);
   const [savingsTarget, setSavingsTarget] = useState(30);
   const [currency, setCurrency] = useState('USD');
@@ -97,10 +98,12 @@ export function Dashboard() {
       api.debtEntries.list(),
       api.settings.getDebtsCurrency(),
       api.settings.getExchangeRates(),
+      api.benchmarks.get(),
     ])
-      .then(([stocks, crypto, savs, target, curr, ah, dh, de, dc, er]) => {
+      .then(([stocks, crypto, savs, target, curr, ah, dh, de, dc, er, bm]) => {
         setStockData(stocks);
         setCryptoData(crypto);
+        setBenchmarkData(bm);
         setSavingsEntries(savs);
         setSavingsTarget(target.value);
         setCurrency(curr.value);
@@ -198,14 +201,14 @@ export function Dashboard() {
   const prevRoi = lastIdx > 0 ? combinedRoi[lastIdx - 1] : curTotalRoi;
   const roiDelta = curTotalRoi - prevRoi;
 
-  // Benchmark ROI from mock (aligned to allMonths)
+  // Benchmark ROI from API (aligned to allMonths)
   const spxSeries = allMonths.map((m) => {
-    const i = D.months.indexOf(m);
-    return i >= 0 ? D.spxRoi[i] : null;
+    const i = benchmarkData ? benchmarkData.months.indexOf(m) : -1;
+    return i >= 0 ? benchmarkData!.spxRoi[i] : null;
   });
   const nasdaqSeries = allMonths.map((m) => {
-    const i = D.months.indexOf(m);
-    return i >= 0 ? D.nasdaqRoi[i] : null;
+    const i = benchmarkData ? benchmarkData.months.indexOf(m) : -1;
+    return i >= 0 ? benchmarkData!.nasdaqRoi[i] : null;
   });
   const lastSpx = spxSeries.filter((v) => v !== null).pop() ?? 0;
 

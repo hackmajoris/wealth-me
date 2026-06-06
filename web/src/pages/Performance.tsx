@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { api, type StockData, type CryptoData } from '../lib/api';
-import { WealthData as D } from '../data/wealthData';
+import { api, type StockData, type CryptoData, type BenchmarkData } from '../lib/api';
 import { ChartCard } from '../components/ChartCard';
 import { TimeRange } from '../components/TimeRange';
 import { AreaChart } from '../components/charts/AreaChart';
@@ -134,6 +133,7 @@ export function Performance({ showModal }: PerformanceProps) {
   const [showEvents, setShowEvents] = useState(true);
   const [stockData, setStockData] = useState<StockData | null>(null);
   const [cryptoData, setCryptoData] = useState<CryptoData | null>(null);
+  const [benchmarkData, setBenchmarkData] = useState<BenchmarkData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [portfolioValueType, setPortfolioValueType] = useState<'area' | 'bar'>('area');
@@ -157,9 +157,14 @@ export function Performance({ showModal }: PerformanceProps) {
     const load = async () => {
       try {
         setLoading(true);
-        const [stocks, crypto] = await Promise.all([api.stocks.get(), api.crypto.get()]);
+        const [stocks, crypto, benchmarks] = await Promise.all([
+          api.stocks.get(),
+          api.crypto.get(),
+          api.benchmarks.get(),
+        ]);
         setStockData(stocks);
         setCryptoData(crypto);
+        setBenchmarkData(benchmarks);
         setError(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load data');
@@ -225,7 +230,7 @@ export function Performance({ showModal }: PerformanceProps) {
     return aMoIdx - bMoIdx;
   });
 
-  const months = allMonths.length > 0 ? allMonths : D.months;
+  const months = allMonths.length > 0 ? allMonths : [];
 
   // Calculate combined metrics
   const combinedReturn = months.map((m) => {
@@ -441,9 +446,9 @@ export function Performance({ showModal }: PerformanceProps) {
 
       // Get benchmark data
       const benchmarkMonth = lastMonth.month;
-      const dIdx = D.months.indexOf(benchmarkMonth);
-      const spxRoi = dIdx >= 0 ? D.spxRoi[dIdx] : 0;
-      const nasdaqRoi = dIdx >= 0 ? D.nasdaqRoi[dIdx] : 0;
+      const bIdx = benchmarkData ? benchmarkData.months.indexOf(benchmarkMonth) : -1;
+      const spxRoi = bIdx >= 0 ? (benchmarkData!.spxRoi[bIdx] ?? 0) : 0;
+      const nasdaqRoi = bIdx >= 0 ? (benchmarkData!.nasdaqRoi[bIdx] ?? 0) : 0;
 
       // Calculate metrics
       const monthCount = yearData.length;
@@ -475,7 +480,7 @@ export function Performance({ showModal }: PerformanceProps) {
     }
 
     return annualStats;
-  }, [stocks, crypto]);
+  }, [stocks, crypto, benchmarkData]);
 
   if (loading) {
     return (
@@ -538,12 +543,12 @@ export function Performance({ showModal }: PerformanceProps) {
     return si >= 0 ? stocks.roi[si] : null;
   });
   const perfSpxRoi = labels.map((m) => {
-    const i = D.months.indexOf(m);
-    return i >= 0 ? D.spxRoi[i] : null;
+    const i = benchmarkData ? benchmarkData.months.indexOf(m) : -1;
+    return i >= 0 ? benchmarkData!.spxRoi[i] : null;
   });
   const perfNasdaqRoi = labels.map((m) => {
-    const i = D.months.indexOf(m);
-    return i >= 0 ? D.nasdaqRoi[i] : null;
+    const i = benchmarkData ? benchmarkData.months.indexOf(m) : -1;
+    return i >= 0 ? benchmarkData!.nasdaqRoi[i] : null;
   });
   const perfCryptoRet = labels.map((m) => {
     const ci = crypto.months.indexOf(m);
@@ -660,17 +665,35 @@ export function Performance({ showModal }: PerformanceProps) {
             </div>
             <div className="kpi-card">
               <div className="kpi-label">vs S&P 500</div>
-              <div className={`kpi-value ${clsROI(currentCombinedRoi - D.spxRoi[D.N - 1])}`}>
-                {fmtPct(currentCombinedRoi - D.spxRoi[D.N - 1])}
-              </div>
-              <div className="kpi-change neu">Outperformance</div>
+              {(() => {
+                const lastSpx = benchmarkData
+                  ? (benchmarkData.spxRoi[benchmarkData.spxRoi.length - 1] ?? 0)
+                  : 0;
+                return (
+                  <>
+                    <div className={`kpi-value ${clsROI(currentCombinedRoi - lastSpx)}`}>
+                      {fmtPct(currentCombinedRoi - lastSpx)}
+                    </div>
+                    <div className="kpi-change neu">Outperformance</div>
+                  </>
+                );
+              })()}
             </div>
             <div className="kpi-card">
               <div className="kpi-label">vs Nasdaq</div>
-              <div className={`kpi-value ${clsROI(currentCombinedRoi - D.nasdaqRoi[D.N - 1])}`}>
-                {fmtPct(currentCombinedRoi - D.nasdaqRoi[D.N - 1])}
-              </div>
-              <div className="kpi-change neu">Outperformance</div>
+              {(() => {
+                const lastNasdaq = benchmarkData
+                  ? (benchmarkData.nasdaqRoi[benchmarkData.nasdaqRoi.length - 1] ?? 0)
+                  : 0;
+                return (
+                  <>
+                    <div className={`kpi-value ${clsROI(currentCombinedRoi - lastNasdaq)}`}>
+                      {fmtPct(currentCombinedRoi - lastNasdaq)}
+                    </div>
+                    <div className="kpi-change neu">Outperformance</div>
+                  </>
+                );
+              })()}
             </div>
           </div>
 
@@ -1354,9 +1377,9 @@ export function Performance({ showModal }: PerformanceProps) {
                           totalInv > 0 ? ((totalRet - totalInv) / totalInv) * 100 : 0;
                         const stockRoi = si >= 0 ? stocks.roi[si] : null;
                         const cryptoRoi = ci >= 0 ? crypto.roi[ci] : null;
-                        const dIdx = D.months.indexOf(m);
-                        const spxRoi = dIdx >= 0 ? D.spxRoi[dIdx] : 0;
-                        const nasdaqRoi = dIdx >= 0 ? D.nasdaqRoi[dIdx] : 0;
+                        const bIdx = benchmarkData ? benchmarkData.months.indexOf(m) : -1;
+                        const spxRoi = bIdx >= 0 ? (benchmarkData!.spxRoi[bIdx] ?? 0) : 0;
+                        const nasdaqRoi = bIdx >= 0 ? (benchmarkData!.nasdaqRoi[bIdx] ?? 0) : 0;
                         const cryptoAlloc = ci >= 0 ? crypto.allocation[ci] : 0;
                         const stocksAlloc = si >= 0 ? stocks.allocation[si] : 0;
 

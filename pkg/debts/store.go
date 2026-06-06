@@ -2,6 +2,7 @@ package debts
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 )
 
@@ -45,10 +46,14 @@ const selectSQL = `SELECT id, name, category, balance, credit_limit, interest_ra
 // List returns all debts ordered by balance descending.
 func (s *Store) List() ([]Debt, error) {
 	rows, err := s.db.Query(selectSQL + ` ORDER BY balance DESC`)
+
 	if err != nil {
 		return nil, fmt.Errorf("list debts: %w", err)
 	}
-	defer rows.Close()
+
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	var out []Debt
 	for rows.Next() {
@@ -64,7 +69,7 @@ func (s *Store) List() ([]Debt, error) {
 // Get returns the debt with the given id.
 func (s *Store) Get(id int64) (*Debt, error) {
 	d, err := scanDebt(s.db.QueryRow(selectSQL+` WHERE id = ?`, id))
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
 	if err != nil {
@@ -139,7 +144,7 @@ func (s *Store) GetHistory() ([]HistoryPoint, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get debt history: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []HistoryPoint
 	for rows.Next() {
 		var p HistoryPoint
@@ -164,7 +169,7 @@ func (s *Store) ListEntries(date string) ([]DebtEntry, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list debt entries: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []DebtEntry
 	for rows.Next() {
 		var e DebtEntry
