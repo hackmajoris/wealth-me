@@ -2,10 +2,16 @@ services:
   app:
     build: .
     ports:
-      - "8080:8080"
+      - "8099:8080"
     volumes:
       - ./data:/data
     environment:
       DB_PATH: /data/wealth.db
       DB_KEY: ${DB_KEY:-}
       PORT: "8080"
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true
