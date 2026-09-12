@@ -218,7 +218,7 @@ export function Dashboard() {
     let yr = 2021,
       mo = 0;
     while (yr < now.getFullYear() || (yr === now.getFullYear() && mo <= now.getMonth())) {
-      result.push(`${moNames[mo]} ${yr}`);
+      result.push(`${moNames[mo]} ${String(yr).slice(2)}`);
       mo++;
       if (mo > 11) {
         mo = 0;
@@ -229,10 +229,18 @@ export function Dashboard() {
   }, []);
 
   const normDate = (d: string): string => {
-    // convert ISO "2024-04-01" → "Apr 2024", leave "Apr 2024" as-is
+    // convert ISO "2024-04-01" → "Apr 24"; leave "Apr 24" / "Apr 2024" as-is except
+    // for shortening a full 4-digit year to match the app-wide "Mon YY" convention
     if (/^\d{4}-\d{2}/.test(d)) {
       const dt = new Date(d);
-      return `${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][dt.getUTCMonth()]} ${dt.getUTCFullYear()}`;
+      const mo = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][
+        dt.getUTCMonth()
+      ];
+      return `${mo} ${String(dt.getUTCFullYear()).slice(2)}`;
+    }
+    const parts = d.split(' ');
+    if (parts.length === 2 && parts[1].length === 4) {
+      return `${parts[0]} ${parts[1].slice(2)}`;
     }
     return d;
   };
@@ -334,7 +342,7 @@ export function Dashboard() {
   const fmt = getCurrencyFormatter(currency);
   const hasSavings = savingsEntries.length > 0;
 
-  const savingsLabels = chronologicalSavings.map((e) => `${e.mo} ${e.yr}`);
+  const savingsLabels = chronologicalSavings.map((e) => e.month);
   const savingsRates = chronologicalSavings.map((e) => e.savingRate);
   const savingsTargets = chronologicalSavings.map(() => savingsTarget);
   const savingsIncome = chronologicalSavings.map((e) => e.netIncome);
@@ -498,9 +506,7 @@ export function Dashboard() {
               <div className="kpi-card">
                 <div className="kpi-label">Monthly Income</div>
                 <div className="kpi-value">{fmt(latestSavings.netIncome)}</div>
-                <div className="kpi-change neu">
-                  {latestSavings.mo} {latestSavings.yr}
-                </div>
+                <div className="kpi-change neu">{latestSavings.month}</div>
               </div>
               <div className="kpi-card">
                 <div className="kpi-label">Monthly Expenses</div>

@@ -122,11 +122,12 @@ func (s *Store) UpsertHistory(label string, totalDebt float64) error {
 	return nil
 }
 
-// dateSortKey returns a SQL expression that converts both "Jan 2024" and
+// dateSortKey returns a SQL expression that converts "Jan 25", "Jan 2024" and
 // ISO "2026-04-27" date strings into a comparable "YYYY-MM-DD" text value.
 const dateSortKey = `CASE WHEN SUBSTR(date,5,1)='-'
 	THEN date
-	ELSE TRIM(SUBSTR(date,5))||'-'||CASE SUBSTR(date,1,3)
+	ELSE (CASE WHEN LENGTH(TRIM(SUBSTR(date,5)))=2 THEN '20'||TRIM(SUBSTR(date,5)) ELSE TRIM(SUBSTR(date,5)) END)
+		||'-'||CASE SUBSTR(date,1,3)
 		WHEN 'Jan' THEN '01' WHEN 'Feb' THEN '02' WHEN 'Mar' THEN '03'
 		WHEN 'Apr' THEN '04' WHEN 'May' THEN '05' WHEN 'Jun' THEN '06'
 		WHEN 'Jul' THEN '07' WHEN 'Aug' THEN '08' WHEN 'Sep' THEN '09'

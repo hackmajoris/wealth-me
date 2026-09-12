@@ -78,7 +78,7 @@ export function SavingsEntryModal({
   };
 
   return (
-    <div className="modal-backdrop" onClick={(ev) => ev.target === ev.currentTarget && onClose()}>
+    <div className="modal-backdrop">
       <div className="modal">
         <div className="modal-header">
           <div className="modal-title">{editing ? 'Edit' : 'Log'} Savings Entry</div>

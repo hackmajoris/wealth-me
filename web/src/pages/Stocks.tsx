@@ -46,7 +46,6 @@ const MONTH_NAMES = [
 interface StocksProps {
   showModal: () => void;
   entries: Entry[];
-  onDelete: (id: number) => void;
   onRefresh?: () => void;
 }
 
@@ -136,7 +135,7 @@ function ValueAndInvestedBarChart({
   return <canvas ref={ref} />;
 }
 
-export function Stocks({ showModal, entries, onDelete, onRefresh }: StocksProps) {
+export function Stocks({ showModal, entries, onRefresh }: StocksProps) {
   const [range, setRange] = useState<Range>('ALL');
   const [showEvents, setShowEvents] = useState(true);
   const [returnVsInvestedType, setReturnVsInvestedType] = useState<'area' | 'bar'>('area');
@@ -531,13 +530,6 @@ export function Stocks({ showModal, entries, onDelete, onRefresh }: StocksProps)
                                 title="Edit"
                               >
                                 ✎
-                              </button>
-                              <button
-                                onClick={() => onDelete(entry.id)}
-                                style={{ ...btnStyle, color: 'var(--text3)' }}
-                                title="Delete"
-                              >
-                                ✕
                               </button>
                             </div>
                           )}

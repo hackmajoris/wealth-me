@@ -85,10 +85,6 @@ export function App() {
       .finally(() => refreshEntries());
   }, [refreshEntries]);
 
-  const handleDeleteEntry = (id: number) => {
-    api.entries.remove(id).then(refreshEntries).catch(console.error);
-  };
-
   const showModal = () => {
     setEditEntry(undefined);
     setModalOpen(true);
@@ -104,21 +100,11 @@ export function App() {
         return <Dashboard />;
       case 'stocks':
         return (
-          <Stocks
-            showModal={showModal}
-            entries={entries}
-            onDelete={handleDeleteEntry}
-            onRefresh={refreshEntries}
-          />
+          <Stocks showModal={showModal} entries={entries} onRefresh={refreshEntries} />
         );
       case 'crypto':
         return (
-          <Crypto
-            showModal={showModal}
-            entries={entries}
-            onDelete={handleDeleteEntry}
-            onRefresh={refreshEntries}
-          />
+          <Crypto showModal={showModal} entries={entries} onRefresh={refreshEntries} />
         );
       case 'performance':
         return <Performance showModal={showModal} />;
@@ -127,7 +113,6 @@ export function App() {
           <Savings
             showModal={showModal}
             onEdit={showEditModal}
-            onDelete={handleDeleteEntry}
             savingsRefreshKey={savingsRefreshTrigger}
           />
         );

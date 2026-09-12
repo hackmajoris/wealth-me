@@ -91,7 +91,7 @@ export function EntryModal({
   };
 
   return (
-    <div className="modal-backdrop" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div className="modal-backdrop">
       <div className="modal">
         <div className="modal-header">
           <div className="modal-title">

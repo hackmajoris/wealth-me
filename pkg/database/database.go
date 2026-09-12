@@ -127,6 +127,16 @@ func Migrate(db *sql.DB) error {
 			close  REAL    NOT NULL DEFAULT 0,
 			PRIMARY KEY (symbol, year, month)
 		)`},
+		// normalize month labels to "Mon YY" (was inconsistently "Mon YYYY" for
+		// rows auto-seeded by month.Init before it matched the manual-entry format)
+		{"entries_normalize_month", `UPDATE entries SET month = SUBSTR(month,1,4) || SUBSTR(month,-2)
+			WHERE LENGTH(month) = 8`},
+		{"savings_normalize_month", `UPDATE savings SET month = SUBSTR(month,1,4) || SUBSTR(month,-2)
+			WHERE LENGTH(month) = 8`},
+		{"asset_entries_normalize_date", `UPDATE asset_entries SET date = SUBSTR(date,1,4) || SUBSTR(date,-2)
+			WHERE LENGTH(date) = 8`},
+		{"debt_entries_normalize_date", `UPDATE debt_entries SET date = SUBSTR(date,1,4) || SUBSTR(date,-2)
+			WHERE LENGTH(date) = 8`},
 	}
 	for _, s := range steps {
 		if _, err := db.Exec(s.sql); err != nil {

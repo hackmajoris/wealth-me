@@ -2,7 +2,6 @@ package crypto
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/hackmajoris/wealth-me/pkg/entries"
@@ -64,9 +63,7 @@ func aggregateData(list []entries.Entry) *CryptoData {
 	totalValue := 0.0
 
 	for _, e := range filtered {
-		// Normalize month format to "Mon YY" (e.g., "Apr 26")
-		normalizedMonth := normalizeMonth(e.Month, e.Yr, e.Mo)
-		months = append(months, normalizedMonth)
+		months = append(months, e.Month)
 		invested = append(invested, e.CryptoInvested)
 		ret = append(ret, e.CryptoReturn)
 
@@ -119,9 +116,4 @@ func calculateAllocation(list []entries.Entry) []float64 {
 		}
 	}
 	return allocation
-}
-
-func normalizeMonth(month string, yr int, mo string) string {
-	// Always return format "Mon YYYY" (e.g., "Apr 2026")
-	return mo + " " + fmt.Sprintf("%d", yr)
 }

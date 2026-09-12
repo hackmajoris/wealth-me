@@ -15,7 +15,8 @@ const moOrderSQL = `CASE mo
 
 const dateSortSQL = `CASE WHEN SUBSTR(date,5,1)='-'
 	THEN date
-	ELSE TRIM(SUBSTR(date,5))||'-'||CASE SUBSTR(date,1,3)
+	ELSE (CASE WHEN LENGTH(TRIM(SUBSTR(date,5)))=2 THEN '20'||TRIM(SUBSTR(date,5)) ELSE TRIM(SUBSTR(date,5)) END)
+		||'-'||CASE SUBSTR(date,1,3)
 		WHEN 'Jan' THEN '01' WHEN 'Feb' THEN '02' WHEN 'Mar' THEN '03'
 		WHEN 'Apr' THEN '04' WHEN 'May' THEN '05' WHEN 'Jun' THEN '06'
 		WHEN 'Jul' THEN '07' WHEN 'Aug' THEN '08' WHEN 'Sep' THEN '09'
@@ -33,8 +34,10 @@ func Init(db *sql.DB) error {
 	yr := now.Year()
 	idx := int(now.Month()) - 1
 	mo := moNames[idx]
-	label := mo + " " + strconv.Itoa(yr)
-	labelFull := moFullNames[idx] + " " + strconv.Itoa(yr)
+	yrFull := strconv.Itoa(yr)
+	label := mo + " " + yrFull[2:] // "Jul 25" — matches manual-entry convention
+	labelFull := moFullNames[idx] + " " + yrFull
+	labelDate := label // asset/debt entries use the same "Jul 25" convention
 
 	stmts := []string{
 		// entries (stocks + crypto): copy last row if current month absent
@@ -53,7 +56,7 @@ func Init(db *sql.DB) error {
 
 		// asset_entries: copy all rows from latest month if current month absent
 		`INSERT OR IGNORE INTO asset_entries (date, name, category, amount, note)
-		SELECT '` + label + `', name, category, amount, note
+		SELECT '` + labelDate + `', name, category, amount, note
 		FROM asset_entries
 		WHERE date = (
 			SELECT date FROM asset_entries ORDER BY ` + dateSortSQL + ` DESC LIMIT 1
@@ -61,7 +64,7 @@ func Init(db *sql.DB) error {
 
 		// debt_entries: copy all rows from latest month if current month absent
 		`INSERT OR IGNORE INTO debt_entries (date, name, category, amount, currency, note)
-		SELECT '` + label + `', name, category, amount, currency, note
+		SELECT '` + labelDate + `', name, category, amount, currency, note
 		FROM debt_entries
 		WHERE date = (
 			SELECT date FROM debt_entries ORDER BY ` + dateSortSQL + ` DESC LIMIT 1

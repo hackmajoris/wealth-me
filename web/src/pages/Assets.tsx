@@ -165,7 +165,9 @@ function EntryModal({ entry, currency, defaultDate, onClose, onSave }: EntryModa
   const parseDate = (dateStr: string) => {
     const parts = dateStr.split(' ');
     const mo = MO_SHORT.indexOf(parts[0]);
-    return { mo: mo >= 0 ? mo : now.getMonth(), yr: parseInt(parts[1]) || now.getFullYear() };
+    const yrRaw = parseInt(parts[1]) || now.getFullYear();
+    const yr = yrRaw < 100 ? 2000 + yrRaw : yrRaw;
+    return { mo: mo >= 0 ? mo : now.getMonth(), yr };
   };
 
   const def = entry
@@ -194,7 +196,7 @@ function EntryModal({ entry, currency, defaultDate, onClose, onSave }: EntryModa
     }
     setSaving(true);
     const body = {
-      date: `${MO_SHORT[month]} ${year}`,
+      date: `${MO_SHORT[month]} ${String(year).slice(2)}`,
       name: name.trim(),
       category,
       amount: amountN,
@@ -217,7 +219,7 @@ function EntryModal({ entry, currency, defaultDate, onClose, onSave }: EntryModa
   };
 
   return (
-    <div className="modal-backdrop" onClick={(ev) => ev.target === ev.currentTarget && onClose()}>
+    <div className="modal-backdrop">
       <div className="modal">
         <div className="modal-header">
           <div className="modal-title">{isEditing ? 'Edit' : 'Add'} Asset Entry</div>
@@ -331,12 +333,6 @@ export function Assets() {
   const refresh = () => {
     qc.invalidateQueries({ queryKey: QK.assetEntries });
     qc.invalidateQueries({ queryKey: QK.assetHistory });
-  };
-
-  const handleDelete = async (id: number) => {
-    if (!confirm('Delete this entry?')) return;
-    await api.assetEntries.remove(id).catch(console.error);
-    refresh();
   };
 
   const grouped = entries.reduce<Record<string, AssetEntry[]>>((acc, e) => {
@@ -532,12 +528,6 @@ export function Assets() {
                                 onClick={() => setModal({ type: 'edit', entry: e })}
                               >
                                 ✎
-                              </button>
-                              <button
-                                style={{ ...btnStyle, color: 'var(--red)' }}
-                                onClick={() => handleDelete(e.id)}
-                              >
-                                ✕
                               </button>
                             </td>
                           </tr>

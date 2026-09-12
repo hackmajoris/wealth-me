@@ -189,7 +189,9 @@ function EntryModal({
   const parseDate = (dateStr: string) => {
     const parts = dateStr.split(' ');
     const mo = MO_SHORT.indexOf(parts[0]);
-    return { mo: mo >= 0 ? mo : now.getMonth(), yr: parseInt(parts[1]) || now.getFullYear() };
+    const yrRaw = parseInt(parts[1]) || now.getFullYear();
+    const yr = yrRaw < 100 ? 2000 + yrRaw : yrRaw;
+    return { mo: mo >= 0 ? mo : now.getMonth(), yr };
   };
 
   const def = entry
@@ -219,7 +221,7 @@ function EntryModal({
     }
     setSaving(true);
     const body = {
-      date: `${MO_SHORT[month]} ${year}`,
+      date: `${MO_SHORT[month]} ${String(year).slice(2)}`,
       name: name.trim(),
       category,
       amount: amountN,

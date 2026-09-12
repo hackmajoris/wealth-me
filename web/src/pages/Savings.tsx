@@ -40,20 +40,18 @@ const MO_ORDER: Record<string, number> = {
 };
 
 const getMonthLabel = (entry: SavingsEntry): string => {
-  return `${entry.mo} ${entry.yr}`;
+  return entry.month;
 };
 
 interface SavingsProps {
   showModal: () => void;
   onEdit: (entry: any) => void;
-  onDelete: (id: number) => void;
   savingsRefreshKey?: number;
 }
 
 export function Savings({
   showModal: _showModal,
   onEdit: _onEdit,
-  onDelete: _onDelete,
   savingsRefreshKey: _savingsRefreshKey = 0,
 }: SavingsProps) {
   const qc = useQueryClient();
@@ -107,13 +105,6 @@ export function Savings({
     } finally {
       setIsSavingCurrency(false);
     }
-  };
-
-  const handleDeleteMonth = (entryId: number) => {
-    api.savings
-      .remove(entryId)
-      .then(() => qc.invalidateQueries({ queryKey: QK.savingsList }))
-      .catch((err) => console.error('Delete failed:', err));
   };
 
   // Calculate aggregated stats from entries
@@ -589,13 +580,6 @@ export function Savings({
                               title="Edit"
                             >
                               ✎
-                            </button>
-                            <button
-                              onClick={() => handleDeleteMonth(entry.id)}
-                              style={{ ...btnStyle, color: 'var(--text3)' }}
-                              title="Delete"
-                            >
-                              ✕
                             </button>
                           </div>
                         </td>
