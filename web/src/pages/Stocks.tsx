@@ -358,6 +358,7 @@ export function Stocks({ showModal, entries, onRefresh }: StocksProps) {
           {returnVsInvestedType === 'area' ? (
             <AreaChart
               labels={labels}
+              annotations={ann}
               datasets={[
                 {
                   label: 'Value',

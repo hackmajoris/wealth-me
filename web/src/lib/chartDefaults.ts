@@ -99,8 +99,16 @@ export const KEY_EVENTS: KeyEvent[] = [
   },
 ];
 
+// Chart labels use 2-digit years ("Mar 20"); events may use 4-digit ("Mar 2020").
+const monthKey = (m: string) => {
+  const [mo, yr] = m.split(' ');
+  return `${mo} ${(yr ?? '').slice(-2)}`;
+};
+const eventIndex = (labels: string[], ev: KeyEvent) =>
+  labels.findIndex((l) => monthKey(l) === monthKey(ev.month));
+
 export function buildAnnotations(labels: string[], showEvents: boolean): KeyEvent[] {
-  return showEvents ? KEY_EVENTS.filter((ev) => labels.includes(ev.month)) : [];
+  return showEvents ? KEY_EVENTS.filter((ev) => eventIndex(labels, ev) >= 0) : [];
 }
 
 // Custom annotation plugin (no external dep)
@@ -117,7 +125,7 @@ const wealthAnnotationsPlugin: Plugin = {
     const slotH = ((y.bottom - y.top) * 0.55) / numSlots;
     events.forEach((ev, evIndex) => {
       const labels = chart.data.labels as string[] | undefined;
-      const idx = labels ? labels.indexOf(ev.month) : -1;
+      const idx = labels ? eventIndex(labels, ev) : -1;
       if (idx === -1) return;
       try {
         const xPos = x.getPixelForValue(idx);
@@ -130,7 +138,9 @@ const wealthAnnotationsPlugin: Plugin = {
         ctx.lineTo(xPos, y.bottom);
         ctx.stroke();
         ctx.setLineDash([]);
-        const label = ev.icon + ' ' + ev.label;
+        // Small cards: icon only, full labels need more height.
+        const compact = y.bottom - y.top < 150;
+        const label = compact ? ev.icon : ev.icon + ' ' + ev.label;
         ctx.font = '600 10px Outfit, sans-serif';
         const tw = ctx.measureText(label).width;
         const pad = 4;

@@ -8,6 +8,8 @@ import { calcAverage } from '../lib/trendUtils';
 import { GroupedBarChart } from '../components/charts/GroupedBarChart';
 import { SavingsRateFlexChart } from '../components/charts/SavingsRateFlexChart';
 import { IncomeExpFlexChart } from '../components/charts/IncomeExpFlexChart';
+import { EarlyRetirement } from '../components/EarlyRetirement';
+import { CompoundGrowth } from '../components/CompoundGrowth';
 import {
   fmt$,
   fmtSign$,
@@ -364,6 +366,23 @@ export function Dashboard() {
   const hasSavings = savingsEntries.length > 0;
 
   const savingsLabels = chronologicalSavings.map((e) => e.month);
+
+  // Early retirement runs in USD: savings amounts are converted from `currency`
+  // at the current rate; the portfolio is already in USD.
+  const toUsd = (v: number) =>
+    convertCurrency(v, currency, 'USD', exchangeRates.usdToRon, exchangeRates.eurToRon);
+  const savingsInUsd = chronologicalSavings.map((e) => ({
+    ...e,
+    netIncome: toUsd(e.netIncome),
+    totalExpenses: toUsd(e.totalExpenses),
+    savings: toUsd(e.savings),
+  }));
+  const portfolioUsdAt = (month: string) => {
+    const i = allMonths.indexOf(month);
+    return i >= 0 ? combinedReturn[i] : null;
+  };
+  const fmtUsd = (v: number | null) =>
+    v === null ? '—' : (v < 0 ? '-' : '') + '$' + Math.abs(Math.round(v)).toLocaleString();
   const savingsRates = chronologicalSavings.map((e) => e.savingRate);
   const savingsTargets = chronologicalSavings.map(() => savingsTarget);
   const savingsIncome = chronologicalSavings.map((e) => e.netIncome);
@@ -652,6 +671,7 @@ export function Dashboard() {
                 {portfolioValueType === 'area' ? (
                   <AreaChart
                     labels={portLabels}
+                    annotations={portAnn}
                     datasets={[
                       { label: 'Total Value', data: portReturn as number[], color: C.green },
                       { label: 'Invested', data: portInvested as number[], color: C.blue },
@@ -739,6 +759,7 @@ export function Dashboard() {
                 >
                   <MultiLineChart
                     labels={roiLabels}
+                    annotations={roiAnn}
                     datasets={[
                       { label: 'Portfolio ROI', data: roiPortfolio, color: C.green },
                       { label: 'S&P 500', data: roiSpx, color: C.orange, dashed: true },
@@ -904,6 +925,56 @@ export function Dashboard() {
                   />
                 </ChartCard>
               </div>
+            </div>
+          )}
+
+          {/* Early Retirement */}
+          {hasSavings && (
+            <div>
+              <div className="section-row" style={{ marginBottom: 10 }}>
+                <div className="section-title">Early Retirement</div>
+                <div className="page-sub" style={{ fontWeight: 400 }}>
+                  In USD · savings converted from {currency} at current rate
+                </div>
+              </div>
+              <div
+                style={{
+                  fontSize: 12,
+                  color: 'var(--text2)',
+                  lineHeight: 1.6,
+                  margin: '-4px 0 12px',
+                  maxWidth: 860,
+                }}
+              >
+                <b>Early retirement</b> (financial independence) is the point where your investments
+                can cover your yearly expenses on their own, so working becomes optional. You reach
+                it when your portfolio equals yearly expenses ÷ withdrawal rate (e.g. 25× expenses
+                at 4%). From then on you withdraw that % each year, adjusted for inflation, and
+                historically the money has lasted 30+ years.
+              </div>
+
+              <EarlyRetirement
+                entries={savingsInUsd}
+                portfolioAt={portfolioUsdAt}
+                currentPortfolio={curPortfolioValue}
+                fmt={fmtUsd}
+              />
+            </div>
+          )}
+
+          {/* Compound Growth */}
+          {allMonths.length > 0 && (
+            <div>
+              <div className="section-row" style={{ marginBottom: 10 }}>
+                <div className="section-title">Compound Growth</div>
+              </div>
+              <CompoundGrowth
+                currentValue={curPortfolioValue}
+                lastYearInvested={
+                  curTotalInvested - (combinedInvested[Math.max(0, lastIdx - 12)] ?? 0)
+                }
+                baseMonth={allMonths[lastIdx] ?? null}
+              />
             </div>
           )}
         </>

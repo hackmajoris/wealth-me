@@ -867,6 +867,7 @@ export function Performance({ showModal }: PerformanceProps) {
               {portfolioValueType === 'area' ? (
                 <AreaChart
                   labels={portLabels}
+                  annotations={portGrouping === 'month' ? ann : undefined}
                   datasets={[
                     { label: 'Total Value', data: portReturn as number[], color: C.green },
                     { label: 'Total Invested', data: portInvested as number[], color: C.blue },
@@ -917,6 +918,7 @@ export function Performance({ showModal }: PerformanceProps) {
             >
               <MultiLineChart
                 labels={roiLabels}
+                annotations={roiGrouping === 'month' ? ann : undefined}
                 datasets={[
                   { label: 'Portfolio', data: roiPortfolio, color: C.green },
                   { label: 'Crypto', data: roiCrypto, color: C.purple },

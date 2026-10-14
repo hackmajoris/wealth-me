@@ -358,6 +358,7 @@ export function Crypto({ showModal, entries, onRefresh }: CryptoProps) {
           {returnVsInvestedType === 'area' ? (
             <AreaChart
               labels={labels}
+              annotations={ann}
               datasets={[
                 {
                   label: 'Value',
