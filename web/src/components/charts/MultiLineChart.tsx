@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { useChart } from './useChart';
 import { getChartDefaults, getChartColors, type KeyEvent } from '../../lib/chartDefaults';
 import type { TooltipItem } from 'chart.js';
@@ -14,6 +15,7 @@ interface MultiLineChartProps {
   datasets: Dataset[];
   annotations?: KeyEvent[];
   valueFormat?: 'percent' | 'number';
+  chartType?: 'line' | 'bar';
 }
 
 export function MultiLineChart({
@@ -21,7 +23,14 @@ export function MultiLineChart({
   datasets,
   annotations,
   valueFormat = 'percent',
+  chartType = 'line',
 }: MultiLineChartProps) {
+  const isBar = chartType === 'bar';
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // Open scrolled to the newest months.
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
+  }, [isBar, labels.length]);
   const plugins = {
     ...getChartDefaults().plugins,
     legend: {
@@ -31,7 +40,7 @@ export function MultiLineChart({
         color: getChartColors().legendColor,
         font: { size: 11, family: 'Outfit' },
         boxWidth: 20,
-        pointStyle: 'line' as const,
+        pointStyle: isBar ? ('rect' as const) : ('line' as const),
         usePointStyle: true,
       },
     },
@@ -40,7 +49,7 @@ export function MultiLineChart({
       mode: 'index' as const,
       intersect: false,
       callbacks: {
-        label: (ctx: TooltipItem<'line'>) => {
+        label: (ctx: TooltipItem<'line' | 'bar'>) => {
           const value = ctx.parsed.y;
           if (value === null) return `${ctx.dataset.label}: —`;
           if (valueFormat === 'number')
@@ -52,20 +61,24 @@ export function MultiLineChart({
   };
 
   const ref = useChart({
-    type: 'line',
+    type: chartType,
     data: {
       labels,
       datasets: datasets.map((d) => ({
         label: d.label,
         data: d.data,
         borderColor: d.color,
-        backgroundColor: 'transparent',
-        borderWidth: 2,
+        backgroundColor: isBar ? d.color + 'aa' : 'transparent',
+        borderWidth: isBar ? 1 : 2,
+        borderRadius: isBar ? 2 : undefined,
+        // Use almost the whole month slot for the bars; default gaps make them too thin.
+        categoryPercentage: isBar ? 0.92 : undefined,
+        barPercentage: isBar ? 0.95 : undefined,
         pointRadius: 0,
         pointHoverRadius: 4,
         pointHoverBackgroundColor: d.color,
         tension: 0.4,
-        borderDash: d.dashed ? [4, 3] : [],
+        borderDash: d.dashed && !isBar ? [4, 3] : [],
       })),
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -100,5 +113,16 @@ export function MultiLineChart({
       },
     } as never,
   });
-  return <canvas ref={ref} />;
+  if (!isBar) return <canvas ref={ref} />;
+
+  // Many grouped bars get too thin to read: give each bar ~12px and let the
+  // chart scroll horizontally once that exceeds the available width.
+  const minWidth = labels.length * datasets.length * 12 + 80;
+  return (
+    <div className="chart-scroll" ref={scrollRef}>
+      <div className="chart-scroll-inner" style={{ width: `max(100%, ${minWidth}px)` }}>
+        <canvas ref={ref} />
+      </div>
+    </div>
+  );
 }

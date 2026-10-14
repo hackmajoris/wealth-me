@@ -12,6 +12,8 @@ import {
   fmt$,
   fmtSign$,
   fmtPct,
+  fmtPts,
+  fmtSign$k,
   clsROI,
   getCurrencyFormatter,
   convertCurrency,
@@ -27,6 +29,7 @@ import {
   type DebtEntry,
   type ExchangeRates,
 } from '../lib/api';
+import { benchmarkLookup, monthlyReturns, simulateDeposits } from '../lib/benchmarks';
 import {
   useStocks,
   useCrypto,
@@ -187,15 +190,22 @@ export function Dashboard() {
   const roiDelta = curTotalRoi - prevRoi;
 
   // Benchmark ROI from API (aligned to allMonths)
-  const spxSeries = allMonths.map((m) => {
-    const i = benchmarkData ? benchmarkData.months.indexOf(m) : -1;
-    return i >= 0 ? benchmarkData!.spxRoi[i] : null;
-  });
-  const nasdaqSeries = allMonths.map((m) => {
-    const i = benchmarkData ? benchmarkData.months.indexOf(m) : -1;
-    return i >= 0 ? benchmarkData!.nasdaqRoi[i] : null;
-  });
-  const lastSpx = spxSeries.filter((v) => v !== null).pop() ?? 0;
+  const benchAt = benchmarkLookup(benchmarkData);
+  const spxSeries = allMonths.map((m) => benchAt(benchmarkData?.spxRoi, m));
+  const nasdaqSeries = allMonths.map((m) => benchAt(benchmarkData?.nasdaqRoi, m));
+  const vwceSeries = allMonths.map((m) => benchAt(benchmarkData?.vwceRoi, m));
+  // ROI you'd have now if the same deposits had gone into the S&P 500 instead.
+  const spxReturns = monthlyReturns(benchmarkData, ['spxRoi']);
+  const spxIfInvested =
+    spxReturns.size > 0 && curTotalInvested > 0
+      ? (((simulateDeposits(
+          allMonths.map((m, i) => ({ month: m, invested: combinedInvested[i] })),
+          spxReturns
+        ).pop() ?? 0) -
+          curTotalInvested) /
+          curTotalInvested) *
+        100
+      : null;
 
   // ── Net Worth timeline (Jan 2021 → now) ──────────────────────────────────
   const NW_MONTHS = useMemo(() => {
@@ -233,9 +243,20 @@ export function Dashboard() {
     // for shortening a full 4-digit year to match the app-wide "Mon YY" convention
     if (/^\d{4}-\d{2}/.test(d)) {
       const dt = new Date(d);
-      const mo = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][
-        dt.getUTCMonth()
-      ];
+      const mo = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ][dt.getUTCMonth()];
       return `${mo} ${String(dt.getUTCFullYear()).slice(2)}`;
     }
     const parts = d.split(' ');
@@ -391,8 +412,13 @@ export function Dashboard() {
     roiGrouping === 'year'
       ? groupByYear(
           labels,
-          [combinedRoi.slice(start), spxSeries.slice(start), nasdaqSeries.slice(start)],
-          ['last', 'last', 'last']
+          [
+            combinedRoi.slice(start),
+            spxSeries.slice(start),
+            nasdaqSeries.slice(start),
+            vwceSeries.slice(start),
+          ],
+          ['last', 'last', 'last', 'last']
         )
       : null;
   const roiLabels = _roiGrp ? _roiGrp.years : labels;
@@ -402,6 +428,7 @@ export function Dashboard() {
   )[];
   const roiSpx = (_roiGrp ? _roiGrp.grouped[1] : spxSeries.slice(start)) as (number | null)[];
   const roiNasdaq = (_roiGrp ? _roiGrp.grouped[2] : nasdaqSeries.slice(start)) as (number | null)[];
+  const roiVwce = (_roiGrp ? _roiGrp.grouped[3] : vwceSeries.slice(start)) as (number | null)[];
   const roiAnn = roiGrouping === 'month' ? ann : undefined;
 
   const _cryptoInvGrp =
@@ -421,6 +448,8 @@ export function Dashboard() {
   const savRateLabels = _savRateGrp ? _savRateGrp.years : savingsLabels;
   const savRatesData = (_savRateGrp ? _savRateGrp.grouped[0] : savingsRates) as number[];
   const savTargetsData = (_savRateGrp ? _savRateGrp.grouped[1] : savingsTargets) as number[];
+  const savRateAvg =
+    savRatesData.length > 0 ? savRatesData.reduce((s, r) => s + r, 0) / savRatesData.length : 0;
 
   const _incExpGrp =
     incExpGrouping === 'year'
@@ -679,8 +708,12 @@ export function Dashboard() {
                 <ChartCard
                   label="ROI vs Benchmarks"
                   value={fmtPct(curTotalRoi)}
-                  change={fmtPct(curTotalRoi - (lastSpx as number)) + ' vs S&P 500'}
-                  changePositive={curTotalRoi > (lastSpx as number)}
+                  change={
+                    spxIfInvested !== null
+                      ? `${fmtPts(curTotalRoi - spxIfInvested)} · ${fmtSign$k(((curTotalRoi - spxIfInvested) / 100) * curTotalInvested)} vs S&P 500 (same deposits: ${fmtPct(spxIfInvested)})`
+                      : '—'
+                  }
+                  changePositive={spxIfInvested !== null ? curTotalRoi > spxIfInvested : null}
                   extraControls={<YearToggle value={roiGrouping} onChange={setRoiGrouping} />}
                   typeToggle={{
                     value: roiBenchmarkType,
@@ -698,7 +731,9 @@ export function Dashboard() {
                         { label: 'Portfolio ROI', data: roiPortfolio, color: C.green },
                         { label: 'S&P 500', data: roiSpx, color: C.orange, dashed: true },
                         { label: 'Nasdaq', data: roiNasdaq, color: C.yellow, dashed: true },
+                        { label: 'VWCE', data: roiVwce, color: C.red, dashed: true },
                       ]}
+                      chartType={roiBenchmarkType}
                     />
                   }
                 >
@@ -708,7 +743,9 @@ export function Dashboard() {
                       { label: 'Portfolio ROI', data: roiPortfolio, color: C.green },
                       { label: 'S&P 500', data: roiSpx, color: C.orange, dashed: true },
                       { label: 'Nasdaq', data: roiNasdaq, color: C.yellow, dashed: true },
+                      { label: 'VWCE', data: roiVwce, color: C.red, dashed: true },
                     ]}
+                    chartType={roiBenchmarkType}
                   />
                 </ChartCard>
               </div>
@@ -804,9 +841,9 @@ export function Dashboard() {
                 <ChartCard
                   label="Saving Rate Trend"
                   value={latestSavings ? latestSavings.savingRate.toFixed(1) + '%' : '—'}
-                  change={
+                  change={`${
                     vsTarget >= 0 ? `+${vsTarget}% above target` : `${vsTarget}% below target`
-                  }
+                  } · Avg ${savRateAvg.toFixed(1)}%/${savRateGrouping === 'year' ? 'yr' : 'mo'}`}
                   changePositive={vsTarget >= 0}
                   extraControls={
                     <YearToggle value={savRateGrouping} onChange={setSavRateGrouping} />

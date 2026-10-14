@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Fragment } from 'react';
 import { useStocks, useCrypto, useBenchmarks } from '../lib/queries';
 import { ChartCard } from '../components/ChartCard';
 import { TimeRange } from '../components/TimeRange';
@@ -7,10 +7,16 @@ import { MultiLineChart } from '../components/charts/MultiLineChart';
 import { GroupedBarChart } from '../components/charts/GroupedBarChart';
 import { YoYBarChart } from '../components/charts/YoYBarChart';
 import { DonutChart } from '../components/charts/DonutChart';
-import { fmt$, fmtPct, clsROI } from '../lib/formatters';
+import { fmt$, fmtPct, fmtPts, fmtSign$k, clsROI } from '../lib/formatters';
 import { sliceRange, type Range } from '../lib/ranges';
 import { buildAnnotations, C } from '../lib/chartDefaults';
 import { groupByYear } from '../lib/groupByYear';
+import {
+  benchmarkLookup,
+  monthlyReturns,
+  simulateDeposits,
+  type BenchmarkKey,
+} from '../lib/benchmarks';
 import { YearToggle } from '../components/YearToggle';
 
 interface PerformanceProps {
@@ -21,17 +27,29 @@ interface AnnualStat {
   year: number;
   months: number;
   portfolioRoi: number;
+  portfolioTwr: number | null;
+  gainOnCapital: number | null;
   yoyChange: number | null;
   cryptoRoi: number;
   stocksRoi: number;
-  spxRoi: number;
-  nasdaqRoi: number;
+  spxRoi: number | null;
+  nasdaqRoi: number | null;
+  vwceRoi: number | null;
+  indexAvg: number | null;
+  indexMixValue: number | null;
   newInvested: number;
   monthlyAvg: number;
   portfolioValue: number;
   gain: number;
   totalInvested: number;
 }
+
+// Benchmarks compared against Portfolio TWR in the heatmap.
+const BENCHMARKS = [
+  { key: 'spxRoi' as const, label: 'S&P 500', short: 'S&P' },
+  { key: 'nasdaqRoi' as const, label: 'Nasdaq', short: 'NDQ' },
+  { key: 'vwceRoi' as const, label: 'VWCE', short: 'VWCE' },
+];
 
 const annualRows = [
   {
@@ -40,6 +58,21 @@ const annualRows = [
     fmt: (v: number | null) => (v !== null ? (v >= 0 ? '+' : '') + v.toFixed(1) + '%' : '—'),
     type: 'pct',
     tooltip: '(Year Gain / Start of Year Portfolio Return) × 100',
+  },
+  {
+    key: 'portfolioTwr' as const,
+    label: 'Portfolio TWR',
+    fmt: (v: number | null) => (v !== null ? (v >= 0 ? '+' : '') + v.toFixed(1) + '%' : '—'),
+    type: 'pct',
+    tooltip:
+      'Time-weighted return: monthly returns with new money removed, chained over the year. Comparable with the indices.',
+  },
+  {
+    key: 'gainOnCapital' as const,
+    label: 'Gain / Capital',
+    fmt: (v: number | null) => (v !== null ? (v >= 0 ? '+' : '') + v.toFixed(1) + '%' : '—'),
+    type: 'pct',
+    tooltip: 'Year Gain / (Previous Year-End Value + New Invested) × 100',
   },
   {
     key: 'yoyChange' as const,
@@ -77,6 +110,20 @@ const annualRows = [
     tooltip: 'Nasdaq index benchmark performance for the period',
   },
   {
+    key: 'vwceRoi' as const,
+    label: 'VWCE',
+    fmt: (v: number | null) => (v !== null ? (v >= 0 ? '+' : '') + v.toFixed(1) + '%' : '—'),
+    type: 'pct',
+    tooltip: 'Vanguard FTSE All-World (VWCE.DE, EUR) benchmark performance for the period',
+  },
+  {
+    key: 'indexAvg' as const,
+    label: 'Index Avg',
+    fmt: (v: number | null) => (v !== null ? (v >= 0 ? '+' : '') + v.toFixed(1) + '%' : '—'),
+    type: 'pct',
+    tooltip: 'Average yearly return of S&P 500, Nasdaq and VWCE',
+  },
+  {
     key: 'newInvested' as const,
     label: 'New Invested',
     fmt: (v: number | null) => (v != null && v > 0 ? '$' + v.toLocaleString() : '$0'),
@@ -96,6 +143,14 @@ const annualRows = [
     fmt: (v: number | null) => (v != null ? '$' + (v / 1000).toFixed(1) + 'k' : '—'),
     type: 'pos',
     tooltip: 'Total portfolio value at year end = Stocks Value + Crypto Value',
+  },
+  {
+    key: 'indexMixValue' as const,
+    label: 'If in Index Avg',
+    fmt: (v: number | null) => (v != null ? '$' + (v / 1000).toFixed(1) + 'k' : '—'),
+    type: 'neu',
+    tooltip:
+      'Value at year end if every deposit had gone into an equal mix of S&P 500, Nasdaq and VWCE instead. "you vs index" is your gap in $ and in ROI points (negative = the index mix did better).',
   },
   {
     key: 'gain' as const,
@@ -236,6 +291,23 @@ export function Performance({ showModal }: PerformanceProps) {
   const currentCombinedRoi =
     currentCombinedInvested > 0 ? (currentCombinedGain / currentCombinedInvested) * 100 : 0;
 
+  // ROI you would have now if the same deposits had gone into each index instead.
+  const benchmarkCards: { key: BenchmarkKey; label: string }[] = [
+    { key: 'spxRoi', label: 'S&P 500' },
+    { key: 'nasdaqRoi', label: 'Nasdaq' },
+    { key: 'vwceRoi', label: 'VWCE' },
+  ];
+  const depositMonths = months.map((m, i) => ({ month: m, invested: combinedInvested[i] }));
+  const indexRoiNow = Object.fromEntries(
+    benchmarkCards.map(({ key }) => {
+      const returns = monthlyReturns(benchmarkData, [key]);
+      if (returns.size === 0 || currentCombinedInvested <= 0) return [key, null];
+      const values = simulateDeposits(depositMonths, returns);
+      const final = values[values.length - 1] ?? 0;
+      return [key, ((final - currentCombinedInvested) / currentCombinedInvested) * 100];
+    })
+  ) as Record<BenchmarkKey, number | null>;
+
   const { start } = sliceRange(range, months.length);
   const labels = months.slice(start);
   const ann = buildAnnotations(labels, showEvents);
@@ -358,17 +430,33 @@ export function Performance({ showModal }: PerformanceProps) {
       }
     }
 
+    // Sort each year's months chronologically up front: the per-year pass below
+    // reads the previous year's last month.
+    for (const arr of yearMap.values()) {
+      arr.sort(
+        (a, b) =>
+          (MO_ORDER_ANNUAL[a.month.split(' ')[0]] ?? -1) -
+          (MO_ORDER_ANNUAL[b.month.split(' ')[0]] ?? -1)
+      );
+    }
+
+    // Index-mix simulation: replay the actual monthly deposits into an equal-weight
+    // mix of the benchmarks and record the value at each year end.
+    const mixReturn = monthlyReturns(benchmarkData, ['spxRoi', 'nasdaqRoi', 'vwceRoi']);
+    const mixValueByYear = new Map<number, number>();
+    if (mixReturn.size > 0) {
+      const ascYears = Array.from(yearMap.keys()).sort((a, b) => a - b);
+      const flat = ascYears.flatMap((y) =>
+        yearMap.get(y)!.map((m) => ({ year: y, month: m.month, invested: m.sInv + m.cInv }))
+      );
+      const values = simulateDeposits(flat, mixReturn);
+      flat.forEach((m, i) => mixValueByYear.set(m.year, values[i]));
+    }
+
     // Sort years (newest first)
     const years = Array.from(yearMap.keys()).sort((a, b) => b - a);
     const annualStats = years.map((year) => {
       const yearData = yearMap.get(year)!;
-
-      // Sort by month to ensure we get the latest month
-      yearData.sort((a, b) => {
-        const aMo = a.month.split(' ')[0];
-        const bMo = b.month.split(' ')[0];
-        return (MO_ORDER_ANNUAL[aMo] ?? -1) - (MO_ORDER_ANNUAL[bMo] ?? -1);
-      });
 
       // Get the last month entry for that year
       const lastMonth = yearData[yearData.length - 1];
@@ -423,10 +511,46 @@ export function Performance({ showModal }: PerformanceProps) {
           ? Math.round((totalYtdGain / startOfYearPortfolioReturn) * 1000) / 10
           : 0;
 
+      // Time-weighted return: chain monthly returns with net new money removed.
+      // Flows are assumed mid-month (Modified Dietz), which keeps a large deposit
+      // into a tiny portfolio from producing absurd monthly returns.
+      let twrGrowth = 1;
+      let twrMonths = 0;
+      let prev = prevYearLastMonth;
+      for (const m of yearData) {
+        if (prev) {
+          const vPrev = prev.sReturn + prev.cReturn;
+          const flow = m.sInv + m.cInv - (prev.sInv + prev.cInv);
+          const denom = vPrev + flow / 2;
+          if (denom > 0) {
+            // A month can lose at most 100%; bad data could otherwise push the
+            // factor negative and flip the sign of the chained product.
+            twrGrowth *= Math.max(0, 1 + (m.sReturn + m.cReturn - vPrev - flow) / denom);
+            twrMonths++;
+          }
+        }
+        prev = m;
+      }
+      const portfolioTwr = twrMonths > 0 ? Math.round((twrGrowth - 1) * 1000) / 10 : null;
+
+      // Simple return on capital at work during the year.
+      const startValue = prevYearLastMonth
+        ? prevYearLastMonth.sReturn + prevYearLastMonth.cReturn
+        : 0;
+      const capital = startValue + ytdNewInvestedStocks + ytdNewInvestedCrypto;
+      const gainOnCapital = capital > 0 ? Math.round((totalYtdGain / capital) * 1000) / 10 : null;
+
       // Get per-year benchmark returns from backend (Dec→Dec for complete years, Dec→latest for current).
-      const yb = benchmarkData?.yearlyBenchmarks?.[String(year)];
-      const spxRoi = yb?.spxReturn != null ? Math.round(yb.spxReturn * 10) / 10 : 0;
-      const nasdaqRoi = yb?.nasdaqReturn != null ? Math.round(yb.nasdaqReturn * 10) / 10 : 0;
+      // Month labels carry 2-digit years ("Jan 26"); backend keys are 4-digit.
+      const yb = benchmarkData?.yearlyBenchmarks?.[String(year < 100 ? 2000 + year : year)];
+      const round1 = (v: number | null | undefined) => (v != null ? Math.round(v * 10) / 10 : null);
+      const spxRoi = round1(yb?.spxReturn);
+      const nasdaqRoi = round1(yb?.nasdaqReturn);
+      const vwceRoi = round1(yb?.vwceReturn);
+      const idx = [yb?.spxReturn, yb?.nasdaqReturn, yb?.vwceReturn].filter(
+        (v): v is number => v != null
+      );
+      const indexAvg = idx.length > 0 ? round1(idx.reduce((a, b) => a + b, 0) / idx.length) : null;
 
       // Calculate metrics
       const monthCount = yearData.length;
@@ -437,11 +561,16 @@ export function Performance({ showModal }: PerformanceProps) {
         year,
         months: monthCount,
         portfolioRoi,
+        portfolioTwr,
+        gainOnCapital,
         yoyChange: null as number | null,
         cryptoRoi,
         stocksRoi,
         spxRoi,
         nasdaqRoi,
+        vwceRoi,
+        indexAvg,
+        indexMixValue: mixValueByYear.get(year) ?? null,
         newInvested: totalNewInvested,
         monthlyAvg,
         portfolioValue: lastMonth.sReturn + lastMonth.cReturn,
@@ -459,6 +588,39 @@ export function Performance({ showModal }: PerformanceProps) {
 
     return annualStats;
   }, [stocks, crypto, benchmarkData]);
+
+  // Per year: which benchmarks returned more than the portfolio. Years without any
+  // benchmark data are left out of the comparison.
+  const beatStats = useMemo(() => {
+    const byYear = new Map<number, string[] | null>();
+    const perIndex = Object.fromEntries(BENCHMARKS.map((b) => [b.key, 0])) as Record<
+      (typeof BENCHMARKS)[number]['key'],
+      number
+    >;
+    let compared = 0;
+    let beaten = 0;
+    for (const s of stats) {
+      const available = BENCHMARKS.filter((b) => s[b.key] !== null);
+      if (available.length === 0) {
+        byYear.set(s.year, null);
+        continue;
+      }
+      if (s.portfolioTwr === null) {
+        byYear.set(s.year, null);
+        continue;
+      }
+      const twr = s.portfolioTwr;
+      const winners = available.filter((b) => (s[b.key] as number) > twr);
+      winners.forEach((b) => perIndex[b.key]++);
+      byYear.set(
+        s.year,
+        winners.map((b) => b.short)
+      );
+      compared++;
+      if (winners.length > 0) beaten++;
+    }
+    return { byYear, perIndex, compared, beaten };
+  }, [stats]);
 
   if (loading) {
     return (
@@ -520,14 +682,10 @@ export function Performance({ showModal }: PerformanceProps) {
     const si = stocks.months.indexOf(m);
     return si >= 0 ? stocks.roi[si] : null;
   });
-  const perfSpxRoi = labels.map((m) => {
-    const i = benchmarkData ? benchmarkData.months.indexOf(m) : -1;
-    return i >= 0 ? benchmarkData!.spxRoi[i] : null;
-  });
-  const perfNasdaqRoi = labels.map((m) => {
-    const i = benchmarkData ? benchmarkData.months.indexOf(m) : -1;
-    return i >= 0 ? benchmarkData!.nasdaqRoi[i] : null;
-  });
+  const benchAt = benchmarkLookup(benchmarkData);
+  const perfSpxRoi = labels.map((m) => benchAt(benchmarkData?.spxRoi, m));
+  const perfNasdaqRoi = labels.map((m) => benchAt(benchmarkData?.nasdaqRoi, m));
+  const perfVwceRoi = labels.map((m) => benchAt(benchmarkData?.vwceRoi, m));
   const perfCryptoRet = labels.map((m) => {
     const ci = crypto.months.indexOf(m);
     return ci >= 0 ? crypto.return[ci] : 0;
@@ -563,8 +721,8 @@ export function Performance({ showModal }: PerformanceProps) {
     roiGrouping === 'year'
       ? groupByYear(
           labels,
-          [perfPortfolioRoi, perfCryptoRoi, perfStocksRoi, perfSpxRoi, perfNasdaqRoi],
-          ['last', 'last', 'last', 'last', 'last']
+          [perfPortfolioRoi, perfCryptoRoi, perfStocksRoi, perfSpxRoi, perfNasdaqRoi, perfVwceRoi],
+          ['last', 'last', 'last', 'last', 'last', 'last']
         )
       : null;
   const roiLabels = _roiGrp ? _roiGrp.years : labels;
@@ -573,6 +731,7 @@ export function Performance({ showModal }: PerformanceProps) {
   const roiStocks = (_roiGrp ? _roiGrp.grouped[2] : perfStocksRoi) as (number | null)[];
   const roiSpx = (_roiGrp ? _roiGrp.grouped[3] : perfSpxRoi) as (number | null)[];
   const roiNasdaq = (_roiGrp ? _roiGrp.grouped[4] : perfNasdaqRoi) as (number | null)[];
+  const roiVwce = (_roiGrp ? _roiGrp.grouped[5] : perfVwceRoi) as (number | null)[];
 
   const _csGrp =
     cryptoStocksGrouping === 'year'
@@ -628,7 +787,7 @@ export function Performance({ showModal }: PerformanceProps) {
         </div>
       ) : (
         <>
-          <div className="kpi-grid">
+          <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
             <div className="kpi-card">
               <div className="kpi-label">Total Value</div>
               <div className="kpi-value pos">{fmt$(currentCombinedValue, true)}</div>
@@ -641,38 +800,26 @@ export function Performance({ showModal }: PerformanceProps) {
               </div>
               <div className="kpi-change neu">All time</div>
             </div>
-            <div className="kpi-card">
-              <div className="kpi-label">vs S&P 500</div>
-              {(() => {
-                const lastSpx = benchmarkData
-                  ? (benchmarkData.spxRoi[benchmarkData.spxRoi.length - 1] ?? 0)
-                  : 0;
-                return (
-                  <>
-                    <div className={`kpi-value ${clsROI(currentCombinedRoi - lastSpx)}`}>
-                      {fmtPct(currentCombinedRoi - lastSpx)}
-                    </div>
-                    <div className="kpi-change neu">Outperformance</div>
-                  </>
-                );
-              })()}
-            </div>
-            <div className="kpi-card">
-              <div className="kpi-label">vs Nasdaq</div>
-              {(() => {
-                const lastNasdaq = benchmarkData
-                  ? (benchmarkData.nasdaqRoi[benchmarkData.nasdaqRoi.length - 1] ?? 0)
-                  : 0;
-                return (
-                  <>
-                    <div className={`kpi-value ${clsROI(currentCombinedRoi - lastNasdaq)}`}>
-                      {fmtPct(currentCombinedRoi - lastNasdaq)}
-                    </div>
-                    <div className="kpi-change neu">Outperformance</div>
-                  </>
-                );
-              })()}
-            </div>
+            {benchmarkCards.map(({ key, label }) => {
+              const idxRoi = indexRoiNow[key];
+              const diff = idxRoi !== null ? currentCombinedRoi - idxRoi : null;
+              const gap$ = diff !== null ? (diff / 100) * currentCombinedInvested : null;
+              return (
+                <div
+                  className="kpi-card"
+                  key={key}
+                  title={`Your ROI minus the ROI you'd have if every deposit had gone into ${label} instead (same amounts, same months).`}
+                >
+                  <div className="kpi-label">vs {label}</div>
+                  <div className={`kpi-value ${clsROI(diff)}`}>{fmtPts(diff)}</div>
+                  <div className="kpi-change neu">
+                    {idxRoi !== null
+                      ? `${fmtSign$k(gap$)} · if in ${label}: ${fmtPct(idxRoi)}`
+                      : 'No index data'}
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           <div className="chart-grid">
@@ -741,7 +888,7 @@ export function Performance({ showModal }: PerformanceProps) {
             <ChartCard
               label="ROI vs All Benchmarks"
               value={fmtPct(currentCombinedRoi)}
-              change="Portfolio vs S&P 500, Nasdaq"
+              change="Portfolio vs S&P 500, Nasdaq, VWCE"
               changePositive={currentCombinedRoi >= 0}
               extraControls={<YearToggle value={roiGrouping} onChange={setRoiGrouping} />}
               typeToggle={{
@@ -762,7 +909,9 @@ export function Performance({ showModal }: PerformanceProps) {
                     { label: 'Stocks', data: roiStocks, color: C.blue },
                     { label: 'S&P 500', data: roiSpx, color: C.orange, dashed: true },
                     { label: 'Nasdaq', data: roiNasdaq, color: C.yellow, dashed: true },
+                    { label: 'VWCE', data: roiVwce, color: C.red, dashed: true },
                   ]}
+                  chartType={roiBenchmarkType}
                 />
               }
             >
@@ -774,7 +923,9 @@ export function Performance({ showModal }: PerformanceProps) {
                   { label: 'Stocks', data: roiStocks, color: C.blue },
                   { label: 'S&P 500', data: roiSpx, color: C.orange, dashed: true },
                   { label: 'Nasdaq', data: roiNasdaq, color: C.yellow, dashed: true },
+                  { label: 'VWCE', data: roiVwce, color: C.red, dashed: true },
                 ]}
+                chartType={roiBenchmarkType}
               />
             </ChartCard>
 
@@ -1204,6 +1355,22 @@ export function Performance({ showModal }: PerformanceProps) {
             <div className="section-row" style={{ marginBottom: 10 }}>
               <div className="section-title">Heatmap — key metrics by year</div>
             </div>
+            {beatStats.compared > 0 && (
+              <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 10 }}>
+                Portfolio beat every index in{' '}
+                <span style={{ color: C.green, fontWeight: 600 }}>
+                  {beatStats.compared - beatStats.beaten} of {beatStats.compared}
+                </span>{' '}
+                years · beaten in{' '}
+                <span style={{ color: C.red, fontWeight: 600 }}>
+                  {beatStats.beaten} of {beatStats.compared}
+                </span>
+                <span style={{ color: 'var(--text3)' }}>
+                  {' '}
+                  ({BENCHMARKS.map((b) => `${b.label} ${beatStats.perIndex[b.key]}×`).join(', ')})
+                </span>
+              </div>
+            )}
             <div className="data-table-wrap" style={{ overflowX: 'auto', marginBottom: 20 }}>
               <table className="data-table" style={{ minWidth: 700 }}>
                 <thead>
@@ -1225,88 +1392,174 @@ export function Performance({ showModal }: PerformanceProps) {
                 </thead>
                 <tbody>
                   {annualRows.map((row) => (
-                    <tr key={row.key}>
-                      <td
-                        style={{
-                          color: 'var(--text2)',
-                          fontFamily: 'Outfit',
-                          fontSize: 13,
-                          fontWeight: 500,
-                          cursor: (row as any).tooltip ? 'help' : 'default',
-                        }}
-                        onMouseEnter={(e) => {
-                          if ((row as any).tooltip) {
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            setTooltipData({
-                              text: (row as any).tooltip,
-                              x: rect.right + 10,
-                              y: rect.top,
-                            });
-                          }
-                        }}
-                        onMouseLeave={() => setTooltipData(null)}
-                      >
-                        {row.label}
-                      </td>
-                      {stats.map((s) => {
-                        const val = s[row.key as keyof AnnualStat] as number | null;
-                        const bg = heatColor(val, row.type);
-                        let col =
-                          row.type === 'pct'
-                            ? val === null
-                              ? 'var(--text3)'
-                              : val >= 0
+                    <Fragment key={row.key}>
+                      <tr>
+                        <td
+                          style={{
+                            color: 'var(--text2)',
+                            fontFamily: 'Outfit',
+                            fontSize: 13,
+                            fontWeight: 500,
+                            cursor: (row as any).tooltip ? 'help' : 'default',
+                          }}
+                          onMouseEnter={(e) => {
+                            if ((row as any).tooltip) {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setTooltipData({
+                                text: (row as any).tooltip,
+                                x: rect.right + 10,
+                                y: rect.top,
+                              });
+                            }
+                          }}
+                          onMouseLeave={() => setTooltipData(null)}
+                        >
+                          {row.label}
+                        </td>
+                        {stats.map((s) => {
+                          const val = s[row.key as keyof AnnualStat] as number | null;
+                          const bg = heatColor(val, row.type);
+                          let col =
+                            row.type === 'pct'
+                              ? val === null
+                                ? 'var(--text3)'
+                                : val >= 0
+                                  ? C.green
+                                  : C.red
+                              : row.type === 'pos'
                                 ? C.green
-                                : C.red
-                            : row.type === 'pos'
-                              ? C.green
-                              : 'var(--text2)';
+                                : 'var(--text2)';
 
-                        // For Portfolio Value, make it red if invested > value
-                        if (row.key === 'portfolioValue' && s.totalInvested > (val || 0)) {
-                          col = C.red;
-                        }
+                          // For Portfolio Value, make it red if invested > value
+                          if (row.key === 'portfolioValue' && s.totalInvested > (val || 0)) {
+                            col = C.red;
+                          }
+                          // Index mix: red when it would have beaten the real portfolio
+                          if (row.key === 'indexMixValue' && val !== null) {
+                            col = val > s.portfolioValue ? C.red : C.green;
+                          }
 
-                        return (
+                          return (
+                            <td
+                              key={s.year}
+                              style={{
+                                background: focusYear === s.year ? 'rgba(167,139,250,0.06)' : bg,
+                                color: col,
+                                fontWeight: 600,
+                                fontSize: 12,
+                                transition: 'background .15s',
+                                cursor: (row as any).tooltip ? 'help' : 'default',
+                              }}
+                              onMouseEnter={(e) => {
+                                if ((row as any).tooltip) {
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  setTooltipData({
+                                    text: (row as any).tooltip,
+                                    x: rect.right + 10,
+                                    y: rect.top,
+                                  });
+                                }
+                              }}
+                              onMouseLeave={() => setTooltipData(null)}
+                            >
+                              <div>{row.fmt(val)}</div>
+                              {row.key === 'portfolioValue' && (
+                                <div
+                                  style={{
+                                    fontSize: 9,
+                                    color: 'var(--text3)',
+                                    fontWeight: 400,
+                                    marginTop: 1,
+                                  }}
+                                >
+                                  in: ${(s.totalInvested / 1000).toFixed(1)}k
+                                </div>
+                              )}
+                              {row.key === 'indexMixValue' &&
+                                val !== null &&
+                                (() => {
+                                  // You vs index: dollars, and the ROI gap in points
+                                  // (same basis as the benchmark cards/widgets).
+                                  const gap = s.portfolioValue - val;
+                                  const pts =
+                                    s.totalInvested > 0 ? (gap / s.totalInvested) * 100 : null;
+                                  return (
+                                    <div
+                                      style={{
+                                        fontSize: 9,
+                                        color: 'var(--text3)',
+                                        fontWeight: 400,
+                                        marginTop: 1,
+                                      }}
+                                    >
+                                      <div>you: ${(s.portfolioValue / 1000).toFixed(1)}k</div>
+                                      <div>
+                                        you vs index: {fmtSign$k(gap)}
+                                        {pts !== null && ` (${fmtPts(pts)})`}
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                      {row.key === 'indexAvg' && (
+                        <tr>
                           <td
-                            key={s.year}
                             style={{
-                              background: focusYear === s.year ? 'rgba(167,139,250,0.06)' : bg,
-                              color: col,
-                              fontWeight: 600,
-                              fontSize: 12,
-                              transition: 'background .15s',
-                              cursor: (row as any).tooltip ? 'help' : 'default',
+                              color: 'var(--text2)',
+                              fontFamily: 'Outfit',
+                              fontSize: 13,
+                              fontWeight: 500,
+                              cursor: 'help',
                             }}
                             onMouseEnter={(e) => {
-                              if ((row as any).tooltip) {
-                                const rect = e.currentTarget.getBoundingClientRect();
-                                setTooltipData({
-                                  text: (row as any).tooltip,
-                                  x: rect.right + 10,
-                                  y: rect.top,
-                                });
-                              }
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setTooltipData({
+                                text: 'Indices whose yearly return beat Portfolio TWR',
+                                x: rect.right + 10,
+                                y: rect.top,
+                              });
                             }}
                             onMouseLeave={() => setTooltipData(null)}
                           >
-                            <div>{row.fmt(val)}</div>
-                            {row.key === 'portfolioValue' && (
-                              <div
+                            Beaten by
+                          </td>
+                          {stats.map((s) => {
+                            const winners = beatStats.byYear.get(s.year);
+                            return (
+                              <td
+                                key={s.year}
                                 style={{
-                                  fontSize: 9,
-                                  color: 'var(--text3)',
-                                  fontWeight: 400,
-                                  marginTop: 1,
+                                  background:
+                                    focusYear === s.year
+                                      ? 'rgba(167,139,250,0.06)'
+                                      : winners && winners.length > 0
+                                        ? 'rgba(248,113,113,0.08)'
+                                        : winners
+                                          ? 'rgba(52,211,153,0.08)'
+                                          : '',
+                                  color: !winners
+                                    ? 'var(--text3)'
+                                    : winners.length > 0
+                                      ? C.red
+                                      : C.green,
+                                  fontWeight: 600,
+                                  fontSize: 11,
                                 }}
                               >
-                                in: ${(s.totalInvested / 1000).toFixed(1)}k
-                              </div>
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
+                                {!winners
+                                  ? '—'
+                                  : winners.length > 0
+                                    ? winners.map((w) => <div key={w}>{w}</div>)
+                                    : '✓ none'}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      )}
+                    </Fragment>
                   ))}
                 </tbody>
               </table>
@@ -1355,9 +1608,8 @@ export function Performance({ showModal }: PerformanceProps) {
                           totalInv > 0 ? ((totalRet - totalInv) / totalInv) * 100 : 0;
                         const stockRoi = si >= 0 ? stocks.roi[si] : null;
                         const cryptoRoi = ci >= 0 ? crypto.roi[ci] : null;
-                        const bIdx = benchmarkData ? benchmarkData.months.indexOf(m) : -1;
-                        const spxRoi = bIdx >= 0 ? (benchmarkData!.spxRoi[bIdx] ?? 0) : 0;
-                        const nasdaqRoi = bIdx >= 0 ? (benchmarkData!.nasdaqRoi[bIdx] ?? 0) : 0;
+                        const spxRoi = benchAt(benchmarkData?.spxRoi, m);
+                        const nasdaqRoi = benchAt(benchmarkData?.nasdaqRoi, m);
                         const cryptoAlloc = ci >= 0 ? crypto.allocation[ci] : 0;
                         const stocksAlloc = si >= 0 ? stocks.allocation[si] : 0;
 

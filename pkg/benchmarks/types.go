@@ -1,10 +1,11 @@
 package benchmarks
 
-// BenchmarkData holds monthly cumulative ROI and per-year returns for S&P 500 and Nasdaq.
+// BenchmarkData holds monthly cumulative ROI and per-year returns for S&P 500, Nasdaq and VWCE.
 type BenchmarkData struct {
 	Months           []string                   `json:"months"`
 	SPXRoi           []*float64                 `json:"spxRoi"`
 	NasdaqRoi        []*float64                 `json:"nasdaqRoi"`
+	VWCERoi          []*float64                 `json:"vwceRoi"`
 	YearlyBenchmarks map[string]YearlyBenchmark `json:"yearlyBenchmarks"`
 }
 
@@ -12,4 +13,5 @@ type BenchmarkData struct {
 type YearlyBenchmark struct {
 	SPXReturn    *float64 `json:"spxReturn"`
 	NasdaqReturn *float64 `json:"nasdaqReturn"`
+	VWCEReturn   *float64 `json:"vwceReturn"`
 }

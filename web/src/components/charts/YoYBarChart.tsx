@@ -7,7 +7,7 @@ interface AnnualStat {
   portfolioRoi: number;
   cryptoRoi: number;
   stocksRoi: number | null;
-  spxRoi: number;
+  spxRoi: number | null;
 }
 
 interface YoYBarChartProps {

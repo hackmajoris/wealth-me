@@ -26,6 +26,9 @@ export function SavingsRateFlexChart({
         )
       : rates;
 
+  const avgRate = rates.length > 0 ? rates.reduce((s, r) => s + r, 0) / rates.length : 0;
+  const avgLine = rates.map(() => avgRate);
+
   const ref = useChart({
     type: chartType,
     data: {
@@ -53,6 +56,19 @@ export function SavingsRateFlexChart({
           pointRadius: 0,
           tension: 0,
           fill: false,
+          type: 'line' as const,
+        },
+        {
+          label: `Average (${avgRate.toFixed(1)}%)`,
+          data: avgLine,
+          borderColor: C.purple,
+          backgroundColor: 'transparent',
+          borderDash: [2, 3],
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0,
+          fill: false,
+          type: 'line' as const,
         },
         ...(chartType === 'line'
           ? [

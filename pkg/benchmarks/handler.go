@@ -20,6 +20,14 @@ var moMap = map[string]int{
 	"May": 5, "Jun": 6, "Jul": 7, "Aug": 8,
 	"Sep": 9, "Oct": 10, "Nov": 11, "Dec": 12,
 }
+
+// Yahoo Finance symbols for the tracked benchmarks.
+const (
+	symSPX    = "^GSPC"
+	symNasdaq = "^IXIC"
+	symVWCE   = "VWCE.DE" // Vanguard FTSE All-World UCITS ETF (Acc), Xetra, EUR
+)
+
 var moNames = [...]string{"", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}
 
 // Handler handles HTTP requests for benchmark data.
@@ -48,7 +56,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	empty := &BenchmarkData{Months: []string{}, SPXRoi: []*float64{}, NasdaqRoi: []*float64{}}
+	empty := &BenchmarkData{Months: []string{}, SPXRoi: []*float64{}, NasdaqRoi: []*float64{}, VWCERoi: []*float64{}}
 
 	if len(list) == 0 {
 		w.Header().Set("Content-Type", "application/json")
@@ -96,7 +104,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	curYr, curMo := now.Year(), int(now.Month())
 
-	symbols := []string{"^GSPC", "^IXIC"}
+	symbols := []string{symSPX, symNasdaq, symVWCE}
 	type fetchJob struct {
 		sym    string
 		yr, mo int
@@ -175,70 +183,61 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Build monthly response: cumulative ROI from first month's close (used by line charts).
+	// Build monthly response: cumulative ROI from the first available close
+	// (used by line charts and the index-mix simulation).
 	months := make([]string, len(yms))
-	spxRoi := make([]*float64, len(yms))
-	nasdaqRoi := make([]*float64, len(yms))
-
-	var spxBase, nasdaqBase float64
 	for i, k := range yms {
 		months[i] = fmt.Sprintf("%s %d", moNames[k.mo], k.yr)
-
-		spxClose := cached[cacheKey{"^GSPC", k.yr, k.mo}]
-		nasdaqClose := cached[cacheKey{"^IXIC", k.yr, k.mo}]
-
-		if i == 0 {
-			spxBase = spxClose
-			nasdaqBase = nasdaqClose
-		}
-
-		if spxClose > 0 && spxBase > 0 {
-			v := (spxClose - spxBase) / spxBase * 100
-			spxRoi[i] = &v
-		}
-		if nasdaqClose > 0 && nasdaqBase > 0 {
-			v := (nasdaqClose - nasdaqBase) / nasdaqBase * 100
-			nasdaqRoi[i] = &v
-		}
 	}
+	cumulativeRoi := func(sym string) []*float64 {
+		out := make([]*float64, len(yms))
+		var base float64
+		for i, k := range yms {
+			c := cached[cacheKey{sym, k.yr, k.mo}]
+			if base == 0 {
+				base = c
+			}
+			if c > 0 && base > 0 {
+				v := (c - base) / base * 100
+				out[i] = &v
+			}
+		}
+		return out
+	}
+	spxRoi := cumulativeRoi(symSPX)
+	nasdaqRoi := cumulativeRoi(symNasdaq)
+	vwceRoi := cumulativeRoi(symVWCE)
 
 	// Build per-year benchmark returns: Dec(Y-1)→Dec(Y) for complete years,
 	// Dec(Y-1)→latest for current year.
-	yearlyBenchmarks := make(map[string]YearlyBenchmark, len(uniqueYears))
-	for yr := range uniqueYears {
-		prevDecSPX := cached[cacheKey{"^GSPC", yr - 1, 12}]
-		prevDecNasdaq := cached[cacheKey{"^IXIC", yr - 1, 12}]
-
-		var endSPX, endNasdaq float64
+	yearlyReturn := func(sym string, yr int) *float64 {
+		prevDec := cached[cacheKey{sym, yr - 1, 12}]
+		var end float64
 		if yr < curYr {
-			endSPX = cached[cacheKey{"^GSPC", yr, 12}]
-			endNasdaq = cached[cacheKey{"^IXIC", yr, 12}]
+			end = cached[cacheKey{sym, yr, 12}]
 		} else {
 			// Current year: walk back from current month to find latest cached close.
 			for mo := curMo; mo >= 1; mo-- {
-				if c := cached[cacheKey{"^GSPC", yr, mo}]; c > 0 {
-					endSPX = c
-					break
-				}
-			}
-			for mo := curMo; mo >= 1; mo-- {
-				if c := cached[cacheKey{"^IXIC", yr, mo}]; c > 0 {
-					endNasdaq = c
+				if c := cached[cacheKey{sym, yr, mo}]; c > 0 {
+					end = c
 					break
 				}
 			}
 		}
+		if end <= 0 || prevDec <= 0 {
+			return nil
+		}
+		v := (end/prevDec - 1) * 100
+		return &v
+	}
 
-		yb := YearlyBenchmark{}
-		if endSPX > 0 && prevDecSPX > 0 {
-			v := (endSPX/prevDecSPX - 1) * 100
-			yb.SPXReturn = &v
+	yearlyBenchmarks := make(map[string]YearlyBenchmark, len(uniqueYears))
+	for yr := range uniqueYears {
+		yearlyBenchmarks[fmt.Sprintf("%d", yr)] = YearlyBenchmark{
+			SPXReturn:    yearlyReturn(symSPX, yr),
+			NasdaqReturn: yearlyReturn(symNasdaq, yr),
+			VWCEReturn:   yearlyReturn(symVWCE, yr),
 		}
-		if endNasdaq > 0 && prevDecNasdaq > 0 {
-			v := (endNasdaq/prevDecNasdaq - 1) * 100
-			yb.NasdaqReturn = &v
-		}
-		yearlyBenchmarks[fmt.Sprintf("%d", yr)] = yb
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -246,6 +245,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		Months:           months,
 		SPXRoi:           spxRoi,
 		NasdaqRoi:        nasdaqRoi,
+		VWCERoi:          vwceRoi,
 		YearlyBenchmarks: yearlyBenchmarks,
 	})
 }

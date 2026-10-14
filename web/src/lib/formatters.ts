@@ -10,6 +10,19 @@ export function fmtSign$(v: number | null): string {
   return s + '$' + Math.abs(Math.round(v)).toLocaleString();
 }
 
+/** Signed compact dollars, e.g. "-$34.7k" or "+$850". */
+export function fmtSign$k(v: number | null): string {
+  if (v === null) return '—';
+  const s = v >= 0 ? '+' : '-';
+  const a = Math.abs(v);
+  return s + '$' + (a >= 1000 ? (a / 1000).toFixed(1) + 'k' : Math.round(a).toString());
+}
+
+/** Signed difference between two percentages, in percentage points. */
+export function fmtPts(v: number | null): string {
+  return v === null ? '—' : (v >= 0 ? '+' : '') + v.toFixed(1) + ' pts';
+}
+
 export function fmtPct(v: number | null): string {
   return v === null ? '—' : (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
 }

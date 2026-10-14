@@ -47,10 +47,10 @@
   background: var(--surface-modal);
   border: 1px solid var(--border2);
   border-radius: 20px;
-  width: 88vw;
-  max-width: 1200px;
-  height: 76vh;
-  max-height: 760px;
+  width: 94vw;
+  max-width: 1600px;
+  height: 88vh;
+  max-height: 1000px;
   display: flex;
   flex-direction: column;
   box-shadow: 0 40px 100px rgba(0, 0, 0, 0.7);
@@ -214,6 +214,27 @@
   position: absolute;
   top: 0;
   left: 0;
+  width: 100% !important;
+  height: 100% !important;
+}
+/* Horizontally scrollable chart (dense bar charts) */
+.chart-scroll {
+  position: absolute;
+  inset: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.chart-modal-body .chart-scroll {
+  inset: 24px 28px 28px;
+}
+.chart-scroll-inner {
+  position: relative;
+  height: 100%;
+}
+.chart-canvas-wrap .chart-scroll canvas,
+.chart-modal-body .chart-scroll canvas {
+  position: absolute;
+  inset: 0;
   width: 100% !important;
   height: 100% !important;
 }

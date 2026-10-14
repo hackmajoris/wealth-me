@@ -156,12 +156,14 @@ const crypto = {
 export interface YearlyBenchmark {
   spxReturn: number | null;
   nasdaqReturn: number | null;
+  vwceReturn: number | null;
 }
 
 export interface BenchmarkData {
   months: string[];
   spxRoi: (number | null)[];
   nasdaqRoi: (number | null)[];
+  vwceRoi: (number | null)[];
   yearlyBenchmarks: Record<string, YearlyBenchmark>;
 }
 

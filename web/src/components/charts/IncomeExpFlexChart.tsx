@@ -65,8 +65,19 @@ export function IncomeExpFlexChart({
           mode: 'index',
           intersect: false,
           callbacks: {
+            // Labels are "Jan 25" (monthly) or "25" (yearly); expand to a 4-digit year
+            title: (items: TooltipItem<any>[]) =>
+              String(items[0]?.label ?? '').replace(/(^|\s)(\d{2})$/, '$120$2'),
             label: (ctx: TooltipItem<any>) =>
               ` ${ctx.dataset.label ?? ''}: ${Math.round(ctx.parsed.y ?? 0).toLocaleString()} lei`,
+            footer: (items: TooltipItem<any>[]) => {
+              const i = items[0]?.dataIndex;
+              if (i === undefined) return '';
+              const inc = income[i] ?? 0;
+              const diff = inc - (expenses[i] ?? 0);
+              const rate = inc !== 0 ? ` (${((diff / inc) * 100).toFixed(1)}%)` : '';
+              return `Difference: ${diff >= 0 ? '+' : ''}${Math.round(diff).toLocaleString()} lei${rate}`;
+            },
           },
         },
       },
