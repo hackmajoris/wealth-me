@@ -209,36 +209,37 @@ export function Dashboard() {
         100
       : null;
 
-  // ── Net Worth timeline (Jan 2021 → now) ──────────────────────────────────
+  // ── Net Worth timeline (first month with data → now) ─────────────────────
   const NW_MONTHS = useMemo(() => {
-    const result: string[] = [];
-    const moNames = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
+    const moNames = Object.keys(MO_ORDER);
+    // "Apr 24", "Apr 2024" or ISO "2024-04-01" → months since year 0.
+    const monthIndex = (d: string): number | null => {
+      const iso = /^(\d{4})-(\d{2})/.exec(d);
+      if (iso) return Number(iso[1]) * 12 + Number(iso[2]) - 1;
+      const [mo, yr] = d.split(' ');
+      if (!(mo in MO_ORDER) || !yr) return null;
+      const y = Number(yr.length === 2 ? `20${yr}` : yr);
+      return Number.isNaN(y) ? null : y * 12 + MO_ORDER[mo];
+    };
+    const dates = [
+      ...allMonths,
+      ...assetHistory.map((p) => p.date),
+      ...rawDebtHistory.map((p) => p.date),
     ];
+    let first = Infinity;
+    for (const d of dates) {
+      const k = monthIndex(d);
+      if (k !== null && k < first) first = k;
+    }
+    if (first === Infinity) return [];
     const now = new Date();
-    let yr = 2021,
-      mo = 0;
-    while (yr < now.getFullYear() || (yr === now.getFullYear() && mo <= now.getMonth())) {
-      result.push(`${moNames[mo]} ${String(yr).slice(2)}`);
-      mo++;
-      if (mo > 11) {
-        mo = 0;
-        yr++;
-      }
+    const last = now.getFullYear() * 12 + now.getMonth();
+    const result: string[] = [];
+    for (let k = first; k <= last; k++) {
+      result.push(`${moNames[k % 12]} ${String(Math.floor(k / 12)).slice(2)}`);
     }
     return result;
-  }, []);
+  }, [allMonths, assetHistory, rawDebtHistory]);
 
   const normDate = (d: string): string => {
     // convert ISO "2024-04-01" → "Apr 24"; leave "Apr 24" / "Apr 2024" as-is except
@@ -580,7 +581,7 @@ export function Dashboard() {
               {/* Net Worth — full width */}
               <div>
                 <div className="section-row" style={{ marginBottom: 10 }}>
-                  <div className="section-title">Net Worth · Jan 2021 – Present</div>
+                  <div className="section-title">Net Worth · {NW_MONTHS[0] ?? '—'} – Present</div>
                 </div>
                 <ChartCard
                   label="Net Worth Overview"
@@ -914,6 +915,7 @@ export function Dashboard() {
                       income={incExpIncome}
                       expenses={incExpExpenses}
                       chartType={incomeExpChartType}
+                      currency={currency}
                     />
                   }
                 >
@@ -922,6 +924,7 @@ export function Dashboard() {
                     income={incExpIncome}
                     expenses={incExpExpenses}
                     chartType={incomeExpChartType}
+                    currency={currency}
                   />
                 </ChartCard>
               </div>

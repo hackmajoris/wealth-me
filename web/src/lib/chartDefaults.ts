@@ -98,7 +98,7 @@ export const KEY_EVENTS: KeyEvent[] = [
     label: 'BTC Crash',
     color: '#fbbf24',
     icon: '★',
-    desc: 'BTC crash ~$59',
+    desc: 'BTC crash ~$59k',
   },
 ];
 

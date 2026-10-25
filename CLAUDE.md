@@ -8,7 +8,8 @@ github.com/hackmajoris/wealth-me
 - `pkg/` — all business logic; each package independently testable
 - `pkg/web/` — embeds `web/dist/` and exposes `http.Handler` for the SPA
 - `web/` — frontend app; `npm run build` outputs to `web/dist/`
-- `electron/` — Electron shell; spawns `.bin/server` and opens it in a BrowserWindow
+- `web/src/lib/demo/` — in-browser mock API + sample data for the demo build; keep in sync with `pkg/` handlers
+- `site/` — GitHub Pages landing page; `make site-build` assembles it with the demo into `dist-site/`
 
 ## Adding a New Package
 1. Create `pkg/<n>/`

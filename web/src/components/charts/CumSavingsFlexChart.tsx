@@ -2,14 +2,21 @@ import { FONT_SANS } from '../../lib/fonts';
 import { useChart } from './useChart';
 import { getChartDefaults, C } from '../../lib/chartDefaults';
 import type { TooltipItem } from 'chart.js';
+import { fmtAxisK, getCurrencyFormatter } from '../../lib/formatters';
 
 interface CumSavingsFlexChartProps {
   labels: string[];
   data: number[];
   chartType: 'line' | 'bar';
+  currency: string;
 }
 
-export function CumSavingsFlexChart({ labels, data, chartType }: CumSavingsFlexChartProps) {
+export function CumSavingsFlexChart({
+  labels,
+  data,
+  chartType,
+  currency,
+}: CumSavingsFlexChartProps) {
   const ref = useChart({
     type: chartType,
     data: {
@@ -38,7 +45,7 @@ export function CumSavingsFlexChart({ labels, data, chartType }: CumSavingsFlexC
           ...((getChartDefaults().plugins as Record<string, unknown>)['tooltip'] as object),
           callbacks: {
             label: (ctx: TooltipItem<any>) =>
-              ` Saved: ${Math.round(ctx.parsed.y ?? 0).toLocaleString()} lei`,
+              ` Saved: ${getCurrencyFormatter(currency)(ctx.parsed.y ?? 0)}`,
           },
         },
       },
@@ -58,7 +65,7 @@ export function CumSavingsFlexChart({ labels, data, chartType }: CumSavingsFlexC
           ...getChartDefaults().scales?.['y'],
           ticks: {
             ...((getChartDefaults().scales?.['y'] as Record<string, unknown>)?.['ticks'] as object),
-            callback: (v: number | string) => (Number(v) / 1000).toFixed(0) + 'k',
+            callback: (v: number | string) => fmtAxisK(currency, v),
           },
         },
       },

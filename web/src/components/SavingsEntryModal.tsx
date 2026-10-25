@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api } from '../lib/api';
 import type { SavingsEntry } from '../lib/storage';
+import { getCurrencyFormatter } from '../lib/formatters';
 
 const MONTH_NAMES = [
   'Jan',
@@ -16,13 +17,17 @@ const MONTH_NAMES = [
   'Nov',
   'Dec',
 ];
-const YEARS = Array.from({ length: 8 }, (_, i) => 2019 + i);
+// 2010 through next year, so the current year is always selectable.
+const YEARS = Array.from({ length: new Date().getFullYear() - 2010 + 2 }, (_, i) => 2010 + i);
+
+const currencyUnit = (c: string) => (c === 'EUR' ? '€' : c === 'USD' ? '$' : 'lei');
 
 interface SavingsEntryModalProps {
   entry?: SavingsEntry | null;
   onClose: () => void;
   onSave: () => void;
   globalTarget?: number;
+  currency?: string;
 }
 
 export function SavingsEntryModal({
@@ -30,10 +35,11 @@ export function SavingsEntryModal({
   onClose,
   onSave,
   globalTarget = 30,
+  currency = 'RON',
 }: SavingsEntryModalProps) {
   const editing = !!entry && entry.id > 0;
-  const [mo, setMo] = useState(entry?.mo ?? 'Apr');
-  const [yr, setYr] = useState(entry?.yr ? String(entry.yr) : '2026');
+  const [mo, setMo] = useState(entry?.mo ?? new Date().toLocaleString('en-US', { month: 'short' }));
+  const [yr, setYr] = useState(entry?.yr ? String(entry.yr) : String(new Date().getFullYear()));
   const [inc, setInc] = useState(entry?.netIncome ? String(entry.netIncome) : '');
   const [exp, setExp] = useState(entry?.totalExpenses ? String(entry.totalExpenses) : '');
   const [note, setNote] = useState(entry?.note ?? '');
@@ -115,7 +121,7 @@ export function SavingsEntryModal({
             </div>
             <div className="field-row">
               <div className="field">
-                <label>Net Income (lei)</label>
+                <label>Net Income ({currencyUnit(currency)})</label>
                 <input
                   type="number"
                   placeholder="0"
@@ -124,7 +130,7 @@ export function SavingsEntryModal({
                 />
               </div>
               <div className="field">
-                <label>Total Expenses (lei)</label>
+                <label>Total Expenses ({currencyUnit(currency)})</label>
                 <input
                   type="number"
                   placeholder="0"
@@ -137,8 +143,7 @@ export function SavingsEntryModal({
               <div className="calc-item">
                 <div className="calc-label">Saved</div>
                 <div className={`calc-value ${savV >= 0 ? 'pos' : 'neg'}`}>
-                  {savV >= 0 ? '' : '-'}
-                  {Math.abs(Math.round(savV)).toLocaleString()} lei
+                  {getCurrencyFormatter(currency)(savV)}
                 </div>
               </div>
               <div className="calc-item">

@@ -2,12 +2,14 @@ import { FONT_SANS } from '../../lib/fonts';
 import { useChart } from './useChart';
 import { getChartDefaults, getChartColors, C } from '../../lib/chartDefaults';
 import type { TooltipItem } from 'chart.js';
+import { fmtAxisK, getCurrencyFormatter, getCurrencySignFormatter } from '../../lib/formatters';
 
 interface IncomeExpFlexChartProps {
   labels: string[];
   income: number[];
   expenses: number[];
   chartType: 'line' | 'bar';
+  currency: string;
 }
 
 export function IncomeExpFlexChart({
@@ -15,6 +17,7 @@ export function IncomeExpFlexChart({
   income,
   expenses,
   chartType,
+  currency,
 }: IncomeExpFlexChartProps) {
   const ref = useChart({
     type: chartType,
@@ -70,14 +73,14 @@ export function IncomeExpFlexChart({
             title: (items: TooltipItem<any>[]) =>
               String(items[0]?.label ?? '').replace(/(^|\s)(\d{2})$/, '$120$2'),
             label: (ctx: TooltipItem<any>) =>
-              ` ${ctx.dataset.label ?? ''}: ${Math.round(ctx.parsed.y ?? 0).toLocaleString()} lei`,
+              ` ${ctx.dataset.label ?? ''}: ${getCurrencyFormatter(currency)(ctx.parsed.y ?? 0)}`,
             footer: (items: TooltipItem<any>[]) => {
               const i = items[0]?.dataIndex;
               if (i === undefined) return '';
               const inc = income[i] ?? 0;
               const diff = inc - (expenses[i] ?? 0);
               const rate = inc !== 0 ? ` (${((diff / inc) * 100).toFixed(1)}%)` : '';
-              return `Difference: ${diff >= 0 ? '+' : ''}${Math.round(diff).toLocaleString()} lei${rate}`;
+              return `Difference: ${getCurrencySignFormatter(currency)(diff)}${rate}`;
             },
           },
         },
@@ -98,7 +101,7 @@ export function IncomeExpFlexChart({
           ...getChartDefaults().scales?.['y'],
           ticks: {
             ...((getChartDefaults().scales?.['y'] as Record<string, unknown>)?.['ticks'] as object),
-            callback: (v: number | string) => (Number(v) / 1000).toFixed(0) + 'k lei',
+            callback: (v: number | string) => fmtAxisK(currency, v),
           },
         },
       },

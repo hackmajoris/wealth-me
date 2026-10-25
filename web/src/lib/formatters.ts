@@ -43,7 +43,7 @@ export function RONsign(v: number | null): string {
 
 export function EUR(v: number | null): string {
   if (v === null) return '—';
-  return '€' + Math.abs(Math.round(v)).toLocaleString();
+  return (v >= 0 ? '' : '-') + '€' + Math.abs(Math.round(v)).toLocaleString();
 }
 
 export function EURsign(v: number | null): string {
@@ -53,7 +53,7 @@ export function EURsign(v: number | null): string {
 
 export function USD(v: number | null): string {
   if (v === null) return '—';
-  return '$' + Math.abs(Math.round(v)).toLocaleString();
+  return (v >= 0 ? '' : '-') + '$' + Math.abs(Math.round(v)).toLocaleString();
 }
 
 export function USDsign(v: number | null): string {
@@ -87,6 +87,20 @@ export function fmtCompact(currency: string, v: number | null): string {
     }
   }
   return getCurrencyFormatter(currency)(v);
+}
+
+// Axis tick label in thousands, e.g. "12k lei", "$12k".
+export function fmtAxisK(currency: string, v: number | string): string {
+  const k = (Number(v) / 1000).toFixed(0);
+  switch (currency) {
+    case 'EUR':
+      return '€' + k + 'k';
+    case 'USD':
+      return '$' + k + 'k';
+    case 'RON':
+    default:
+      return k + 'k lei';
+  }
 }
 
 export function getCurrencySignFormatter(currency: string): (v: number | null) => string {

@@ -1,29 +1,20 @@
+# Build output
 .bin/
-web/node_modules/
-web/dist/
-*.env
-.idea
-pkg/web/dist
-data/pdfs
-data/blood_tests.db
-data/blood_tests.db.bk
-data/__pycache__/
-.DS_Store
-electron/bin/
-electron/dist/
-electron/node_modules/
-pkg/web/dist/*
-.playwright-mcp
-web/dist
-/wealth-me.db
-/data/wealth.db
-/data/wealth-me-template.csv
 /server
-/data/saving-rate.csv
-/data/debts.csv
-/data
+web/dist/
+web/dist-demo/
+pkg/web/dist/
+/dist-site/
+
+# Dependencies
+web/node_modules/
+
+# Local data and secrets
+/data/
+*.db
 .env
 /docker-compose.override.yml
 
-web/dist-demo/
-/dist-site/
+# Editors / OS
+.idea/
+.DS_Store

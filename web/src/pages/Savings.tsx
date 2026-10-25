@@ -133,6 +133,7 @@ export function Savings({
           onClose={() => setSavingsModal(false)}
           onSave={() => qc.invalidateQueries({ queryKey: QK.savingsList })}
           globalTarget={savingsTarget}
+          currency={currency}
         />
       )}
 
@@ -311,6 +312,7 @@ export function Savings({
                       income={ieIncome}
                       expenses={ieExp}
                       chartType={incomeExpChartType}
+                      currency={currency}
                     />
                   }
                 >
@@ -319,6 +321,7 @@ export function Savings({
                     income={ieIncome}
                     expenses={ieExp}
                     chartType={incomeExpChartType}
+                    currency={currency}
                   />
                 </ChartCard>
               );
@@ -357,6 +360,7 @@ export function Savings({
                       labels={csLabels}
                       data={csData}
                       chartType={cumSavingsChartType}
+                      currency={currency}
                     />
                   }
                 >
@@ -364,6 +368,7 @@ export function Savings({
                     labels={csLabels}
                     data={csData}
                     chartType={cumSavingsChartType}
+                    currency={currency}
                   />
                 </ChartCard>
               );

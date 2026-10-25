@@ -1,5 +1,6 @@
 :root {
-  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Outfit', sans-serif;
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Outfit', sans-serif;
   --bg: #000000;
   --surface: #0d0d0d;
   --surface2: #141414;

@@ -2,6 +2,8 @@
 
 A personal wealth tracking application for monitoring savings, investments, assets, debts, and portfolio performance. Built with Go and a web-based frontend, deployable via Docker.
 
+**[Website](https://hackmajoris.github.io/wealth-me/) · [Live demo](https://hackmajoris.github.io/wealth-me/demo/)** (runs in your browser with sample data)
+
 ## Features
 
 - **Savings tracking** — monthly income, expenses, saving rate, and targets
@@ -10,7 +12,7 @@ A personal wealth tracking application for monitoring savings, investments, asse
 - **Debt management** — track debts with balances, credit limits, interest rates, and minimum payments
 - **CSV import/export** — bulk upload data via CSV templates
 - **Exchange rates** — automatic EUR/USD to RON rates fetched from Yahoo Finance
-- **Configurable currencies** — per-section currency settings
+- **Configurable currencies** — per-section currency settings (RON, EUR, USD; RON is the base currency for conversions)
 - **Database encryption** — AES-256 encryption at rest via SQLCipher
 
 ## Prerequisites
@@ -84,7 +86,7 @@ HOST_PORT=8080
 DB_KEY=your-secret-encryption-key
 ```
 
-For machine-specific additions (e.g. an external reverse-proxy network), use a gitignored `docker-compose.override.yml`; Compose merges it automatically.
+Compose publishes the app on `127.0.0.1` only. For machine-specific additions (e.g. an external reverse-proxy network), use a gitignored `docker-compose.override.yml`; Compose merges it automatically.
 
 ## Configuration
 
@@ -96,6 +98,17 @@ All configuration is done via environment variables:
 | `DB_DISPLAY_PATH` | DB path shown in Settings → About (host path when containerized) | value of `DB_PATH` |
 | `DB_KEY`  | Encryption key for SQLCipher AES-256 | _(empty — encryption disabled)_                      |
 | `PORT`    | HTTP server port                     | `8080`                                               |
+| `LOG_LEVEL` | `debug` for verbose logs            | _(info)_                                             |
+| `LOG_FORMAT` | `json` for JSON logs               | _(text)_                                             |
+
+## Security and privacy
+
+- **No authentication.** The server has no login and listens on all interfaces
+  (`:PORT`). Run it on localhost, or put it behind a reverse proxy that adds
+  authentication (and TLS) before exposing it to a network.
+- **Outbound requests.** The server calls Yahoo Finance for EUR/USD → RON
+  exchange rates and benchmark index prices (S&P 500, Nasdaq, VWCE). No
+  personal data is sent; everything else stays in the local SQLite file.
 
 ## Database Encryption
 
@@ -164,12 +177,18 @@ All endpoints are served under `/api/`. The frontend SPA is served at `/`.
 | GET/POST       | `/api/settings/debts-currency`  | Get / set debts currency       |
 | GET            | `/api/settings/exchange-rates`  | Get exchange rates             |
 | GET            | `/api/stocks`                   | Get stock data                 |
-| GET            | `/api/crypto`                   | Get crypto data                |
-| POST           | `/api/init-month`               | Seed current month's data      |
-| GET/POST       | `/api/upload/csv`               | Template / import entries CSV  |
-| GET/POST       | `/api/upload/savings-csv`       | Template / import savings CSV  |
-| GET/POST       | `/api/upload/asset-history-csv` | Template / import asset CSV    |
-| GET/POST       | `/api/upload/debt-history-csv`  | Template / import debt CSV     |
+| GET            | `/api/crypto` | Get crypto data |
+| GET            | `/api/benchmarks` | Portfolio vs. index benchmarks |
+| GET            | `/api/info` | Server info (DB path) |
+| POST           | `/api/init-month` | Seed current month's data |
+| POST           | `/api/upload/csv` | Import entries CSV |
+| GET            | `/api/upload/csv/template` | Entries CSV template |
+| POST           | `/api/upload/savings-csv` | Import savings CSV |
+| GET            | `/api/upload/savings-csv/template` | Savings CSV template |
+| POST           | `/api/upload/asset-history-csv` | Import asset CSV |
+| GET            | `/api/upload/asset-history-csv/template` | Asset CSV template |
+| POST           | `/api/upload/debt-history-csv` | Import debt CSV |
+| GET            | `/api/upload/debt-history-csv/template` | Debt CSV template |
 
 ## License
 

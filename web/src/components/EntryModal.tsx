@@ -17,7 +17,8 @@ const MONTH_NAMES = [
   'Nov',
   'Dec',
 ];
-const YEARS = Array.from({ length: 8 }, (_, i) => 2019 + i);
+// 2010 through next year, so the current year is always selectable.
+const YEARS = Array.from({ length: new Date().getFullYear() - 2010 + 2 }, (_, i) => 2010 + i);
 
 interface EntryModalProps {
   entry?: Entry;
@@ -34,8 +35,8 @@ export function EntryModal({
   type = 'both',
   restrictMonths,
 }: EntryModalProps) {
-  const [mo, setMo] = useState(entry?.mo ?? 'Apr');
-  const [yr, setYr] = useState(String(entry?.yr ?? 2026));
+  const [mo, setMo] = useState(entry?.mo ?? new Date().toLocaleString('en-US', { month: 'short' }));
+  const [yr, setYr] = useState(String(entry?.yr ?? new Date().getFullYear()));
   const [cInv, setCInv] = useState(entry ? String(entry.cryptoInvested) : '');
   const [cRet, setCRet] = useState(entry ? String(entry.cryptoReturn) : '');
   const [sInv, setSInv] = useState(entry ? String(entry.stocksInvested) : '');

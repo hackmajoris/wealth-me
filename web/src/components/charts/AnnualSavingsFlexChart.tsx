@@ -23,9 +23,7 @@ interface AnnualSavingsFlexChartProps {
 }
 
 export function AnnualSavingsFlexChart({ stats, chartType }: AnnualSavingsFlexChartProps) {
-  const labels = stats.map((s) =>
-    s.mo ? `${s.mo} ${String(s.year).slice(2)}` : String(s.year)
-  );
+  const labels = stats.map((s) => (s.mo ? `${s.mo} ${String(s.year).slice(2)}` : String(s.year)));
   const rates = stats.map((s) => s.avgRate);
   const overallAverage = stats.length > 0 ? rates.reduce((a, b) => a + b, 0) / rates.length : 0;
   const averageLine = rates.map(() => overallAverage);

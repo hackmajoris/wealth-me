@@ -25,7 +25,7 @@ dev: build
 		"cd web && npm run dev"
 
 clean:
-	rm -rf .bin/ web/dist/ pkg/web/dist/ electron/dist/
+	rm -rf .bin/ web/dist/ web/dist-demo/ pkg/web/dist/ dist-site/
 
 generate:
 	go generate ./...

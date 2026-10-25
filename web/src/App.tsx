@@ -164,7 +164,11 @@ export function App() {
           </button>
         ))}
         <div className="sidebar-footer">
-          <div>{isDemo ? 'Demo · sample data' : 'Live data · Apr 2026'}</div>
+          <div>
+            {isDemo
+              ? 'Demo · sample data'
+              : `Live data · ${new Date().toLocaleString('en-US', { month: 'short', year: 'numeric' })}`}
+          </div>
         </div>
       </nav>
 

@@ -2,8 +2,12 @@
 data/
 web/node_modules/
 web/dist/
+web/dist-demo/
 pkg/web/dist/
-electron/
+dist-site/
+site/
 .git/
+.env
+docker-compose.override.yml
 *.md
-*/**.db
+**/*.db
