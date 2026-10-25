@@ -205,6 +205,14 @@ const settings = {
     post<ExchangeRates>('/api/settings/exchange-rates', rates),
 };
 
+// ── /api/info ────────────────────────────────────────────────────────────────
+
+export interface ServerInfo {
+  dbPath: string;
+}
+
+const info = () => get<ServerInfo>('/api/info');
+
 // ── /api/assets ──────────────────────────────────────────────────────────────
 
 export interface AssetHistoryPoint {
@@ -306,5 +314,6 @@ export const api = {
   debtEntries,
   assetEntries,
   initMonth,
+  info,
   benchmarks: benchmarksApi,
 };

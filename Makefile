@@ -1,5 +1,6 @@
 APP := server
 BIN := .bin/$(APP)
+DB_PATH ?= data/wealth.db
 
 .PHONY: build serve dev clean generate \
         test lint fmt \
@@ -15,12 +16,11 @@ serve: build
 	$(BIN)
 
 dev: build
-	@mkdir -p data
 	npx --prefix web concurrently \
 		--names "server,web" \
 		--prefix-colors "cyan.bold,green.bold" \
 		--kill-others-on-fail \
-		"DB_PATH=data/wealth.db DB_KEY=$$DB_KEY $(BIN)" \
+		"DB_PATH=\"$(DB_PATH)\" DB_KEY=$$DB_KEY $(BIN)" \
 		"cd web && npm run dev"
 
 clean:

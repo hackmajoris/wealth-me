@@ -8,18 +8,22 @@ import (
 
 type Config struct {
 	DBPath string
-	DBKey  string
-	Port   string
+	// DBDisplayPath is the DB location shown to users. Differs from DBPath
+	// when running in a container, where DBPath is the in-container path.
+	DBDisplayPath string
+	DBKey         string
+	Port          string
 }
 
 func Load() (*Config, error) {
 	dbPath := os.Getenv("DB_PATH")
 	if dbPath == "" {
-		home, err := os.UserHomeDir()
+		// macOS: ~/Library/Application Support, Linux: ~/.config, Windows: %AppData%.
+		configDir, err := os.UserConfigDir()
 		if err != nil {
-			return nil, fmt.Errorf("get home dir: %w", err)
+			return nil, fmt.Errorf("get config dir: %w", err)
 		}
-		dbDir := filepath.Join(home, "Library", "Mobile Documents", "com~apple~CloudDocs", "WealthMe")
+		dbDir := filepath.Join(configDir, "WealthMe")
 		if err := os.MkdirAll(dbDir, 0o755); err != nil {
 			return nil, fmt.Errorf("create db dir: %w", err)
 		}
@@ -35,9 +39,15 @@ func Load() (*Config, error) {
 		port = "8080"
 	}
 
+	displayPath := os.Getenv("DB_DISPLAY_PATH")
+	if displayPath == "" {
+		displayPath = dbPath
+	}
+
 	return &Config{
-		DBPath: dbPath,
-		DBKey:  os.Getenv("DB_KEY"),
-		Port:   port,
+		DBPath:        dbPath,
+		DBDisplayPath: displayPath,
+		DBKey:         os.Getenv("DB_KEY"),
+		Port:          port,
 	}, nil
 }

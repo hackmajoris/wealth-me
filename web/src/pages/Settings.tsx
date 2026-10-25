@@ -110,6 +110,7 @@ export function Settings({
     usdToRon: 4.35,
     eurToRon: 5.09,
   });
+  const [dbPath, setDbPath] = useState<string>('');
   const fileRef = useRef<HTMLInputElement>(null);
   const savingsFileRef = useRef<HTMLInputElement>(null);
   const assetHistoryFileRef = useRef<HTMLInputElement>(null);
@@ -129,6 +130,10 @@ export function Settings({
       .then((s) => setDebtsCurrency(s.value))
       .catch(console.error);
     api.settings.getExchangeRates().then(setExchangeRates).catch(console.error);
+    api
+      .info()
+      .then((i) => setDbPath(i.dbPath))
+      .catch(console.error);
   }, []);
 
   const handleFile = (file: File | null | undefined) => {
@@ -1209,6 +1214,7 @@ export function Settings({
               ['App', 'Wealth Me'],
               ['Entries', String(entries.length)],
               ['Data storage', 'SQLite (server)'],
+              ['Database path', dbPath || '—'],
               ['Version', '1.0.0'],
             ] as [string, string][]
           ).map(([k, v]) => (
@@ -1228,6 +1234,9 @@ export function Settings({
                   fontFamily: 'JetBrains Mono, monospace',
                   fontSize: 12,
                   color: 'var(--text)',
+                  textAlign: 'right',
+                  wordBreak: 'break-all',
+                  marginLeft: 16,
                 }}
               >
                 {v}

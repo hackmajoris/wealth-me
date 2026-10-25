@@ -23,3 +23,4 @@ web/dist
 /data/debts.csv
 /data
 .env
+/docker-compose.override.yml

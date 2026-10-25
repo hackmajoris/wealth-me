@@ -14,6 +14,7 @@ import (
 	"github.com/hackmajoris/wealth-me/pkg/database"
 	"github.com/hackmajoris/wealth-me/pkg/debts"
 	"github.com/hackmajoris/wealth-me/pkg/entries"
+	"github.com/hackmajoris/wealth-me/pkg/info"
 	"github.com/hackmajoris/wealth-me/pkg/logger"
 	"github.com/hackmajoris/wealth-me/pkg/middleware"
 	"github.com/hackmajoris/wealth-me/pkg/month"
@@ -77,6 +78,7 @@ func run(_ []string, out io.Writer) error {
 	stocksHandler := stocks.NewHandler(entriesStore)
 	cryptoHandler := crypto.NewHandler(entriesStore)
 	benchmarksHandler := benchmarks.NewHandler(db, entriesStore, log)
+	infoHandler := info.NewHandler(info.WithDBPath(cfg.DBDisplayPath))
 
 	// Register routes (Go 1.22 method+pattern routing)
 	mux := http.NewServeMux()
@@ -119,6 +121,8 @@ func run(_ []string, out io.Writer) error {
 		}
 		w.WriteHeader(http.StatusNoContent)
 	})
+
+	mux.HandleFunc("GET /api/info", infoHandler.Get)
 
 	mux.HandleFunc("GET /api/stocks", stocksHandler.Get)
 	mux.HandleFunc("GET /api/crypto", cryptoHandler.Get)

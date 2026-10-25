@@ -44,7 +44,16 @@ make down             # docker compose down
 make logs             # docker compose logs -f
 ```
 
-The database is persisted in a Docker volume (`db-data`) at `/data/wealth.db`.
+The database is persisted on the host in `DATA_DIR` (default `./data`), bind-mounted to `/data/wealth.db` in the container.
+Override compose settings in a `.env` file next to `docker-compose.yml`:
+
+```
+DATA_DIR=${HOME}/Library/Application Support/WealthMe
+HOST_PORT=8080
+DB_KEY=your-secret-encryption-key
+```
+
+For machine-specific additions (e.g. an external reverse-proxy network), use a gitignored `docker-compose.override.yml`; Compose merges it automatically.
 
 ## Configuration
 
@@ -52,7 +61,8 @@ All configuration is done via environment variables:
 
 | Variable  | Description                          | Default                                              |
 |-----------|--------------------------------------|------------------------------------------------------|
-| `DB_PATH` | Path to the SQLite database file     | `~/Library/Mobile Documents/.../WealthMe/wealth.db`  |
+| `DB_PATH` | Path to the SQLite database file     | `<user config dir>/WealthMe/wealth.db` (macOS: `~/Library/Application Support`, Linux: `~/.config`) |
+| `DB_DISPLAY_PATH` | DB path shown in Settings → About (host path when containerized) | value of `DB_PATH` |
 | `DB_KEY`  | Encryption key for SQLCipher AES-256 | _(empty — encryption disabled)_                      |
 | `PORT`    | HTTP server port                     | `8080`                                               |
 
