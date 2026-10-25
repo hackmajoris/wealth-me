@@ -1399,7 +1399,7 @@ export function Performance({ showModal }: PerformanceProps) {
                         <td
                           style={{
                             color: 'var(--text2)',
-                            fontFamily: 'Outfit',
+                            fontFamily: 'var(--font-sans)',
                             fontSize: 13,
                             fontWeight: 500,
                             cursor: (row as any).tooltip ? 'help' : 'default',
@@ -1511,7 +1511,7 @@ export function Performance({ showModal }: PerformanceProps) {
                           <td
                             style={{
                               color: 'var(--text2)',
-                              fontFamily: 'Outfit',
+                              fontFamily: 'var(--font-sans)',
                               fontSize: 13,
                               fontWeight: 500,
                               cursor: 'help',

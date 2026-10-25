@@ -1,3 +1,4 @@
+import { FONT_SANS } from '../../lib/fonts';
 import { useChart } from './useChart';
 import { getChartDefaults, getChartColors, C } from '../../lib/chartDefaults';
 import type { TooltipItem } from 'chart.js';
@@ -45,7 +46,7 @@ export function AnnualSavingsBarChart({ stats }: AnnualSavingsBarChartProps) {
           position: 'top',
           labels: {
             color: getChartColors().legendColor,
-            font: { size: 11, family: 'Outfit' },
+            font: { size: 11, family: FONT_SANS },
             boxWidth: 16,
           },
         },

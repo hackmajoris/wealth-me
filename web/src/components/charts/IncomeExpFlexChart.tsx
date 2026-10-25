@@ -1,3 +1,4 @@
+import { FONT_SANS } from '../../lib/fonts';
 import { useChart } from './useChart';
 import { getChartDefaults, getChartColors, C } from '../../lib/chartDefaults';
 import type { TooltipItem } from 'chart.js';
@@ -54,7 +55,7 @@ export function IncomeExpFlexChart({
           position: 'top',
           labels: {
             color: getChartColors().legendColor,
-            font: { size: 11, family: 'Outfit' },
+            font: { size: 11, family: FONT_SANS },
             boxWidth: 20,
             pointStyle: chartType === 'bar' ? 'rect' : 'line',
             usePointStyle: true,
@@ -90,7 +91,7 @@ export function IncomeExpFlexChart({
             minRotation: 45,
             maxTicksLimit: 999,
             autoSkipPadding: 2,
-            font: { size: 8, family: 'Outfit' },
+            font: { size: 8, family: FONT_SANS },
           } as any,
         } as any,
         y: {

@@ -309,7 +309,7 @@ export function Settings({
                   fontWeight: theme === t ? 600 : 400,
                   cursor: 'pointer',
                   transition: 'all .15s',
-                  fontFamily: 'Outfit, sans-serif',
+                  fontFamily: 'var(--font-sans)',
                   textTransform: 'capitalize',
                 }}
               >
@@ -1190,7 +1190,7 @@ export function Settings({
                     color: '#fff',
                     fontWeight: 600,
                     cursor: 'pointer',
-                    fontFamily: 'Outfit',
+                    fontFamily: 'var(--font-sans)',
                   }}
                   onClick={handleClear}
                 >

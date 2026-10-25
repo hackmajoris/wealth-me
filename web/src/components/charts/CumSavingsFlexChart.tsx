@@ -1,3 +1,4 @@
+import { FONT_SANS } from '../../lib/fonts';
 import { useChart } from './useChart';
 import { getChartDefaults, C } from '../../lib/chartDefaults';
 import type { TooltipItem } from 'chart.js';
@@ -50,7 +51,7 @@ export function CumSavingsFlexChart({ labels, data, chartType }: CumSavingsFlexC
             minRotation: 45,
             maxTicksLimit: 999,
             autoSkipPadding: 2,
-            font: { size: 8, family: 'Outfit' },
+            font: { size: 8, family: FONT_SANS },
           } as any,
         } as any,
         y: {

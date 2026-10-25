@@ -183,7 +183,7 @@
   border: none;
   background: transparent;
   color: var(--text3);
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-sans);
   transition: all 0.15s;
 }
 .chart-type-btn.active {
@@ -261,7 +261,7 @@
   background: transparent;
   color: var(--text3);
   transition: all 0.15s;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-sans);
 }
 .tr-btn:hover {
   color: var(--text2);
@@ -309,7 +309,7 @@
 }
 .data-table td:first-child {
   text-align: left;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-sans);
   font-size: 13px;
   color: var(--text);
 }
@@ -375,7 +375,7 @@
   background: transparent;
   color: var(--text3);
   transition: all 0.15s;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-sans);
 }
 .events-btn:hover {
   color: var(--text2);
@@ -406,7 +406,7 @@
   border: none;
   background: linear-gradient(135deg, var(--purple), var(--blue));
   color: #fff;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-sans);
   transition: opacity 0.15s;
 }
 .add-btn:hover {
@@ -578,7 +578,7 @@
   border: 1px solid var(--border2);
   background: transparent;
   color: var(--text2);
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-sans);
 }
 .btn-ghost:hover {
   background: var(--surface2);
@@ -592,7 +592,7 @@
   border: none;
   background: linear-gradient(135deg, var(--purple), var(--blue));
   color: #fff;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-sans);
 }
 .btn-primary:hover {
   opacity: 0.9;

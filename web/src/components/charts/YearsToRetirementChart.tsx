@@ -1,3 +1,4 @@
+import { FONT_SANS } from '../../lib/fonts';
 import { useChart } from './useChart';
 import { getChartDefaults, C } from '../../lib/chartDefaults';
 import type { TooltipItem } from 'chart.js';
@@ -50,7 +51,7 @@ export function YearsToRetirementChart({ labels, years }: YearsToRetirementChart
             ...(getChartDefaults().scales?.['x'] as any)?.['ticks'],
             maxRotation: 45,
             minRotation: 45,
-            font: { size: 8, family: 'Outfit' },
+            font: { size: 8, family: FONT_SANS },
           } as any,
         } as any,
         y: {

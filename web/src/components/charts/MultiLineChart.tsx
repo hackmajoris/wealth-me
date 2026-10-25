@@ -1,3 +1,4 @@
+import { FONT_SANS } from '../../lib/fonts';
 import { useEffect, useRef } from 'react';
 import { useChart } from './useChart';
 import { getChartDefaults, getChartColors, type KeyEvent } from '../../lib/chartDefaults';
@@ -38,7 +39,7 @@ export function MultiLineChart({
       position: 'top' as const,
       labels: {
         color: getChartColors().legendColor,
-        font: { size: 11, family: 'Outfit' },
+        font: { size: 11, family: FONT_SANS },
         boxWidth: 20,
         pointStyle: isBar ? ('rect' as const) : ('line' as const),
         usePointStyle: true,
@@ -95,7 +96,7 @@ export function MultiLineChart({
             minRotation: 45,
             maxTicksLimit: 999,
             autoSkipPadding: 2,
-            font: { size: 8, family: 'Outfit' },
+            font: { size: 8, family: FONT_SANS },
           } as any,
         },
         y: {

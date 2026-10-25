@@ -1,3 +1,4 @@
+import { FONT_SANS } from './fonts';
 import {
   Chart,
   type ChartOptions,
@@ -30,6 +31,8 @@ Chart.register(
   BarController,
   DoughnutController
 );
+
+Chart.defaults.font.family = FONT_SANS;
 
 export interface KeyEvent {
   id: string;
@@ -141,7 +144,7 @@ const wealthAnnotationsPlugin: Plugin = {
         // Small cards: icon only, full labels need more height.
         const compact = y.bottom - y.top < 150;
         const label = compact ? ev.icon : ev.icon + ' ' + ev.label;
-        ctx.font = '600 10px Outfit, sans-serif';
+        ctx.font = `600 10px ${FONT_SANS}`;
         const tw = ctx.measureText(label).width;
         const pad = 4;
         const lx = Math.min(xPos + 4, chart.width - tw - 12);
@@ -227,7 +230,7 @@ export function getChartDefaults(): ChartOptions {
         grid: { color: cc.gridColor },
         ticks: {
           color: cc.tickColor,
-          font: { size: 10, family: 'Outfit' },
+          font: { size: 10, family: FONT_SANS },
           maxTicksLimit: 100,
           maxRotation: 45,
           minRotation: 45,

@@ -1,3 +1,4 @@
+import { FONT_SANS } from '../lib/fonts';
 import { useState, useMemo } from 'react';
 import { api } from '../lib/api';
 import type { DebtHistoryPoint, DebtEntry, ExchangeRates } from '../lib/api';
@@ -120,7 +121,7 @@ function DebtBarChart({
           position: 'top' as const,
           labels: {
             color: getChartColors().legendColor,
-            font: { size: 11, family: 'Outfit' },
+            font: { size: 11, family: FONT_SANS },
             boxWidth: 20,
             pointStyle: 'line' as const,
             usePointStyle: true,

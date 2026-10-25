@@ -1,3 +1,4 @@
+import { FONT_SANS } from '../../lib/fonts';
 import { useChart } from './useChart';
 import { getChartDefaults, getChartColors, type KeyEvent } from '../../lib/chartDefaults';
 import type { TooltipItem } from 'chart.js';
@@ -41,7 +42,7 @@ export function AreaChart({ labels, datasets, annotations }: AreaChartProps) {
           position: 'top',
           labels: {
             color: getChartColors().legendColor,
-            font: { size: 11, family: 'Outfit' },
+            font: { size: 11, family: FONT_SANS },
             boxWidth: 20,
             pointStyle: 'line',
             usePointStyle: true,

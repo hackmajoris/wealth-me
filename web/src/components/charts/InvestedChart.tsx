@@ -1,3 +1,4 @@
+import { FONT_SANS } from '../../lib/fonts';
 import type { TooltipItem } from 'chart.js';
 import { getChartDefaults, getChartColors, C } from '../../lib/chartDefaults';
 import { polyTrend, calcAverage } from '../../lib/trendUtils';
@@ -102,7 +103,7 @@ function MixedBarChart({
           position: 'top' as const,
           labels: {
             color: getChartColors().legendColor,
-            font: { size: 11, family: 'Outfit' },
+            font: { size: 11, family: FONT_SANS },
             boxWidth: 20,
             pointStyle: 'line' as const,
             usePointStyle: true,

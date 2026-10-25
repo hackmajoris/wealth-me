@@ -1,3 +1,4 @@
+import { FONT_SANS } from '../../lib/fonts';
 import { useChart } from './useChart';
 import { getChartDefaults, getChartColors } from '../../lib/chartDefaults';
 import type { TooltipItem } from 'chart.js';
@@ -99,7 +100,7 @@ export function GroupedBarChart({
                 position: 'top' as const,
                 labels: {
                   color: getChartColors().legendColor,
-                  font: { size: 10, family: 'Outfit' },
+                  font: { size: 10, family: FONT_SANS },
                   boxWidth: 20,
                   pointStyle: 'line' as const,
                   usePointStyle: true,
