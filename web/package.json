@@ -3,7 +3,9 @@
   "private": true,
   "scripts": {
     "dev": "vite",
+    "dev:demo": "VITE_DEMO=true vite",
     "build": "tsc && vite build",
+    "build:demo": "tsc && VITE_DEMO=true vite build --base ./ --outDir dist-demo",
     "preview": "vite preview",
     "lint": "eslint src --ext .ts,.tsx",
     "format": "prettier --write src/",

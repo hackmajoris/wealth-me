@@ -5,7 +5,8 @@ DB_PATH ?= data/wealth.db
 .PHONY: build serve dev clean generate \
         test lint fmt \
         web-dev web-build web-fmt web-fmt-check \
-        up down logs
+        up down logs \
+        demo demo-dev site site-build
 
 # ── Build ──────────────────────────────────────────────────────────────────────
 
@@ -52,6 +53,33 @@ web-fmt:
 
 web-fmt-check:
 	cd web && npm run format:check
+
+# ── Demo ──────────────────────────────────────────────────────────────────────
+
+# Build the in-browser demo (mock API, sample data, no backend) and serve it.
+demo:
+	cd web && npm ci && npm run build:demo
+	@echo "demo: http://localhost:8199/"
+	cd web && npx vite preview --outDir dist-demo --port 8199 --strictPort
+
+# Run the frontend against the mock API with hot reload.
+demo-dev:
+	cd web && npm run dev:demo
+
+# ── GitHub Pages site ─────────────────────────────────────────────────────────
+
+# Assemble the Pages site into dist-site/: landing page (site/) at the root,
+# demo at /demo/. Same artifact that .github/workflows/pages.yml publishes.
+site-build:
+	cd web && npm ci && npm run build:demo
+	rm -rf dist-site
+	cp -R site dist-site
+	cp -R web/dist-demo dist-site/demo
+
+# Build the Pages site and serve it locally.
+site: site-build
+	@echo "site: http://localhost:8199/  demo: http://localhost:8199/demo/"
+	cd web && npx vite preview --outDir ../dist-site --port 8199 --strictPort
 
 web-build:
 	cd web && npm ci && npm run build

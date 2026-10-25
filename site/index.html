@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wealth Me</title>
+<meta name="description" content="A self-hosted tracker for savings, investments, assets and debts. Log each month and see your whole financial picture. Your data stays in one SQLite file on your machine.">
+<meta property="og:title" content="Wealth Me">
+<meta property="og:description" content="Self-hosted tracker for savings, investments, assets and debts.">
+<meta property="og:image" content="img/overview.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236D5EF0'/%3E%3Ctext x='16' y='22' font-family='Arial' font-weight='700' font-size='17' fill='white' text-anchor='middle'%3EW%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  color-scheme: dark;
+  --paper: #191D20;
+  --paper-2: #20252A;
+  --ink: #E6E1D7;
+  --text: #BFBAB0;
+  --muted: #8A919A;
+  --rule: rgba(255, 255, 255, 0.09);
+  --bar: rgba(255, 255, 255, 0.13);
+  --bar-jan: rgba(255, 255, 255, 0.26);
+  --violet: #8F84F0;
+  --violet-soft: #B3ABF6;
+  --gain: #3CC593;
+  --loss: #E8736B;
+  --frame: #121518;
+  --display: 'JetBrains Mono', ui-monospace, monospace;
+  --body: 'IBM Plex Sans', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, monospace;
+  --gutter: clamp(16px, 4vw, 48px);
+  --max: 1100px;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--text);
+  font: 400 18px/1.6 var(--body);
+  overflow-x: hidden;
+}
+img { max-width: 100%; display: block; }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--violet); outline-offset: 3px; border-radius: 4px; }
+
+.wrap { max-width: var(--max); margin: 0 auto; padding: 0 var(--gutter); }
+
+/* ── Top bar ─────────────────────────────────────────── */
+.top {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-top: 18px; padding-bottom: 18px;
+}
+.top-bar { border-bottom: 1px solid var(--rule); }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font: 700 17px/1 var(--mono); color: var(--ink); }
+.brand-mark {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: linear-gradient(145deg, #8F84F0, #5B4BDB);
+  color: #fff; display: grid; place-items: center; font-size: 16px;
+}
+.top nav { display: flex; align-items: center; gap: 28px; font: 400 15px/1 var(--mono); }
+.top nav a { text-decoration: none; color: var(--muted); }
+.top nav a:hover { color: var(--ink); }
+.top nav a.gh { color: var(--ink); border: 1px solid rgba(255,255,255,.14); border-radius: 7px; padding: 9px 14px; }
+.top nav a.gh:hover { border-color: var(--violet); color: var(--violet); }
+
+/* ── Hero ────────────────────────────────────────────── */
+.hero { padding-top: clamp(32px, 7vw, 88px); }
+.hero h1 {
+  font: 800 clamp(34px, 6vw, 76px)/1.04 var(--display);
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  margin: 0;
+  max-width: 20ch;
+  text-wrap: balance;
+}
+.hero h1 em { font-style: normal; color: var(--violet); display: block; }
+.hero-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 32px;
+  align-items: end; margin-top: 28px;
+}
+.lede { margin: 0; max-width: 54ch; color: var(--text); font-size: clamp(17px, 1.6vw, 20px); }
+.lede strong { color: var(--ink); font-weight: 600; }
+.ctas { display: flex; gap: 12px; flex-wrap: wrap; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 13px 20px; border-radius: 10px;
+  font: 500 15px/1 var(--mono); text-decoration: none; white-space: nowrap;
+  border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.04); color: var(--ink);
+  transition: transform .15s ease, background .15s ease;
+}
+.btn:hover { transform: translateY(-1px); background: var(--paper-2); }
+.btn-primary { background: var(--violet); border-color: var(--violet); color: #14121F; }
+.btn-primary:hover { background: var(--violet); filter: brightness(1.08); }
+.btn svg { width: 16px; height: 16px; }
+
+/* Signature: the month ledger. One bar per logged month. */
+.ledger { margin: clamp(40px, 6vw, 72px) 0 0; }
+.ledger-head {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap;
+  font: 500 12px/1.4 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em;
+  margin-bottom: 14px;
+}
+.ledger-readout { font: 500 13px/1.4 var(--mono); color: var(--ink); text-transform: none; letter-spacing: 0; }
+.ledger-readout .v { color: var(--violet); }
+.ledger-readout .g { color: var(--gain); }
+.ledger-readout .l { color: var(--loss); }
+.bars {
+  position: relative; height: clamp(140px, 22vw, 240px);
+  display: flex; align-items: flex-end; gap: clamp(1px, 0.35vw, 4px);
+  border-bottom: 1px solid rgba(255,255,255,.3);
+}
+.bar {
+  flex: 1 1 0; position: relative; height: var(--h);
+  background: var(--bar); border-radius: 2px 2px 0 0;
+  transform-origin: bottom; cursor: crosshair;
+  animation: rise .7s cubic-bezier(.2,.7,.2,1) both;
+  animation-delay: calc(var(--i) * 12ms);
+}
+.bar::after {
+  /* invested marker: the gap above it is gain, a marker above the bar is a loss */
+  content: ''; position: absolute; left: -1px; right: -1px; bottom: var(--inv);
+  height: 2px; background: var(--ink); opacity: .7;
+}
+.bar.jan { background: var(--bar-jan); }
+.bar.now { background: var(--violet); }
+.bar.active { background: var(--violet-soft); }
+@keyframes rise { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+.years { display: flex; margin-top: 8px; font: 500 12px/1 var(--mono); color: var(--muted); }
+.years span { flex: 12 1 0; }
+.years span:last-child { flex: 10 1 0; }
+
+/* ── Screenshot frame ────────────────────────────────── */
+.frame {
+  background: var(--frame); border-radius: 14px; padding: 10px;
+  border: 1px solid var(--rule);
+  box-shadow: 0 40px 80px -40px rgba(0,0,0,.7);
+}
+.frame img { border-radius: 7px; width: 100%; height: auto; aspect-ratio: 1440 / 796; }
+.hero-shot { margin-top: clamp(48px, 7vw, 96px); }
+
+/* ── Sections ────────────────────────────────────────── */
+.section { padding-top: clamp(72px, 10vw, 140px); }
+.eyebrow {
+  display: inline-block; font: 500 12px/1 var(--mono); text-transform: uppercase; letter-spacing: .12em;
+  color: var(--violet); margin: 0 0 22px; padding: 7px 12px;
+  border: 1px solid rgba(143,132,240,.4); border-radius: 999px; background: rgba(143,132,240,.06);
+}
+.section h2 {
+  font: 800 clamp(28px, 3.8vw, 46px)/1.1 var(--display); letter-spacing: -0.03em; color: var(--ink); margin: 0; max-width: 22ch; text-wrap: balance;
+}
+.section-intro { color: var(--muted); max-width: 56ch; margin: 18px 0 0; }
+
+/* Tour: pages of the app, mirroring its sidebar */
+.tour { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: clamp(24px, 4vw, 56px); margin-top: 48px; align-items: start; }
+.tour-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule); }
+.tour-list li { border-bottom: 1px solid var(--rule); }
+.tour-tab {
+  all: unset; box-sizing: border-box; display: block; width: 100%; cursor: pointer;
+  padding: 16px 4px 16px 18px; position: relative;
+}
+.tour-tab::before {
+  content: ''; position: absolute; left: 0; top: 16px; bottom: 16px; width: 3px; border-radius: 2px;
+  background: transparent; transition: background .2s;
+}
+.tour-tab .t { font: 700 17px/1.2 var(--mono); color: var(--muted); transition: color .2s; }
+.tour-tab .d { font-size: 15px; color: var(--muted); margin-top: 4px; display: none; }
+.tour-tab[aria-selected="true"]::before { background: var(--violet); }
+.tour-tab[aria-selected="true"] .t { color: var(--ink); }
+.tour-tab[aria-selected="true"] .d { display: block; }
+.tour-tab:hover .t { color: var(--ink); }
+.tour-tab:focus-visible { outline-offset: -2px; }
+.tour-stage { position: sticky; top: 24px; }
+.tour-stage img { transition: opacity .25s ease; }
+.tour-caption { font: 400 13px/1.5 var(--mono); color: var(--muted); margin-top: 12px; }
+
+/* Self-hosting */
+.host { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: clamp(32px, 5vw, 72px); align-items: start; }
+.facts { list-style: none; margin: 32px 0 0; padding: 0; display: grid; gap: 22px; }
+.facts li { display: grid; grid-template-columns: 22px 1fr; gap: 12px; }
+.facts svg { width: 20px; height: 20px; color: var(--violet); margin-top: 3px; }
+.facts b { display: block; font: 700 15px/1.5 var(--mono); color: var(--ink); }
+.facts span { color: var(--muted); font-size: 16px; }
+.terminal {
+  background: var(--frame); color: #D6DAE3; border-radius: 14px; overflow: hidden;
+  font: 400 14px/1.75 var(--mono);
+  border: 1px solid var(--rule);
+  box-shadow: 0 40px 80px -40px rgba(0,0,0,.7);
+}
+.terminal-bar { display: flex; gap: 7px; padding: 14px 16px; border-bottom: 1px solid var(--rule); }
+.terminal-bar i { width: 11px; height: 11px; border-radius: 50%; background: #2A2F3A; }
+.terminal pre { margin: 0; padding: 20px 22px 24px; overflow-x: auto; }
+.terminal .c { color: #6B7385; }
+.terminal .p { color: #8F84F0; user-select: none; }
+.terminal .o { color: #3CC593; }
+
+/* Closing CTA */
+.closing {
+  margin-top: clamp(72px, 10vw, 140px);
+  border-top: 1px solid var(--rule);
+  padding-top: clamp(40px, 6vw, 72px);
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 32px; align-items: end;
+}
+.closing h2 { font: 800 clamp(30px, 4.6vw, 60px)/1.05 var(--display); letter-spacing: -0.03em; color: var(--ink); margin: 0; max-width: 18ch; text-wrap: balance; }
+.closing p { color: var(--muted); margin: 18px 0 0; max-width: 48ch; }
+
+footer.wrap { margin-top: clamp(64px, 8vw, 112px); padding-bottom: 40px; }
+.foot {
+  padding-top: 24px; border-top: 1px solid var(--rule);
+  display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  font: 400 13px/1.5 var(--mono); color: var(--muted);
+}
+footer a { text-decoration: none; }
+footer a:hover { color: var(--ink); }
+
+/* ── Responsive ──────────────────────────────────────── */
+@media (max-width: 900px) {
+  .hero-row, .closing { grid-template-columns: 1fr; }
+  .tour { grid-template-columns: 1fr; }
+  .tour-stage { position: static; order: -1; }
+  .host { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .top nav a.hide-sm { display: none; }
+  .frame { padding: 5px; border-radius: 10px; }
+  .frame img { border-radius: 6px; }
+  .years span { font-size: 10px; }
+  .btn { flex: 1 1 auto; justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bar { animation: none; }
+  .btn, .tour-stage img { transition: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="top-bar"><header class="wrap top">
+  <a class="brand" href="./"><span class="brand-mark" aria-hidden="true">W</span>Wealth Me</a>
+  <nav aria-label="Primary">
+    <a href="#tour" class="hide-sm">tour</a>
+    <a href="#self-host" class="hide-sm">self-host</a>
+    <a href="./demo/">demo</a>
+    <a href="https://github.com/hackmajoris/wealth-me" class="gh">GitHub ↗</a>
+  </nav>
+</header></div>
+
+<main>
+  <section class="wrap hero">
+    <p class="eyebrow">Self-hosted · Go + SQLite</p>
+    <h1>Your money, <em>one month at a time.</em></h1>
+    <div class="hero-row">
+      <p class="lede">
+        Wealth Me is a <strong>self-hosted tracker</strong> for savings, stocks, crypto, assets and debts.
+        Log each month once, then see your saving rate, returns against the market and net worth over years.
+        Everything stays in a single SQLite file on your machine.
+      </p>
+      <div class="ctas">
+        <a class="btn btn-primary" href="./demo/">
+          Open the demo
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+        </a>
+        <a class="btn" href="https://github.com/hackmajoris/wealth-me">
+          <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+          View source
+        </a>
+      </div>
+    </div>
+
+    <figure class="ledger" aria-label="Demo portfolio value for each month from January 2021 to October 2026">
+      <div class="ledger-head">
+        <span>Demo portfolio · one bar per month</span>
+        <span class="ledger-readout" id="readout" aria-live="polite"></span>
+      </div>
+      <div class="bars" id="bars"></div>
+      <div class="years" aria-hidden="true"><span>2021</span><span>2022</span><span>2023</span><span>2024</span><span>2025</span><span>2026</span></div>
+    </figure>
+
+    <div class="frame hero-shot">
+      <img src="img/overview.png" width="1440" height="796" alt="Wealth Me dashboard showing portfolio value, saving rate, income, expenses and a net worth chart from January 2021">
+    </div>
+  </section>
+
+  <section class="wrap section" id="tour">
+    <p class="eyebrow">Inside the app</p>
+    <h2>A page for each part of your money.</h2>
+    <div class="tour">
+      <ul class="tour-list" role="tablist" aria-label="App pages">
+        <li><button class="tour-tab" role="tab" aria-selected="true" data-img="overview" data-alt="Dashboard with portfolio, savings and net worth summary">
+          <div class="t">Overview</div>
+          <div class="d">Portfolio value, debt, saving rate and net worth on one screen.</div>
+        </button></li>
+        <li><button class="tour-tab" role="tab" aria-selected="false" data-img="performance" data-alt="Performance page comparing portfolio ROI with S&amp;P 500, Nasdaq and VWCE">
+          <div class="t">Performance</div>
+          <div class="d">Your return next to the S&amp;P 500, Nasdaq and VWCE, plus how your mix of stocks and crypto changed.</div>
+        </button></li>
+        <li><button class="tour-tab" role="tab" aria-selected="false" data-img="savings" data-alt="Savings page with monthly income, saving rate trend and income versus expenses">
+          <div class="t">Savings</div>
+          <div class="d">Monthly income and expenses, saving rate against your target, and the trend behind it.</div>
+        </button></li>
+        <li><button class="tour-tab" role="tab" aria-selected="false" data-img="assets" data-alt="Assets page with total value history and monthly holdings">
+          <div class="t">Assets</div>
+          <div class="d">Property, cars, cash and gold, recorded month by month so you see what they are worth over time.</div>
+        </button></li>
+        <li><button class="tour-tab" role="tab" aria-selected="false" data-img="debts" data-alt="Debts page with balances over time">
+          <div class="t">Debts</div>
+          <div class="d">Mortgages, loans and cards with rates and minimum payments, and how fast each balance is shrinking.</div>
+        </button></li>
+        <li><button class="tour-tab" role="tab" aria-selected="false" data-img="retirement" data-alt="Early retirement calculator with years to retirement and a what-if scenario">
+          <div class="t">Early retirement</div>
+          <div class="d">Years until your portfolio covers your expenses, worked out from your real numbers. Try what-if scenarios with sliders.</div>
+        </button></li>
+      </ul>
+      <div class="tour-stage" role="tabpanel">
+        <div class="frame"><img id="tour-img" src="img/overview.png" width="1440" height="796" alt="Dashboard with portfolio, savings and net worth summary" loading="lazy"></div>
+        <p class="tour-caption">Screens from the demo · sample data from Jan 2021 to today</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap section" id="self-host">
+    <div class="host">
+      <div>
+        <p class="eyebrow">Self-host</p>
+        <h2>Your numbers stay on your machine.</h2>
+        <ul class="facts">
+          <li>
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><ellipse cx="10" cy="5" rx="6.5" ry="2.5"/><path d="M3.5 5v10c0 1.4 2.9 2.5 6.5 2.5s6.5-1.1 6.5-2.5V5M3.5 10c0 1.4 2.9 2.5 6.5 2.5s6.5-1.1 6.5-2.5"/></svg>
+            <div><b>One file to back up</b><span>All data lives in one SQLite database, in a folder you choose.</span></div>
+          </li>
+          <li>
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="4" y="9" width="12" height="8.5" rx="2"/><path d="M6.5 9V6.5a3.5 3.5 0 017 0V9"/></svg>
+            <div><b>Optional encryption</b><span>Set <code>DB_KEY</code> and the database is encrypted with AES-256 (SQLCipher).</span></div>
+          </li>
+          <li>
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M5 2.5h7l3.5 3.5v11.5H5z"/><path d="M12 2.5V6h3.5M8 11h5M8 14h5"/></svg>
+            <div><b>Import from CSV</b><span>Bring in your spreadsheet history with the CSV templates for each section.</span></div>
+          </li>
+          <li>
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="10" cy="10" r="7.5"/><path d="M2.5 10h15M10 2.5c2 2.2 3 4.7 3 7.5s-1 5.3-3 7.5c-2-2.2-3-4.7-3-7.5s1-5.3 3-7.5z"/></svg>
+            <div><b>Multiple currencies</b><span>Choose a currency for each section. EUR and USD rates are fetched automatically.</span></div>
+          </li>
+        </ul>
+      </div>
+      <div class="terminal" role="region" aria-label="Install commands">
+        <div class="terminal-bar" aria-hidden="true"><i></i><i></i><i></i></div>
+<pre><span class="c"># run with Docker</span>
+<span class="p">$ </span>git clone https://github.com/hackmajoris/wealth-me
+<span class="p">$ </span>cd wealth-me
+<span class="p">$ </span>docker compose up -d
+<span class="o">✓ open http://localhost:8080</span>
+
+<span class="c"># optional: .env next to docker-compose.yml</span>
+DATA_DIR=./data
+HOST_PORT=8080
+DB_KEY=<span class="c">$(openssl rand -base64 32)</span></pre>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap">
+    <div class="closing">
+      <div>
+        <h2>Try it with sample data.</h2>
+        <p>The demo runs entirely in your browser with almost six years of made-up history. Nothing is sent anywhere, and changes reset when you reload.</p>
+      </div>
+      <div class="ctas">
+        <a class="btn btn-primary" href="./demo/">
+          Open the demo
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+        </a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap">
+  <div class="foot">
+    <span>Wealth Me · MIT License</span>
+    <span><a href="https://github.com/hackmajoris/wealth-me">github.com/hackmajoris/wealth-me</a></span>
+  </div>
+</footer>
+
+<script>
+// [month, portfolio value, invested] from the demo dataset (USD).
+const SERIES = [["Jan 21",8000,8000],["Feb 21",9763,9400],["Mar 21",11902,10800],["Apr 21",13073,11800],["May 21",13992,13200],["Jun 21",16632,14600],["Jul 21",18155,16000],["Aug 21",18663,17400],["Sep 21",20099,18800],["Oct 21",21500,20200],["Nov 21",22980,21200],["Dec 21",24471,22600],["Jan 22",25448,24200],["Feb 22",26105,25800],["Mar 22",28664,27400],["Apr 22",30429,29000],["May 22",30929,30600],["Jun 22",31907,32200],["Jul 22",31942,33800],["Aug 22",32108,35400],["Sep 22",33609,37000],["Oct 22",35295,38600],["Nov 22",36835,39800],["Dec 22",37351,41400],["Jan 23",38948,42800],["Feb 23",43364,44600],["Mar 23",44685,46400],["Apr 23",49563,48200],["May 23",51335,50000],["Jun 23",52523,51800],["Jul 23",55746,53600],["Aug 23",58114,55400],["Sep 23",58624,57200],["Oct 23",60841,59000],["Nov 23",63525,60400],["Dec 23",63435,62200],["Jan 24",67243,64200],["Feb 24",66810,65800],["Mar 24",75118,67800],["Apr 24",75229,69800],["May 24",79337,71800],["Jun 24",87102,73800],["Jul 24",86065,75800],["Aug 24",95404,77800],["Sep 24",99973,79400],["Oct 24",104641,81400],["Nov 24",112054,83400],["Dec 24",107925,85400],["Jan 25",111097,87600],["Feb 25",117527,89800],["Mar 25",117235,92000],["Apr 25",113598,94200],["May 25",117526,96000],["Jun 25",115531,98200],["Jul 25",122473,100000],["Aug 25",128907,101800],["Sep 25",133615,103600],["Oct 25",133400,105800],["Nov 25",140390,107600],["Dec 25",142373,109800],["Jan 26",145937,112200],["Feb 26",151425,114200],["Mar 26",153565,116600],["Apr 26",168902,119000],["May 26",170064,121000],["Jun 26",170314,123000],["Jul 26",179656,125000],["Aug 26",193208,127400],["Sep 26",190955,129800],["Oct 26",196719,131800]];
+
+const bars = document.getElementById('bars');
+const readout = document.getElementById('readout');
+const max = Math.max(...SERIES.map(s => s[1]));
+const fmt = n => '$' + n.toLocaleString('en-US');
+
+function show(i) {
+  const [m, v, inv] = SERIES[i];
+  const gain = v - inv;
+  const cls = gain >= 0 ? 'g' : 'l';
+  readout.innerHTML = `${m} · <span class="v">${fmt(v)}</span> · invested ${fmt(inv)} · <span class="${cls}">${gain >= 0 ? '+' : '−'}${fmt(Math.abs(gain))}</span>`;
+  bars.querySelectorAll('.bar.active').forEach(b => b.classList.remove('active'));
+  if (i !== SERIES.length - 1) bars.children[i].classList.add('active');
+}
+
+SERIES.forEach(([m, v, inv], i) => {
+  const b = document.createElement('div');
+  b.className = 'bar' + (m.startsWith('Jan') ? ' jan' : '') + (i === SERIES.length - 1 ? ' now' : '');
+  b.style.setProperty('--h', (v / max * 100).toFixed(2) + '%');
+  b.style.setProperty('--inv', (inv / v * 100).toFixed(2) + '%');
+  b.style.setProperty('--i', i);
+  b.addEventListener('pointerenter', () => show(i));
+  bars.appendChild(b);
+});
+bars.addEventListener('pointerleave', () => show(SERIES.length - 1));
+show(SERIES.length - 1);
+
+// Tour tabs
+const tabs = [...document.querySelectorAll('.tour-tab')];
+const img = document.getElementById('tour-img');
+function select(tab) {
+  tabs.forEach(t => t.setAttribute('aria-selected', String(t === tab)));
+  tabs.forEach(t => t.tabIndex = t === tab ? 0 : -1);
+  img.src = `img/${tab.dataset.img}.png`;
+  img.alt = tab.dataset.alt;
+}
+tabs.forEach((t, i) => {
+  t.tabIndex = i === 0 ? 0 : -1;
+  t.addEventListener('click', () => select(t));
+  t.addEventListener('keydown', e => {
+    const d = e.key === 'ArrowDown' || e.key === 'ArrowRight' ? 1 : e.key === 'ArrowUp' || e.key === 'ArrowLeft' ? -1 : 0;
+    if (!d) return;
+    e.preventDefault();
+    const next = tabs[(i + d + tabs.length) % tabs.length];
+    select(next); next.focus();
+  });
+});
+tabs.forEach(t => { const p = new Image(); p.src = `img/${t.dataset.img}.png`; });
+</script>
+</body>
+</html>

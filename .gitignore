@@ -24,3 +24,6 @@ web/dist
 /data
 .env
 /docker-compose.override.yml
+
+web/dist-demo/
+/dist-site/

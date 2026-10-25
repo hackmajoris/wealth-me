@@ -666,3 +666,14 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Demo banner ─────────────────────────────────────────────────────────── */
+.demo-banner {
+  margin-bottom: 20px;
+  padding: 10px 14px;
+  border: 1px solid var(--yellow);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+}

@@ -36,6 +36,37 @@ make clean            # remove build artifacts
 
 The dev server listens on `http://localhost:8080` by default.
 
+## Demo
+
+The demo runs entirely in the browser: an in-memory mock API (`web/src/lib/demo/`)
+replaces the Go backend and serves generated sample data from Jan 2021 to the current month. Nothing is
+persisted; changes reset on reload.
+
+```bash
+make demo             # build the demo and serve it at http://localhost:8199
+make demo-dev         # same, with the Vite dev server and hot reload
+```
+
+`npm run build:demo` (in `web/`) outputs a static site to `web/dist-demo/` with
+relative asset paths, so it can be hosted under any subpath.
+
+## Website
+
+The project page lives in `site/` (plain HTML, screenshots in `site/img/`).
+On GitHub Pages it is served at the root with the demo under `/demo/`.
+
+```bash
+make site             # assemble dist-site/ (landing + demo) and serve at http://localhost:8199/
+make site-build       # assemble dist-site/ only
+```
+
+The `Deploy site to GitHub Pages` workflow runs `make site-build` and publishes
+`dist-site/` to the `gh-pages` branch on every `v*` tag or manual run.
+
+The mock mirrors the server handlers; when an endpoint changes in `pkg/`,
+update `web/src/lib/demo/mockApi.ts` to match. Benchmark index prices in the
+demo are synthetic.
+
 ## Docker
 
 ```bash

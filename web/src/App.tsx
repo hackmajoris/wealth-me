@@ -8,7 +8,7 @@ import { Savings } from './pages/Savings';
 import { Settings } from './pages/Settings';
 import { Assets } from './pages/Assets';
 import { Debts } from './pages/Debts';
-import { api } from './lib/api';
+import { api, isDemo } from './lib/api';
 import type { Entry } from './lib/storage';
 
 type TabId =
@@ -99,13 +99,9 @@ export function App() {
       case 'dashboard':
         return <Dashboard />;
       case 'stocks':
-        return (
-          <Stocks showModal={showModal} entries={entries} onRefresh={refreshEntries} />
-        );
+        return <Stocks showModal={showModal} entries={entries} onRefresh={refreshEntries} />;
       case 'crypto':
-        return (
-          <Crypto showModal={showModal} entries={entries} onRefresh={refreshEntries} />
-        );
+        return <Crypto showModal={showModal} entries={entries} onRefresh={refreshEntries} />;
       case 'performance':
         return <Performance showModal={showModal} />;
       case 'savings':
@@ -168,7 +164,7 @@ export function App() {
           </button>
         ))}
         <div className="sidebar-footer">
-          <div>Live data · Apr 2026</div>
+          <div>{isDemo ? 'Demo · sample data' : 'Live data · Apr 2026'}</div>
         </div>
       </nav>
 
@@ -184,7 +180,14 @@ export function App() {
       </div>
 
       {/* Content */}
-      <main className="main">{renderTab()}</main>
+      <main className="main">
+        {isDemo && (
+          <div className="demo-banner">
+            Demo mode — sample data generated in your browser. Changes reset on reload.
+          </div>
+        )}
+        {renderTab()}
+      </main>
     </div>
   );
 }

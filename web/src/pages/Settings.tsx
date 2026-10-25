@@ -1,5 +1,5 @@
 import { useState, useRef, type ReactNode, useEffect } from 'react';
-import { api, ApiError } from '../lib/api';
+import { api, ApiError, isDemo } from '../lib/api';
 import type { ExchangeRates } from '../lib/api';
 import type { Entry } from '../lib/storage';
 
@@ -1213,7 +1213,7 @@ export function Settings({
             [
               ['App', 'Wealth Me'],
               ['Entries', String(entries.length)],
-              ['Data storage', 'SQLite (server)'],
+              ['Data storage', isDemo ? 'In-browser (demo)' : 'SQLite (server)'],
               ['Database path', dbPath || '—'],
               ['Version', '1.0.0'],
             ] as [string, string][]

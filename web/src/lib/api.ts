@@ -1,4 +1,5 @@
 import type { Entry, SavingsEntry, Asset, Debt } from './storage';
+import { mockApi } from './demo/mockApi';
 
 // ── Error ────────────────────────────────────────────────────────────────────
 
@@ -302,7 +303,7 @@ const initMonth = () => post<void>('/api/init-month', {});
 
 // ── Public surface ───────────────────────────────────────────────────────────
 
-export const api = {
+const realApi = {
   entries,
   savings,
   upload,
@@ -317,3 +318,11 @@ export const api = {
   info,
   benchmarks: benchmarksApi,
 };
+
+export type Api = typeof realApi;
+
+// Demo builds (VITE_DEMO=true) swap in an in-browser mock so the app runs
+// without a backend, e.g. on GitHub Pages.
+export const isDemo = import.meta.env.VITE_DEMO === 'true';
+
+export const api: Api = isDemo ? mockApi : realApi;
