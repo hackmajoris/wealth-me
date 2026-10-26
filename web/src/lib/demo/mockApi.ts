@@ -9,6 +9,8 @@ import type {
   BenchmarkData,
   CryptoData,
   DebtEntry,
+  Section,
+  SectionId,
   StockData,
   YearlyBenchmark,
 } from '../api';
@@ -44,6 +46,27 @@ function newId(table: keyof typeof nextId): number {
 // Responses are copies so callers can't mutate the store by accident.
 function respond<T>(v: T): Promise<T> {
   return Promise.resolve(v === undefined ? v : (structuredClone(v) as T));
+}
+
+// Mirrors pkg/settings/sections.go: zero rows don't count as data.
+const SECTION_IDS: SectionId[] = ['stocks', 'crypto', 'savings', 'assets', 'debts'];
+
+function sections(): Section[] {
+  const d = store();
+  const disabled = (d.settings.strings['disabled_sections'] ?? '').split(',');
+  const counts: Record<SectionId, number> = {
+    stocks: d.entries.filter((e) => e.stocksInvested !== 0 || e.stocksReturn !== 0).length,
+    crypto: d.entries.filter((e) => e.cryptoInvested !== 0 || e.cryptoReturn !== 0).length,
+    savings: d.savings.filter((e) => e.netIncome !== 0 || e.totalExpenses !== 0).length,
+    assets: d.assets.length + d.assetEntries.filter((e) => e.amount !== 0).length,
+    debts: d.debts.length + d.debtEntries.filter((e) => e.amount !== 0).length,
+  };
+  return SECTION_IDS.map((id) => ({
+    id,
+    enabled: !disabled.includes(id),
+    entries: counts[id],
+    canDisable: counts[id] === 0,
+  }));
 }
 
 const notFound = () => new ApiError(404, '404 page not found\n');
@@ -502,6 +525,20 @@ export const mockApi: Api = /* @__PURE__ */ rejecting<Api>({
       store().settings.numbers['rate_usd_to_ron'] = rates.usdToRon;
       store().settings.numbers['rate_eur_to_ron'] = rates.eurToRon;
       return respond(rates);
+    },
+    getSections: () => respond(sections()),
+    setSection: (id, enabled) => {
+      const all = sections();
+      const sec = all.find((x) => x.id === id);
+      if (!sec) throw new ApiError(400, `unknown section: "${id}"\n`);
+      if (!enabled && !sec.canDisable)
+        throw new ApiError(409, "delete the section's entries before disabling it\n");
+      sec.enabled = enabled;
+      store().settings.strings['disabled_sections'] = all
+        .filter((x) => !x.enabled)
+        .map((x) => x.id)
+        .join(',');
+      return respond(all);
     },
   },
 

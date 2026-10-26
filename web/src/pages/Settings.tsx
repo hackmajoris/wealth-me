@@ -1,6 +1,7 @@
 import { useState, useRef, type ReactNode, useEffect } from 'react';
 import { api, ApiError, isDemo } from '../lib/api';
-import type { ExchangeRates } from '../lib/api';
+import type { ExchangeRates, Section } from '../lib/api';
+import { SectionToggles } from '../components/SectionToggles';
 import type { Entry } from '../lib/storage';
 
 function exportCSV(entries: Entry[]): void {
@@ -69,6 +70,8 @@ interface SettingsProps {
   onClear: () => void;
   theme: string;
   onThemeChange: (t: string) => void;
+  sections: Section[];
+  onSectionsChange: (sections: Section[]) => void;
 }
 
 export function Settings({
@@ -78,6 +81,8 @@ export function Settings({
   onClear,
   theme,
   onThemeChange,
+  sections,
+  onSectionsChange,
 }: SettingsProps) {
   const [dragOver, setDragOver] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
@@ -323,6 +328,10 @@ export function Settings({
             ))}
           </div>
         </div>
+      </SettingSection>
+
+      <SettingSection title="Sections">
+        <SectionToggles sections={sections} onChange={onSectionsChange} />
       </SettingSection>
 
       <SettingSection title="Savings">

@@ -104,6 +104,8 @@ func run(_ []string, out io.Writer) error {
 	mux.HandleFunc("GET /api/settings/debts-currency", settingsHandler.GetDebtsCurrency)
 	mux.HandleFunc("POST /api/settings/debts-currency", settingsHandler.SetDebtsCurrency)
 	mux.HandleFunc("GET /api/settings/exchange-rates", settingsHandler.GetExchangeRates)
+	mux.HandleFunc("GET /api/settings/sections", settingsHandler.GetSections)
+	mux.HandleFunc("POST /api/settings/sections", settingsHandler.SetSection)
 
 	mux.HandleFunc("GET /api/upload/csv/template", uploadHandler.HandleCSVTemplate)
 	mux.HandleFunc("POST /api/upload/csv", uploadHandler.HandleCSV)

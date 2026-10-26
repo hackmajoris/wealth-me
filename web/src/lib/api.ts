@@ -189,6 +189,16 @@ export interface ExchangeRates {
   eurToRon: number;
 }
 
+export type SectionId = 'stocks' | 'crypto' | 'savings' | 'assets' | 'debts';
+
+export interface Section {
+  id: SectionId;
+  enabled: boolean;
+  entries: number;
+  // Server-side rule: false while the section holds entries.
+  canDisable: boolean;
+}
+
 const settings = {
   getSavingsTarget: () => get<SavingsTargetSetting>('/api/settings/savings-target'),
   setSavingsTarget: (value: number) =>
@@ -204,6 +214,9 @@ const settings = {
   getExchangeRates: () => get<ExchangeRates>('/api/settings/exchange-rates'),
   setExchangeRates: (rates: ExchangeRates) =>
     post<ExchangeRates>('/api/settings/exchange-rates', rates),
+  getSections: () => get<Section[]>('/api/settings/sections'),
+  setSection: (id: SectionId, enabled: boolean) =>
+    post<Section[]>('/api/settings/sections', { id, enabled }),
 };
 
 // ── /api/info ────────────────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { EntryModal } from './components/EntryModal';
+import { LogoMark } from './components/LogoMark';
 import { Dashboard } from './pages/Dashboard';
 import { Stocks } from './pages/Stocks';
 import { Crypto } from './pages/Crypto';
@@ -8,7 +9,7 @@ import { Savings } from './pages/Savings';
 import { Settings } from './pages/Settings';
 import { Assets } from './pages/Assets';
 import { Debts } from './pages/Debts';
-import { api, isDemo } from './lib/api';
+import { api, isDemo, type Section } from './lib/api';
 import type { Entry } from './lib/storage';
 
 type TabId =
@@ -59,6 +60,7 @@ export function App() {
   const [modalOpen, setModalOpen] = useState(false);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [savingsRefreshTrigger, setSavingsRefreshTrigger] = useState(0);
+  const [sections, setSections] = useState<Section[]>([]);
   const [theme, setTheme] = useState<string>(() => {
     const t = localStorage.getItem('theme') ?? 'dark';
     document.documentElement.dataset['theme'] = t;
@@ -77,6 +79,21 @@ export function App() {
   const refreshSavingsEntries = useCallback(() => {
     setSavingsRefreshTrigger((t) => t + 1);
   }, []);
+
+  useEffect(() => {
+    api.settings.getSections().then(setSections).catch(console.error);
+  }, []);
+
+  const isOff = (id: TabId) => sections.some((s) => s.id === id && !s.enabled);
+  const visibleTabs = TAB_IDS.filter((id) => !isOff(id));
+  // Entry modal edits stocks and crypto together; drop the half that's turned off.
+  const entryType = isOff('stocks') ? 'crypto' : isOff('crypto') ? 'stocks' : 'both';
+
+  // Leave a page whose section was just turned off.
+  useEffect(() => {
+    if (isOff(tab)) setTab('dashboard');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sections, tab]);
 
   useEffect(() => {
     api
@@ -125,6 +142,8 @@ export function App() {
             onClear={refreshEntries}
             theme={theme}
             onThemeChange={setTheme}
+            sections={sections}
+            onSectionsChange={setSections}
           />
         );
     }
@@ -138,7 +157,12 @@ export function App() {
   return (
     <div className="layout">
       {modalOpen && (
-        <EntryModal entry={editEntry} onClose={() => setModalOpen(false)} onSave={refreshEntries} />
+        <EntryModal
+          entry={editEntry}
+          type={entryType}
+          onClose={() => setModalOpen(false)}
+          onSave={refreshEntries}
+        />
       )}
 
       {/* Sidebar backdrop (mobile) */}
@@ -149,10 +173,10 @@ export function App() {
       {/* Sidebar */}
       <nav className={`sidebar${mobileNavOpen ? ' open' : ''}`}>
         <div className="sidebar-logo">
-          <div className="logo-icon">W</div>
+          <LogoMark />
           Wealth Me
         </div>
-        {TAB_IDS.map((id) => (
+        {visibleTabs.map((id) => (
           <button
             key={id}
             className={`nav-item ${tab === id ? 'active' : ''}`}
@@ -178,7 +202,7 @@ export function App() {
           ☰
         </button>
         <div className="mobile-header-logo">
-          <div className="logo-icon">W</div>
+          <LogoMark />
           Wealth Me
         </div>
       </div>

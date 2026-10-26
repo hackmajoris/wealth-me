@@ -188,6 +188,41 @@ func (h *Handler) SetExchangeRates(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, body)
 }
 
+// GetSections returns the optional sections with their state and entry counts.
+func (h *Handler) GetSections(w http.ResponseWriter, r *http.Request) {
+	sections, err := h.store.Sections()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, sections)
+}
+
+// SetSection enables or disables one section.
+func (h *Handler) SetSection(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		ID      string `json:"id"`
+		Enabled bool   `json:"enabled"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+	sections, err := h.store.SetSectionEnabled(body.ID, body.Enabled)
+	switch {
+	case errors.Is(err, ErrUnknownSection):
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	case errors.Is(err, ErrSectionHasEntries):
+		http.Error(w, "delete the section's entries before disabling it", http.StatusConflict)
+		return
+	case err != nil:
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, sections)
+}
+
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
